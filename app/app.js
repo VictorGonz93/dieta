@@ -537,11 +537,11 @@ function displayNextDayPrediction() {
                     </div>
                     <div class="factor">
                         <span class="factor-label">🎯 Meta ingesta:</span>
-                        <span class="factor-value">${nextPred.calorieTarget} kcal</span>
+                        <span class="factor-value">${nextPred.calorieTarget || '-'} kcal</span>
                     </div>
                     <div class="factor">
                         <span class="factor-label">💨 TDEE (gasto):</span>
-                        <span class="factor-value">${nextPred.tdee} kcal</span>
+                        <span class="factor-value">${nextPred.tdee || '-'} kcal</span>
                     </div>
                     <div class="factor">
                         <span class="factor-label">❌ Déficit vs META:</span>
