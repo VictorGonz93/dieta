@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a202c">
+    <meta name="description" content="Rastreador de nutrición profesional con cálculo automático de macros, gráficos en tiempo real y sincronización offline">
+    <title>📊 Nutrition Tracker Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><text y='150' font-size='150'>💪</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER MEJORADO -->
+        <header>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>📊 Nutrition Tracker Pro</h1>
+                    <p class="header-subtitle">Sistema profesional de rastreo nutricional</p>
+                </div>
+                <div class="header-right">
+                    <div class="header-stat">
+                        <span class="stat-label">Día</span>
+                        <span class="stat-value" id="dayCounter">140</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-label">Peso</span>
+                        <span class="stat-value" id="currentWeight">73.1 kg</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-label">Progreso</span>
+                        <span class="stat-value" id="progressPercent">80%</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-label">Hoy</span>
+                        <span class="stat-value" id="dayType">😴 Descanso</span>
+                    </div>
+                    <button id="darkModeToggle" class="dark-mode-btn" title="Cambiar tema" onclick="toggleDarkMode()">🌙</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- BARRA RÁPIDA DE MACROS -->
+        <div class="quick-macros">
+            <div class="macro-bar" id="calorieBar"></div>
+            <div class="macro-stats">
+                <div class="macro-stat">
+                    <span>🔥 Calorías</span>
+                    <span id="quickCals">0 / 1550</span>
+                </div>
+                <div class="macro-stat">
+                    <span>💪 Proteína</span>
+                    <span id="quickProtein">0 / 160g</span>
+                </div>
+                <div class="macro-stat">
+                    <span>🥔 Carbos</span>
+                    <span id="quickCarbs">0 / 130g</span>
+                </div>
+                <div class="macro-stat">
+                    <span>🥑 Grasas</span>
+                    <span id="quickFats">0 / 60g</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAVEGACIÓN -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="hoy">
+                <span class="tab-icon">🏠</span>
+                <span class="tab-label">Hoy</span>
+            </button>
+            <button class="tab-btn" data-tab="productos">
+                <span class="tab-icon">🍽️</span>
+                <span class="tab-label">Productos</span>
+            </button>
+            <button class="tab-btn" data-tab="gestionar">
+                <span class="tab-icon">➕</span>
+                <span class="tab-label">Gestionar</span>
+            </button>
+            <button class="tab-btn" data-tab="historial">
+                <span class="tab-icon">📊</span>
+                <span class="tab-label">Gráficos</span>
+            </button>
+            <button class="tab-btn" data-tab="estadisticas">
+                <span class="tab-icon">📈</span>
+                <span class="tab-label">Estadísticas</span>
+            </button>
+            <button class="tab-btn" data-tab="config">
+                <span class="tab-icon">⚙️</span>
+                <span class="tab-label">Config</span>
+            </button>
+        </nav>
+
+        <!-- TAB 1: HOY -->
+        <div class="tab-content active" id="hoy">
+            <div class="day-card">
+                <div class="day-header">
+                    <div>
+                        <h2 id="dayTitle">📅 Día 140 | 😴 DESCANSO</h2>
+                        <p class="day-date" id="dayDate">18 de mayo de 2026</p>
+                    </div>
+                    <div class="day-nav-inline">
+                        <button class="nav-btn" onclick="previousDay()" title="Día anterior">←</button>
+                        <button class="nav-btn" onclick="todayDay()" title="Ir a hoy">Hoy</button>
+                        <button class="nav-btn" onclick="nextDay()" title="Día siguiente">→</button>
+                    </div>
+                </div>
+
+                <!-- COMIDAS -->
+                <div class="meals-section">
+                    <div class="meal-card">
+                        <h3>🌅 Desayuno</h3>
+                        <div class="meal-items" id="breakfast-items"></div>
+                        <button class="btn-add" onclick="openModal('breakfast')">+ Agregar</button>
+                        <div class="meal-total" id="breakfast-total">0 kcal | 0g P</div>
+                    </div>
+
+                    <div class="meal-card">
+                        <h3>🍽️ Comida Principal</h3>
+                        <div class="meal-items" id="lunch-items"></div>
+                        <button class="btn-add" onclick="openModal('lunch')">+ Agregar</button>
+                        <div class="meal-total" id="lunch-total">0 kcal | 0g P</div>
+                    </div>
+
+                    <div class="meal-card">
+                        <h3>🥤 Snack / Post-entreno</h3>
+                        <div class="meal-items" id="snack-items"></div>
+                        <button class="btn-add" onclick="openModal('snack')">+ Agregar</button>
+                        <div class="meal-total" id="snack-total">0 kcal | 0g P</div>
+                    </div>
+
+                    <div class="meal-card">
+                        <h3>🌙 Cena</h3>
+                        <div class="meal-items" id="dinner-items"></div>
+                        <button class="btn-add" onclick="openModal('dinner')">+ Agregar</button>
+                        <div class="meal-total" id="dinner-total">0 kcal | 0g P</div>
+                    </div>
+                </div>
+
+                <!-- RESUMEN PROFESIONAL -->
+                <div class="summary-card">
+                    <h3>📊 RESUMEN DEL DÍA</h3>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <div class="summary-icon">🔥</div>
+                            <div class="summary-data">
+                                <span class="summary-label">Calorías</span>
+                                <span class="summary-value" id="sumCals">0</span>
+                                <span class="summary-goal" id="calsGoal">/ 1550</span>
+                                <span class="summary-status" id="statusCals">⚠️</span>
+                            </div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-icon">💪</div>
+                            <div class="summary-data">
+                                <span class="summary-label">Proteína</span>
+                                <span class="summary-value" id="sumProtein">0g</span>
+                                <span class="summary-goal" id="proteinGoal">/ 160g</span>
+                                <span class="summary-status" id="statusProtein">⚠️</span>
+                            </div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-icon">🥔</div>
+                            <div class="summary-data">
+                                <span class="summary-label">Hidratos</span>
+                                <span class="summary-value" id="sumCarbs">0g</span>
+                                <span class="summary-goal" id="carbsGoal">/ 110g</span>
+                                <span class="summary-status" id="statusCarbs">⚠️</span>
+                            </div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-icon">🥑</div>
+                            <div class="summary-data">
+                                <span class="summary-label">Grasas</span>
+                                <span class="summary-value" id="sumFats">0g</span>
+                                <span class="summary-goal" id="fatsGoal">/ 50g</span>
+                                <span class="summary-status" id="statusFats">⚠️</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PROYECCIÓN DE PESO -->
+                <div id="weightPrediction"></div>
+                
+                <!-- PREDICCIÓN PRÓXIMO DÍA -->
+                <div id="nextDayPrediction"></div>
+                
+                <!-- SUGERENCIAS DE MACROS -->
+                <div id="macroSuggestions"></div>
+                
+                <!-- PROGRESO SEMANAL -->
+                <div id="weeklyProgress"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2: PRODUCTOS -->
+        <div class="tab-content" id="productos">
+            <div class="products-section">
+                <h2>🍽️ Base de Datos de Productos</h2>
+                
+                <div class="products-filters">
+                    <input type="text" id="searchProduct" placeholder="🔍 Buscar producto..." class="search-input">
+                    <select id="categoryFilter" class="category-select">
+                        <option value="">Todas las categorías</option>
+                        <option value="bebidas">🥛 Bebidas/Lácteos</option>
+                        <option value="proteinas">🥚 Proteínas</option>
+                        <option value="carbos">🥔 Carbohidratos</option>
+                        <option value="suplementos">💊 Suplementos</option>
+                    </select>
+                </div>
+
+                <div class="products-list" id="productsList"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2B: GESTIONAR PRODUCTOS -->
+        <div class="tab-content" id="gestionar">
+            <div class="gestionar-section">
+                <h2>➕ Gestionar Productos</h2>
+                
+                <div class="gestionar-form">
+                    <div class="form-row">
+                        <input type="text" id="newProductName" placeholder="Nombre del producto" required>
+                    </div>
+                    <div class="form-row">
+                        <select id="newProductCategory">
+                            <option value="bebidas">🥛 Bebidas</option>
+                            <option value="proteinas">💪 Proteínas</option>
+                            <option value="carbos">🥔 Carbos</option>
+                            <option value="platos">🍖 Platos</option>
+                            <option value="suplementos">💊 Suplementos</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <input type="number" id="newProductKcal" placeholder="Kcal (por 100g)" step="0.1" required>
+                        <input type="number" id="newProductProtein" placeholder="Proteína g (por 100g)" step="0.1" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="number" id="newProductCarbs" placeholder="Carbos g (por 100g)" step="0.1" required>
+                        <input type="number" id="newProductFats" placeholder="Grasas g (por 100g)" step="0.1" required>
+                    </div>
+                    <button class="btn-save" onclick="addNewProduct()">✅ Agregar Producto</button>
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">📋 Productos Personalizados</h3>
+                <div class="custom-products-list" id="customProductsList"></div>
+            </div>
+        </div>
+
+        <!-- TAB 3: GRÁFICOS -->
+        <div class="tab-content" id="historial">
+            <div class="history-section">
+                <h2>📊 Gráficos y Progresión</h2>
+                
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>� Peso Predicho vs Real</h3>
+                        <canvas id="weightPredictionChart"></canvas>
+                    </div>
+                
+                    <div class="chart-card">
+                        <h3>�📈 Progresión de Peso</h3>
+                        <canvas id="weightChart"></canvas>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>🔥 Calorías Diarias</h3>
+                        <canvas id="caloriesChart"></canvas>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>💪 Proteína Diaria</h3>
+                        <canvas id="proteinChart"></canvas>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>📊 Distribución de Macros (Promedio)</h3>
+                        <canvas id="macroChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: ESTADÍSTICAS -->
+        <div class="tab-content" id="estadisticas">
+            <div class="stats-section">
+                <h2>📈 Estadísticas Detalladas</h2>
+                
+                <!-- RESUMEN SEMANAL -->
+                <div id="weeklyStats"></div>
+                
+                <!-- PRECISIÓN DE PREDICCIONES -->
+                <div id="predictionAccuracy"></div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>📊 Esta Semana</h3>
+                        <div class="stat-content" id="weekStats"></div>
+                    </div>
+
+                    <div class="stat-card">
+                        <h3>🎯 Promedio General</h3>
+                        <div class="stat-content" id="avgStats"></div>
+                    </div>
+
+                    <div class="stat-card">
+                        <h3>🏆 Mejor Día</h3>
+                        <div class="stat-content" id="bestDayStats"></div>
+                    </div>
+                </div>
+
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+
+        <!-- TAB 5: CONFIGURACIÓN -->
+        <div class="tab-content" id="config">
+            <div class="config-section">
+                <h2>⚙️ Configuración</h2>
+                
+                <div class="config-tabs">
+                    <button class="config-tab-btn active" onclick="switchConfigTab('personal')">👤 Personal</button>
+                    <button class="config-tab-btn" onclick="switchConfigTab('objetivos')">🎯 Objetivos</button>
+                    <button class="config-tab-btn" onclick="switchConfigTab('datos')">💾 Datos</button>
+                </div>
+
+                <!-- TAB CONFIG: PERSONAL -->
+                <div class="config-tab active" id="tab-personal">
+                    <div class="config-card">
+                        <h3>📊 Datos Personales</h3>
+                        <div class="config-row">
+                            <label>Peso Inicial (kg):</label>
+                            <input type="number" id="startWeight" step="0.1" value="85.4">
+                        </div>
+                        <div class="config-row">
+                            <label>Peso Actual (kg):</label>
+                            <input type="number" id="currentWeightInput" step="0.1" value="73.1">
+                        </div>
+                        <div class="config-row">
+                            <label>Fecha Inicio Déficit:</label>
+                            <input type="date" id="startDate" value="2025-12-30">
+                        </div>
+                        <div class="config-row">
+                            <label>Peso Objetivo (kg):</label>
+                            <input type="number" id="targetWeight" step="0.1" value="70">
+                        </div>
+                        <div class="config-row">
+                            <label>Altura (cm):</label>
+                            <input type="number" id="height" value="170">
+                        </div>
+                        <div class="config-row">
+                            <label>Edad (años):</label>
+                            <input type="number" id="age" value="33">
+                        </div>
+                        <div class="config-row">
+                            <label>Sexo:</label>
+                            <select id="gender">
+                                <option value="male">Hombre</option>
+                                <option value="female">Mujer</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Card de Valores Calculados -->
+                    <div class="config-card">
+                        <h3>📈 Valores Calculados (Mifflin-St Jeor)</h3>
+                        <div class="config-row">
+                            <label>TMR (Tasa Metabólica en Reposo):</label>
+                            <span id="tmrValue" class="value-display">Cargando...</span>
+                        </div>
+                        <div class="config-row">
+                            <label>TDEE Día de Entreno (×1.55):</label>
+                            <span id="tdeeEntrenoValue" class="value-display">Cargando...</span>
+                        </div>
+                        <div class="config-row">
+                            <label>TDEE Día de Descanso (×1.30):</label>
+                            <span id="tdeeDescansoValue" class="value-display">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB CONFIG: OBJETIVOS -->
+                <div class="config-tab" id="tab-objetivos">
+                    <div class="config-card">
+                        <h3>🎯 Objetivos Nutricionales</h3>
+                        <div class="config-row">
+                            <label>Proteína (g/día):</label>
+                            <input type="number" id="proteinGoalInput" value="160">
+                        </div>
+                        <div class="config-row">
+                            <label>Calorías Entreno:</label>
+                            <input type="number" id="calsEntrenamiento" value="1800">
+                        </div>
+                        <div class="config-row">
+                            <label>Calorías Descanso:</label>
+                            <input type="number" id="calsDescanso" value="1650">
+                        </div>
+                        <div class="config-row">
+                            <label>Rango Hidratos (g):</label>
+                            <div class="range-input">
+                                <input type="number" id="carbsMin" value="80"> - <input type="number" id="carbsMax" value="130">
+                            </div>
+                        </div>
+                        <div class="config-row">
+                            <label>Rango Grasas (g):</label>
+                            <div class="range-input">
+                                <input type="number" id="fatsMin" value="45"> - <input type="number" id="fatsMax" value="60">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB CONFIG: DATOS -->
+                <div class="config-tab" id="tab-datos">
+                    <div class="config-card">
+                        <h3>💾 Gestión de Datos</h3>
+                        <button class="btn-export" onclick="exportData()">📥 Descargar Datos (JSON)</button>
+                        <button class="btn-export" onclick="exportCSV()">📊 Descargar CSV</button>
+                        <button class="btn-import" onclick="document.getElementById('importFile').click()">📤 Cargar JSON</button>
+                        <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+                        <button class="btn-delete" onclick="clearAllData()">🗑️ Borrar Todo</button>
+                    </div>
+
+                    <div class="config-card">
+                        <h3>ℹ️ Información</h3>
+                        <div class="info-box">
+                            <p><strong>Versión:</strong> 1.0 Pro</p>
+                            <p id="storageInfo"><strong>Almacenamiento usado:</strong> -</p>
+                            <p><strong>Datos privados:</strong> 100% local</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-save" onclick="saveConfig()">💾 Guardar Configuración</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>➕ Agregar Alimento</h2>
+            
+            <div class="modal-search">
+                <input type="text" id="modalSearch" placeholder="Buscar producto..." class="search-input">
+                <div id="suggestedProducts" class="suggested-products"></div>
+            </div>
+
+            <div class="modal-divider">⏰ Recientes</div>
+            <div id="recentMealsList" class="recent-meals-list"></div>
+
+            <div class="modal-divider">O crea uno manual</div>
+
+            <div class="modal-form">
+                <div class="form-row">
+                    <input type="text" id="foodName" placeholder="Nombre del alimento" required>
+                </div>
+                <div class="form-row">
+                    <input type="number" id="foodQuantity" placeholder="Cantidad" step="0.1" required>
+                    <input type="text" id="foodUnit" placeholder="Unidad (g, ml)" required>
+                </div>
+                <div class="hint-text">💡 Los macros se calculan automáticamente</div>
+                
+                <div class="macros-grid">
+                    <div class="macro-input-group">
+                        <label for="foodCals">🔥 Calorías</label>
+                        <input type="number" id="foodCals" step="0.1" readonly>
+                    </div>
+                    <div class="macro-input-group">
+                        <label for="foodProtein">💪 Proteína (g)</label>
+                        <input type="number" id="foodProtein" step="0.1" readonly>
+                    </div>
+                    <div class="macro-input-group">
+                        <label for="foodCarbs">🥔 Hidratos (g)</label>
+                        <input type="number" id="foodCarbs" step="0.1" readonly>
+                    </div>
+                    <div class="macro-input-group">
+                        <label for="foodFats">🥑 Grasas (g)</label>
+                        <input type="number" id="foodFats" step="0.1" readonly>
+                    </div>
+                    <div class="macro-input-group">
+                        <label for="foodTime">⏰ Hora (HH:MM) <span class="optional">(opcional)</span></label>
+                        <input type="time" id="foodTime">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-save" onclick="addFood()">✅ Agregar Comida</button>
+        </div>
+    </div>
+
+    <!-- NOTIFICACIONES -->
+    <div id="notification" class="notification"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1578 @@
+/* ==================== CUSTOM TAILWIND EXTENSIONS ==================== */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 100%);
+    color: #e2e8f0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+}
+
+/* ==================== GLASS MORPHISM ==================== */
+
+.glass-effect {
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* ==================== GRADIENTS ==================== */
+
+.gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-accent {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-success {
+    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+}
+
+.gradient-warning {
+    background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+}
+
+/* ==================== TRANSITIONS ==================== */
+
+.smooth-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+}
+
+/* ==================== CARDS & STATS ==================== */
+
+.stat-card {
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+
+.meal-card {
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.meal-card:hover {
+    transform: translateY(-4px);
+}
+
+/* ==================== ICONS ==================== */
+
+.icon-circle {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+/* ==================== PROGRESS BAR ==================== */
+
+.progress-bar {
+    height: 8px;
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    width: 0%;
+    transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: 10px;
+}
+
+/* ==================== MODAL ==================== */
+
+.modal {
+    animation: slideUp 0.3s ease;
+}
+
+.modal.hidden {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.modal.show {
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==================== FOOD ITEM ==================== */
+
+.food-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: rgba(51, 65, 85, 0.5);
+    border-radius: 0.5rem;
+    border-left: 3px solid #667eea;
+    font-size: 0.875rem;
+}
+
+.food-item:hover {
+    background: rgba(51, 65, 85, 0.7);
+}
+
+.food-item button {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.food-item button:hover {
+    background: rgba(239, 68, 68, 0.4);
+    color: #fff;
+}
+
+/* ==================== INPUTS ==================== */
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+input[readonly] {
+    background: #0f172a;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* ==================== BUTTONS ==================== */
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add,
+.btn-save,
+.btn-export,
+.btn-import,
+.btn-delete {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add {
+    background: rgba(102, 126, 234, 0.1);
+    color: #a5b4fc;
+    border: 1px solid #667eea;
+}
+
+.btn-add:hover {
+    background: rgba(102, 126, 234, 0.2);
+    color: #fff;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-export {
+    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    color: white;
+}
+
+.btn-import {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    color: white;
+}
+
+.btn-delete {
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    color: white;
+}
+
+/* ==================== TABS ==================== */
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    color: #e2e8f0;
+    border-bottom-color: #667eea;
+}
+
+.tab-btn.active {
+    color: white;
+    border-bottom-color: #667eea;
+}
+
+.tab-btn .material-icons {
+    font-size: 1.25rem;
+}
+
+/* ==================== TAB CONTENT ==================== */
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==================== CONFIG ==================== */
+
+.config-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.config-tab-btn:hover {
+    color: #e2e8f0;
+}
+
+.config-tab-btn.active {
+    color: white;
+    border-bottom-color: #667eea;
+}
+
+.config-tab {
+    display: none;
+}
+
+.config-tab.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+/* ==================== SCROLLBAR ==================== */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(148, 163, 184, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(102, 126, 234, 0.4);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(102, 126, 234, 0.6);
+}
+
+/* ==================== PRODUCTS LIST ==================== */
+
+.products-list,
+.custom-products-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.product-card {
+    padding: 1rem;
+    background: rgba(51, 65, 85, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.product-card:hover {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: #667eea;
+    transform: translateY(-2px);
+}
+
+.product-card strong {
+    color: #fff;
+}
+
+.product-card p {
+    margin: 0.25rem 0;
+    font-size: 0.875rem;
+    color: #cbd5e1;
+}
+
+/* ==================== CHARTS ==================== */
+
+canvas {
+    max-height: 400px;
+}
+
+/* ==================== PREDICTION CARDS ==================== */
+
+.prediction-card {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    border-left: 4px solid #4ade80;
+    margin: 1rem 0;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.prediction-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    letter-spacing: 0.5px;
+}
+
+.prediction-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.prediction-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    backdrop-filter: blur(10px);
+}
+
+.prediction-stat span:first-child {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.prediction-stat strong {
+    font-size: 1.125rem;
+    font-weight: 700;
+}
+
+.prediction-confidence {
+    font-size: 0.75rem;
+    opacity: 0.75;
+    text-align: center;
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+}
+
+/* ==================== NEXT DAY CARD ==================== */
+
+.next-day-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    border-left: 4px solid #ffd700;
+    margin: 1rem 0;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.next-day-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.next-day-main {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    border-radius: 0.625rem;
+    backdrop-filter: blur(10px);
+}
+
+.next-day-weight {
+    text-align: center;
+}
+
+.weight-label {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.weight-value {
+    font-size: 2rem;
+    font-weight: 700;
+    display: block;
+}
+
+.weight-change {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+.next-day-factors {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.625rem;
+}
+
+.factor {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    backdrop-filter: blur(10px);
+}
+
+.factor-label {
+    font-size: 0.6875rem;
+    opacity: 0.8;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.factor-value {
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.next-day-explanation {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    border-left: 3px solid #ffd700;
+}
+
+.next-day-explanation small {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    line-height: 1.4;
+}
+
+/* ==================== PROGRESS CARD ==================== */
+
+.progress-card {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    color: white;
+    box-shadow: 0 4px 15px rgba(245, 87, 108, 0.2);
+}
+
+.progress-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.progress-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.progress-indicator {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    backdrop-filter: blur(10px);
+}
+
+.indicator-status {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.indicator-details {
+    font-size: 0.8125rem;
+    line-height: 1.6;
+}
+
+.goal-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.625rem;
+}
+
+.info-item {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    text-align: center;
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+    .stat-card,
+    .meal-card {
+        padding: 1rem;
+    }
+
+    .icon-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+
+    .tab-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    .tab-btn .material-icons {
+        font-size: 1rem;
+    }
+}
+
+/* ==================== ANIMATIONS ==================== */
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.loading {
+    background: linear-gradient(
+        to right,
+        rgba(51, 65, 85, 0.3),
+        rgba(102, 126, 234, 0.2),
+        rgba(51, 65, 85, 0.3)
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+    border-radius: 0.5rem;
+}
+
+/* ==================== STATS & PRODUCTS SECTIONS ==================== */
+
+/* Weekly Stats Card */
+.stats-card {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    color: white;
+    box-shadow: 0 10px 30px rgba(79, 172, 254, 0.2);
+}
+
+.stats-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.stats-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.stat-item {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    backdrop-filter: blur(10px);
+}
+
+.stat-item span {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+}
+
+.stat-item strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* Accuracy Card */
+.accuracy-card {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    color: white;
+    box-shadow: 0 10px 30px rgba(250, 112, 154, 0.2);
+}
+
+.accuracy-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.accuracy-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.accuracy-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.625rem;
+}
+
+.accuracy-stats .stat {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+.accuracy-stats span {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+}
+
+.accuracy-stats strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.predictions-list {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    backdrop-filter: blur(10px);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.predictions-list small {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.prediction-item {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1fr;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prediction-item:last-child {
+    border-bottom: none;
+}
+
+/* Product Item Styles */
+.product-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 1rem;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 0.75rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.product-item:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.15);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.product-name {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: #e2e8f0;
+}
+
+.product-portion {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    color: #cbd5e1;
+    margin: 0.375rem 0 0.5rem 0;
+    font-weight: 500;
+}
+
+.product-macros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.625rem;
+}
+
+.macro-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: rgba(102, 126, 234, 0.2);
+    color: #a78bfa;
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.375rem;
+    display: inline-block;
+    white-space: nowrap;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    transition: all 0.2s ease;
+}
+
+.macro-badge:hover {
+    background: rgba(102, 126, 234, 0.3);
+    border-color: rgba(167, 139, 250, 0.6);
+}
+
+.product-add-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.product-add-btn:hover {
+    background: #764ba2;
+    transform: scale(1.05);
+}
+
+/* Custom Product Item */
+.custom-product-item {
+    background: rgba(30, 41, 59, 0.8);
+    padding: 1.125rem;
+    border-radius: 0.75rem;
+    border-left: 4px solid #facc15;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.custom-product-item:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    transform: translateX(4px);
+}
+
+.custom-product-info {
+    flex: 1;
+}
+
+.custom-product-name {
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 0.5rem;
+    font-size: 0.9375rem;
+}
+
+.custom-product-macros {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.375rem;
+}
+
+.custom-product-item small {
+    display: block;
+    margin-top: 0.375rem;
+    opacity: 0.6;
+}
+
+.btn-delete {
+    padding: 0.625rem 1rem;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    margin-left: 0.9375rem;
+}
+
+.btn-delete:hover {
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
+/* ==================== RECENT MEALS MODAL ==================== */
+
+.recent-meals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recent-meal-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 1rem;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 0.75rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.recent-meal-item:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.15);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.recent-meal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.recent-meal-name {
+    font-weight: 700;
+    color: #e2e8f0;
+    font-size: 0.9375rem;
+}
+
+.recent-meal-macros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.recent-meal-badge {
+    padding: 0.375rem 0.875rem;
+    background: #667eea;
+    color: white;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.recent-meal-item:hover .recent-meal-badge {
+    background: #764ba2;
+    transform: scale(1.05);
+}
+
+/* ==================== SUGGESTED PRODUCTS MODAL ==================== */
+
+.suggested-products {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.suggested-product-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 1rem;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 0.75rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.suggested-product-item:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.15);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.suggested-product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.suggested-product-name {
+    font-weight: 700;
+    color: #e2e8f0;
+    font-size: 0.9375rem;
+}
+
+.suggested-product-macros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.suggested-product-badge {
+    padding: 0.375rem 0.875rem;
+    background: #667eea;
+    color: white;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.suggested-product-item:hover .suggested-product-badge {
+    background: #764ba2;
+    transform: scale(1.05);
+}
+
+/* ==================== DARK MODE / LIGHT MODE TOGGLE ==================== */
+
+/* DARK MODE (DEFAULT) */
+body {
+    background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 100%) !important;
+    color: #e2e8f0 !important;
+}
+
+/* LIGHT MODE */
+html:not(.dark-mode) body {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    color: #0f172a !important;
+}
+
+/* Glass effect light mode */
+html:not(.dark-mode) .glass-effect {
+    background: rgba(241, 245, 249, 0.9) !important;
+    border-color: rgba(30, 41, 59, 0.15) !important;
+}
+
+/* Inputs light mode */
+html:not(.dark-mode) input[type="text"],
+html:not(.dark-mode) input[type="number"],
+html:not(.dark-mode) input[type="date"],
+html:not(.dark-mode) select,
+html:not(.dark-mode) textarea {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) input[type="text"]:focus,
+html:not(.dark-mode) input[type="number"]:focus,
+html:not(.dark-mode) input[type="date"]:focus,
+html:not(.dark-mode) select:focus,
+html:not(.dark-mode) textarea:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+
+html:not(.dark-mode) input[readonly] {
+    background: #f1f5f9 !important;
+    color: #94a3b8 !important;
+}
+
+/* Card styling light mode */
+html:not(.dark-mode) .stat-card,
+html:not(.dark-mode) .meal-card {
+    background: rgba(241, 245, 249, 0.9) !important;
+    border-color: rgba(30, 41, 59, 0.1) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .food-item {
+    background: rgba(226, 232, 240, 0.5) !important;
+    color: #0f172a !important;
+    border-color: #667eea !important;
+}
+
+html:not(.dark-mode) .food-item:hover {
+    background: rgba(226, 232, 240, 0.7) !important;
+}
+
+html:not(.dark-mode) .food-item button {
+    color: #dc2626 !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+}
+
+html:not(.dark-mode) .food-item button:hover {
+    background: rgba(239, 68, 68, 0.2) !important;
+    color: #991b1b !important;
+}
+
+/* Product card light mode */
+html:not(.dark-mode) .product-card {
+    background: rgba(241, 245, 249, 0.9) !important;
+    border-color: rgba(30, 41, 59, 0.1) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .product-card strong {
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .product-card p {
+    color: #475569 !important;
+}
+
+html:not(.dark-mode) .product-card:hover {
+    border-color: #667eea !important;
+    background: rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Tab styling light mode */
+html:not(.dark-mode) .tab-btn {
+    color: #64748b !important;
+}
+
+html:not(.dark-mode) .tab-btn:hover {
+    color: #0f172a !important;
+    border-bottom-color: #667eea !important;
+}
+
+html:not(.dark-mode) .tab-btn.active {
+    color: #0f172a !important;
+    border-bottom-color: #667eea !important;
+}
+
+/* Config tab light mode */
+html:not(.dark-mode) .config-tab-btn {
+    color: #64748b !important;
+}
+
+html:not(.dark-mode) .config-tab-btn:hover {
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .config-tab-btn.active {
+    color: #0f172a !important;
+    border-bottom-color: #667eea !important;
+}
+
+/* Product item light mode */
+html:not(.dark-mode) .product-item {
+    background: rgba(241, 245, 249, 0.9) !important;
+    border-color: rgba(30, 41, 59, 0.1) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .product-item:hover {
+    border-color: #667eea !important;
+    background: rgba(102, 126, 234, 0.1) !important;
+}
+
+html:not(.dark-mode) .product-name {
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .product-portion {
+    color: #475569 !important;
+}
+
+html:not(.dark-mode) .macro-badge {
+    background: rgba(102, 126, 234, 0.15) !important;
+    color: #667eea !important;
+    border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+html:not(.dark-mode) .macro-badge:hover {
+    background: rgba(102, 126, 234, 0.25) !important;
+    border-color: rgba(102, 126, 234, 0.6) !important;
+}
+
+/* Custom product light mode */
+html:not(.dark-mode) .custom-product-item {
+    background: rgba(241, 245, 249, 0.9) !important;
+    border-color: rgba(30, 41, 59, 0.1) !important;
+}
+
+html:not(.dark-mode) .custom-product-name {
+    color: #667eea !important;
+}
+
+/* Recent meal light mode */
+html:not(.dark-mode) .recent-meal-item {
+    background: rgba(241, 245, 249, 0.9) !important;
+    border-color: rgba(102, 126, 234, 0.2) !important;
+}
+
+html:not(.dark-mode) .recent-meal-item:hover {
+    border-color: #667eea !important;
+    background: rgba(102, 126, 234, 0.1) !important;
+}
+
+html:not(.dark-mode) .recent-meal-name {
+    color: #0f172a !important;
+}
+
+/* Suggested product light mode */
+html:not(.dark-mode) .suggested-product-item {
+    background: rgba(241, 245, 249, 0.9) !important;
+    border-color: rgba(30, 41, 59, 0.1) !important;
+}
+
+html:not(.dark-mode) .suggested-product-item:hover {
+    border-color: #667eea !important;
+    background: rgba(102, 126, 234, 0.1) !important;
+}
+
+html:not(.dark-mode) .suggested-product-name {
+    color: #0f172a !important;
+}
+
+/* Scrollbar light mode */
+html:not(.dark-mode) ::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.05) !important;
+}
+
+html:not(.dark-mode) ::-webkit-scrollbar-thumb {
+    background: rgba(102, 126, 234, 0.3) !important;
+}
+
+html:not(.dark-mode) ::-webkit-scrollbar-thumb:hover {
+    background: rgba(102, 126, 234, 0.5) !important;
+}
+
+/* Additional light mode fixes */
+
+/* Headers and strong text */
+html:not(.dark-mode) strong,
+html:not(.dark-mode) h1,
+html:not(.dark-mode) h2,
+html:not(.dark-mode) h3,
+html:not(.dark-mode) h4,
+html:not(.dark-mode) h5,
+html:not(.dark-mode) h6 {
+    color: #0f172a !important;
+}
+
+/* Labels and smaller text */
+html:not(.dark-mode) label,
+html:not(.dark-mode) span,
+html:not(.dark-mode) small {
+    color: #1e293b !important;
+}
+
+html:not(.dark-mode) .text-slate-400 {
+    color: #64748b !important;
+}
+
+html:not(.dark-mode) .text-slate-300 {
+    color: #475569 !important;
+}
+
+html:not(.dark-mode) .text-slate-500 {
+    color: #64748b !important;
+}
+
+/* Stat labels in header */
+html:not(.dark-mode) .text-xs {
+    color: #64748b !important;
+}
+
+/* Buttons - Add buttons */
+html:not(.dark-mode) .btn-add,
+html:not(.dark-mode) .product-add-btn {
+    background: #667eea !important;
+    color: #ffffff !important;
+    border-color: #667eea !important;
+}
+
+html:not(.dark-mode) .btn-add:hover,
+html:not(.dark-mode) .product-add-btn:hover {
+    background: #764ba2 !important;
+    border-color: #764ba2 !important;
+    color: #ffffff !important;
+}
+
+/* Meal info text */
+html:not(.dark-mode) .meal-info,
+html:not(.dark-mode) .product-info,
+html:not(.dark-mode) .recent-meal-info,
+html:not(.dark-mode) .suggested-product-info {
+    color: #0f172a !important;
+}
+
+/* Prediction and stats cards */
+html:not(.dark-mode) .prediction-card,
+html:not(.dark-mode) .next-day-card,
+html:not(.dark-mode) .progress-card,
+html:not(.dark-mode) .stats-card,
+html:not(.dark-mode) .accuracy-card {
+    color: #ffffff !important;
+}
+
+html:not(.dark-mode) .prediction-card strong,
+html:not(.dark-mode) .next-day-card strong,
+html:not(.dark-mode) .progress-card strong,
+html:not(.dark-mode) .stats-card strong,
+html:not(.dark-mode) .accuracy-card strong {
+    color: #ffffff !important;
+}
+
+/* Stat item styling in light mode cards */
+html:not(.dark-mode) .stat-item strong,
+html:not(.dark-mode) .stat-item span {
+    color: #ffffff !important;
+}
+
+/* Tab icons color */
+html:not(.dark-mode) .tab-btn .material-icons {
+    color: inherit !important;
+}
+
+html:not(.dark-mode) .tab-btn.active .material-icons {
+    color: #0f172a !important;
+}
+
+/* Header stat values */
+html:not(.dark-mode) #dayNumber,
+html:not(.dark-mode) #currentWeight,
+html:not(.dark-mode) #progressPercent,
+html:not(.dark-mode) #dayType {
+    color: #0f172a !important;
+}
+
+/* Quick macros labels */
+html:not(.dark-mode) .quick-macro-label {
+    color: #64748b !important;
+}
+
+html:not(.dark-mode) .quick-macro-value {
+    color: #0f172a !important;
+}
+
+/* Modal light mode */
+html:not(.dark-mode) .modal {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .modal input,
+html:not(.dark-mode) .modal select,
+html:not(.dark-mode) .modal textarea {
+    color: #0f172a !important;
+    background: #ffffff !important;
+}
+
+/* Calendar section styling */
+html:not(.dark-mode) .calendar-day,
+html:not(.dark-mode) .calendar-info {
+    color: #0f172a !important;
+}
+
+/* Date text */
+html:not(.dark-mode) .date-label {
+    color: #64748b !important;
+}
+
+/* Light mode fixes for Tailwind classes */
+
+/* bg-slate-700/50 buttons in light mode */
+html:not(.dark-mode) button[class*="bg-slate-700"] {
+    background: #667eea !important;
+    color: #ffffff !important;
+}
+
+html:not(.dark-mode) button[class*="bg-slate-700"]:hover {
+    background: #764ba2 !important;
+    color: #ffffff !important;
+}
+
+/* text-slate-300 in light mode */
+html:not(.dark-mode) .text-slate-300,
+html:not(.dark-mode) button .text-slate-300 {
+    color: #ffffff !important;
+}
+
+html:not(.dark-mode) button {
+    color: inherit !important;
+}
+
+/* Ensure button text is readable */
+html:not(.dark-mode) button:not([class*="gradient"]) {
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) button[onclick*="openModal"] {
+    background: #667eea !important;
+    color: #ffffff !important;
+}
+
+html:not(.dark-mode) button[onclick*="openModal"]:hover {
+    background: #764ba2 !important;
+}
+
+/* Additional text fixes */
+html:not(.dark-mode) .font-semibold,
+html:not(.dark-mode) .font-bold {
+    color: #0f172a !important;
+}
+
+/* Summary values */
+html:not(.dark-mode) .summary-value,
+html:not(.dark-mode) .macro-value {
+    color: #0f172a !important;
+}
+
+/* Food macros display */
+html:not(.dark-mode) .food-item-macros {
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .food-item-name {
+    color: #0f172a !important;
+}
+
+/* Form labels */
+html:not(.dark-mode) .form-label,
+html:not(.dark-mode) form label {
+    color: #0f172a !important;
+}
+
+/* Ensure all text in cards is dark */
+html:not(.dark-mode) .stat-card strong,
+html:not(.dark-mode) .stat-card span,
+html:not(.dark-mode) .meal-card strong,
+html:not(.dark-mode) .meal-card span {
+    color: #0f172a !important;
+}
+
+/* Specific text colors for better readability in light mode */
+html:not(.dark-mode) small,
+html:not(.dark-mode) .text-xs,
+html:not(.dark-mode) .text-sm {
+    color: #1e293b !important;
+}
+
+/* Date and time labels */
+html:not(.dark-mode) .food-time {
+    color: #0f172a !important;
+}
+
+/* Paragraph text */
+html:not(.dark-mode) p {
+    color: #0f172a !important;
+}
+
+/* Headings in light mode */
+html:not(.dark-mode) .title,
+html:not(.dark-mode) .subtitle {
+    color: #0f172a !important;
+}
+
+/* Empty state text */
+html:not(.dark-mode) [style*="text-align: center"] {
+    color: #64748b !important;
+}
+
+/* ==================== HISTORY ITEMS STYLING ==================== */
+
+.history-item {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.history-item:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.history-item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.history-item-date {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 0.9375rem;
+}
+
+.history-item-macros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.75rem;
+}
+
+.history-macro {
+    background: rgba(102, 126, 234, 0.15);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border-left: 3px solid #667eea;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.history-macro-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #94a3b8;
+    opacity: 0.8;
+}
+
+.history-macro-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+/* Light mode history items */
+html:not(.dark-mode) .history-item {
+    background: rgba(241, 245, 249, 0.9);
+    border-color: rgba(30, 41, 59, 0.1);
+}
+
+html:not(.dark-mode) .history-item:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+html:not(.dark-mode) .history-item-date {
+    color: #667eea;
+}
+
+html:not(.dark-mode) .history-macro {
+    background: rgba(102, 126, 234, 0.1);
+    border-left-color: #667eea;
+}
+
+html:not(.dark-mode) .history-macro-label {
+    color: #475569;
+}
+
+html:not(.dark-mode) .history-macro-value {
+    color: #0f172a;
+}

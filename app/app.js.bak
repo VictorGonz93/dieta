@@ -1,0 +1,19 @@
+// BACKUP DEL ARCHIVO app.js ORIGINAL
+// Reemplazado por app-pro.js (versión profesional mejorada)
+// Este archivo se conserva como referencia histórica
+
+// DATOS INICIALES
+const PRODUCTS_DB_BACKUP = [
+    // Bebidas/Lácteos
+    { id: 1, name: '🥛 Leche entera + Cacao', portion: 100, unit: 'ml', category: 'bebidas', kcal: 63, protein: 3.2, carbs: 4.6, fats: 2.4 },
+    { id: 2, name: '🥛 Leche entera (pura)', portion: 100, unit: 'ml', category: 'bebidas', kcal: 61, protein: 3.2, carbs: 4.7, fats: 3.6 },
+    { id: 3, name: '🍯 Yogur Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 52, protein: 10, carbs: 1, fats: 0.1 },
+    { id: 4, name: '🍮 Gelatina Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 40, protein: 10, carbs: 1, fats: 0.1 },
+    { id: 5, name: '🍫 Cacao Hacendado', portion: 10, unit: 'g', category: 'bebidas', kcal: 30, protein: 1.5, carbs: 4.5, fats: 0.5 },
+    // Proteínas
+    { id: 6, name: '🥚 Huevo entero', portion: 50, unit: 'g', category: 'proteinas', kcal: 72, protein: 6.3, carbs: 0.6, fats: 5.1 },
+    { id: 7, name: '⚪ Clara de huevo', portion: 30, unit: 'g', category: 'proteinas', kcal: 17, protein: 3.6, carbs: 0.4, fats: 0.1 },
+    { id: 8, name: '🐟 Atún en lata (escurrido)', portion: 100, unit: 'g', category: 'proteinas', kcal: 98, protein: 21, carbs: 0.9, fats: 1.2 },
+    { id: 9, name: '💪 Proteína Whey', portion: 40, unit: 'g', category: 'proteinas', kcal: 155, protein: 34.4, carbs: 1.2, fats: 1.5 },
+    { id: 10, name: '💊 Creatina monohidrato', portion: 5, unit: 'g', category: 'suplementos', kcal: 0, protein: 0, carbs: 0, fats: 0 },
+];
