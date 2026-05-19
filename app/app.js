@@ -75,7 +75,34 @@ function startOnboarding() {
     }, 300);
 }
 
-// ==================== DATA INITIALIZATION ====================
+// ==================== GOALS TRACKING FUNCTIONS ====================
+
+// Calcular y mostrar objetivos
+function updateGoalsDisplay() {
+    if (!isConfigComplete()) return;
+
+    const { startWeight, currentWeight, targetWeight, startDate, height, gender, age } = config;
+    const now = new Date();
+    
+    // Cálculos de progreso
+    const totalToLose = startWeight - targetWeight;
+    const alreadyLost = startWeight - currentWeight;
+    const remaining = currentWeight - targetWeight;
+    const progressPercent = Math.round((alreadyLost / totalToLose) * 100);
+    
+    // BMI
+    const heightM = height / 100;
+    const currentBMI = (currentWeight / (heightM * heightM)).toFixed(1);
+    const targetBMI = (targetWeight / (heightM * heightM)).toFixed(1);
+    
+    // Días en déficit
+    const startD = new Date(startDate);
+    const daysTracking = Math.floor((now - startD) / (1000 * 60 * 60 * 24));
+    
+    // Promedio semanal\n    const weeklyAvg = daysTracking > 0 ? (alreadyLost / (daysTracking / 7)).toFixed(2) : 0;
+    
+    // Estimación para alcanzar meta\n    const expectedWeeklyLoss = 0.5; // kg por semana (asumido)\n    const daysRemaining = remaining > 0 ? Math.round((remaining / (expectedWeeklyLoss / 7))) : 0;
+    const targetDateObj = new Date(now.getTime() + daysRemaining * 24 * 60 * 60 * 1000);\n    const targetDateStr = targetDateObj.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });\n    \n    // Actualizar elementos del DOM\n    el('goalCurrentWeight').textContent = currentWeight.toFixed(1) + ' kg';\n    el('goalTargetWeight').textContent = targetWeight.toFixed(1) + ' kg';\n    el('goalWeightStatus').textContent = `${alreadyLost.toFixed(1)} kg perdidos de ${totalToLose.toFixed(1)} kg`;\n    el('goalTotalLost').textContent = alreadyLost.toFixed(1) + ' kg';\n    el('goalRemaining').textContent = remaining.toFixed(1) + ' kg';\n    el('goalPercentage').textContent = progressPercent + '%';\n    el('goalDaysRemaining').textContent = daysRemaining;\n    el('goalTargetDate').textContent = targetDateStr;\n    el('goalDaysTracking').textContent = daysTracking;\n    el('goalWeeklyAvg').textContent = weeklyAvg + ' kg/sem';\n    el('goalCurrentBMI').textContent = currentBMI;\n    el('goalTargetBMI').textContent = targetBMI;\n    \n    // Barra de progreso\n    const barPercent = Math.min(progressPercent, 100);\n    const goalWeightBar = document.getElementById('goalWeightBar');\n    if (goalWeightBar) {\n        goalWeightBar.style.width = barPercent + '%';\n    }\n    \n    // Macros y calorías\n    const tmr = calculateTMR(currentWeight, height, age, gender);\n    const calsTraining = Math.round(tmr * 1.55);\n    const calsRest = Math.round(tmr * 1.30);\n    \n    el('goalCalsTraining').textContent = calsTraining + ' kcal';\n    el('goalCalsRest').textContent = calsRest + ' kcal';\n    el('goalProtein').textContent = config.proteinGoal || '160' + ' g';\n    el('goalCarbs').textContent = (config.carbsMax || 130) + ' g';\n    el('goalFats').textContent = (config.fatsMax || 60) + ' g';\n    \n    // Mensajes motivacionales\n    updateMotivationalMessage(progressPercent, alreadyLost, remaining);\n}\n\nfunction updateMotivationalMessage(progressPercent, lostWeight, remainingWeight) {\n    const messages = [\n        '¡Vas por buen camino! Continúa con el déficit calórico.',\n        `¡Excelente! Ya has perdido ${lostWeight.toFixed(1)} kg. Solo faltan ${remainingWeight.toFixed(1)} kg.`,\n        `Ya estás al ${progressPercent}% de tu objetivo. ¡Casi lo logras!`,\n        'Mantén la consistencia y alcanzarás tu meta de peso.',\n        `Con el ritmo actual, alcanzarás tu objetivo en poco tiempo.`,\n    ];\n    \n    const randomMessage = messages[Math.floor(Math.random() * messages.length)];\n    const motivationEl = document.getElementById('goalMotivation');\n    if (motivationEl) {\n        motivationEl.textContent = randomMessage;\n    }\n}\n\nfunction calculateTMR(weight, height, age, gender) {\n    // Fórmula Mifflin-St Jeor\n    if (gender === 'male') {\n        return (10 * weight) + (6.25 * height) - (5 * age) + 5;\n    } else {\n        return (10 * weight) + (6.25 * height) - (5 * age) - 161;\n    }\n}\n\n// ==================== DATA INITIALIZATION ===================="
 
 // DATOS INICIALES EXPANDIDA
 const PRODUCTS_DB = [
@@ -550,6 +577,7 @@ function saveDailyWeight() {
     updateWeightPrediction();
     displayNextDayPrediction();
     renderDay();
+    updateGoalsDisplay();
 }
 
 function displayNextDayPrediction() {
@@ -844,6 +872,8 @@ function showTab(tabId) {
     } else if (tabId === 'estadisticas') {
         displayWeeklyStats();
         displayPredictionAccuracy();
+    } else if (tabId === 'objetivos') {
+        updateGoalsDisplay();
     }
 }
 
@@ -966,6 +996,7 @@ function saveConfig() {
     updateWeightPrediction();
     displayNextDayPrediction();
     renderDay();
+    updateGoalsDisplay();
     
     // Si la configuración está completa, cerrar onboarding y limpiar flag
     if (isConfigComplete()) {
