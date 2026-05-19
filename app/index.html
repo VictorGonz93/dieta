@@ -136,6 +136,9 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-slate-950">
+    <!-- NOTIFICATION TOAST -->
+    <div id="notification" class="notification"></div>
+    
     <!-- ONBOARDING MODAL -->
     <div id="onboardingModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700/50 overflow-hidden max-h-[90vh] overflow-y-auto">
@@ -481,7 +484,7 @@
                         </div>
                     </div>
 
-                    <!-- Macro Goals -->
+                    <!-- Macro Goals - Display & Edit -->
                     <div class="stat-card">
                         <h3 class="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                             <span class="material-icons text-primary">restaurant</span>
@@ -509,7 +512,81 @@
                                 <p class="text-xs text-slate-500 mt-1">g/día</p>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-400">💡 Estos objetivos se calculan automáticamente según tu perfil. Actualízalos en la pestaña ⚙️ Config</p>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Protein (g/day)</label>
+                                    <input type="number" id="proteinGoalInput" value="160" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Calorías Entrenamiento</label>
+                                    <input type="number" id="calsEntrenamiento" value="1800" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Calorías Descanso</label>
+                                    <input type="number" id="calsDescanso" value="1650" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Rango Carbohidratos (g)</label>
+                                    <div class="flex gap-2">
+                                        <input type="number" id="carbsMin" value="80" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                        <input type="number" id="carbsMax" value="130" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Rango Grasas (g)</label>
+                                    <div class="flex gap-2">
+                                        <input type="number" id="fatsMin" value="45" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                        <input type="number" id="fatsMax" value="60" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="saveConfig()" class="w-full py-3 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition">
+                                <span class="material-icons inline text-lg mr-2">save</span>Guardar Objetivos
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Weight History -->
+                    <div class="stat-card">
+                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                            <span class="material-icons">show_chart</span>
+                            Histórico de Pesos
+                        </h3>
+                        <p class="text-slate-400 text-sm mb-4">Edita los pesos registrados. Los cambios se guardan automáticamente.</p>
+                        <div class="space-y-3 max-h-72 overflow-y-auto" id="weightHistoryContainer">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="stat-card">
+                        <h3 class="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                            <span class="material-icons text-primary">trending_up</span>
+                            Estadísticas
+                        </h3>
+                        <div id="weeklyStats" class="mb-8"></div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div class="bg-slate-800/50 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+                                    <span class="material-icons text-blue-400 text-sm">calendar_today</span>Esta Semana
+                                </h4>
+                                <div class="stat-content text-sm space-y-2" id="weekStats"></div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+                                    <span class="material-icons text-yellow-400 text-sm">public</span>Promedio General
+                                </h4>
+                                <div class="stat-content text-sm space-y-2" id="avgStats"></div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+                                    <span class="material-icons text-green-400 text-sm">emoji_events</span>Mejor Día
+                                </h4>
+                                <div class="stat-content text-sm space-y-2" id="bestDayStats"></div>
+                            </div>
+                        </div>
+                        <div id="predictionAccuracy" class="mb-6"></div>
                     </div>
 
                     <!-- Motivation Section -->
@@ -744,73 +821,6 @@
                     </div>
                 </div>
 
-                <!-- Accordion: Weight History -->
-                <div class="config-accordion mb-4">
-                    <button class="accordion-header" onclick="toggleAccordion(this)">
-                        <span class="material-icons text-sm">show_chart</span>
-                        <span>Histórico Pesos</span>
-                        <span class="material-icons text-sm accordion-icon">expand_more</span>
-                    </button>
-                    <div class="accordion-content" id="tab-pesos">
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                            <span class="material-icons">show_chart</span>
-                            Histórico de Pesos
-                        </h3>
-                        <p class="text-slate-400 text-sm mb-4">Edita los pesos registrados por día. Los cambios se guardan automáticamente.</p>
-                        
-                        <div class="space-y-3 max-h-96 overflow-y-auto" id="weightHistoryContainer">
-                            <!-- Se llena dinámicamente -->
-                        </div>
-                    </div>
-                    </div>
-                </div>
-
-                <!-- Accordion: Goals -->
-                <div class="config-accordion mb-4">
-                    <button class="accordion-header" onclick="toggleAccordion(this)">
-                        <span class="material-icons text-sm">flag</span>
-                        <span>Objetivos</span>
-                        <span class="material-icons text-sm accordion-icon">expand_more</span>
-                    </button>
-                    <div class="accordion-content" id="tab-objetivos">
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                            <span class="material-icons">target</span>
-                            Objetivos Nutricionales
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Protein (g/day)</label>
-                                <input type="number" id="proteinGoalInput" value="160" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Calorías Entrenamiento</label>
-                                <input type="number" id="calsEntrenamiento" value="1800" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Calorías Descanso</label>
-                                <input type="number" id="calsDescanso" value="1650" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Rango Carbohidratos (g)</label>
-                                <div class="flex gap-2">
-                                    <input type="number" id="carbsMin" value="80" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                    <input type="number" id="carbsMax" value="130" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Rango Grasas (g)</label>
-                                <div class="flex gap-2">
-                                    <input type="number" id="fatsMin" value="45" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                    <input type="number" id="fatsMax" value="60" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    </div>
-                </div>
-
                 <!-- Accordion: Data -->
                 <div class="config-accordion mb-4">
                     <button class="accordion-header" onclick="toggleAccordion(this)">
@@ -852,9 +862,10 @@
                             <p><strong>Privacidad:</strong> 100% datos locales</p>
                         </div>
                     </div>
+                    </div>
                 </div>
 
-                <button onclick="saveConfig()" class="mt-8 w-full py-4 gradient-primary text-white font-bold rounded-lg hover:shadow-lg smooth-transition">Guardar Configuración</button>
+                <button onclick="saveConfig()" class="mt-8 w-full py-4 gradient-primary text-white font-bold rounded-lg hover:shadow-lg smooth-transition">Guardar Cambios Personales</button>
             </div>
         </main>
 
