@@ -839,6 +839,8 @@ function showTab(tabId) {
         renderCustomProducts();
     } else if (tabId === 'hoy') {
         displayWeeklyProgress();
+    } else if (tabId === 'objetivos') {
+        displayGoalsTracking();
     } else if (tabId === 'historial' || tabId === 'graficos') {
         renderWeightPredictionChart();
     } else if (tabId === 'estadisticas') {
@@ -966,6 +968,7 @@ function saveConfig() {
     updateWeightPrediction();
     displayNextDayPrediction();
     renderDay();
+    updateGoalsDisplay();
     
     // Si la configuración está completa, cerrar onboarding y limpiar flag
     if (isConfigComplete()) {
@@ -1639,6 +1642,125 @@ function displayPredictionAccuracy() {
         </div>
     `;
 }
+
+// ==================== GOALS TRACKING DISPLAY ====================
+
+function displayGoalsTracking() {
+    updateGoalsDisplay();
+}
+
+function updateGoalsDisplay() {
+    // Validar que la configuración esté completa
+    if (!isConfigComplete()) {
+        const container = document.getElementById('objetivos');
+        if (container) {
+            container.innerHTML = `
+                <div class="stat-card">
+                    <div class="flex items-center gap-4 mb-4">
+                        <span class="material-icons text-4xl text-primary">info</span>
+                        <div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Completa tu perfil primero</h3>
+                            <p class="text-slate-400">Necesitamos tu información personal para mostrar tus objetivos</p>
+                            <button onclick="showTab('config')" class="mt-4 px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg font-medium smooth-transition">
+                                Ir a Configuración
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        return;
+    }
+    
+    // Calcular datos de progreso
+    const startWeight = config.startWeight;
+    const currentWeight = config.currentWeight;
+    const targetWeight = config.targetWeight;
+    const totalToLose = startWeight - targetWeight;
+    const alreadyLost = startWeight - currentWeight;
+    const stillToLose = currentWeight - targetWeight;
+    const progressPercent = totalToLose > 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0;
+    
+    // Calcular tiempo estimado (0.5 kg/semana)
+    const weeklyLoss = 0.5;
+    const weeksRemaining = Math.ceil(stillToLose / weeklyLoss);
+    const daysRemaining = weeksRemaining * 7;
+    
+    // Obtener objetivos nutricionales
+    const calsTarget = getCalorieTarget() || 1550;
+    const proteinTarget = config.proteinGoal || 160;
+    const carbsTarget = config.carbsMax || 130;
+    const fatsTarget = config.fatsMax || 60;
+    
+    // Actualizar UI - Peso
+    const el = (id) => document.getElementById(id);
+    if (el('goalStartWeight')) el('goalStartWeight').textContent = startWeight ? `${startWeight} kg` : '-';
+    if (el('goalCurrentWeight')) el('goalCurrentWeight').textContent = currentWeight ? `${currentWeight} kg` : '-';
+    if (el('goalTargetWeight')) el('goalTargetWeight').textContent = targetWeight ? `${targetWeight} kg` : '-';
+    if (el('goalWeightLost')) el('goalWeightLost').textContent = alreadyLost > 0 ? `${alreadyLost.toFixed(1)} kg` : '0 kg';
+    
+    // Actualizar barra de progreso
+    if (el('goalProgressBar')) el('goalProgressBar').style.width = `${Math.min(progressPercent, 100)}%`;
+    if (el('goalProgressPercent')) el('goalProgressPercent').textContent = `${progressPercent}%`;
+    
+    // Actualizar tiempo estimado
+    let timeEstimate = '-';
+    let timeExplain = '';
+    
+    if (stillToLose > 0) {
+        if (weeksRemaining === 0) {
+            timeEstimate = '¡Ya casi! 🎉';
+            timeExplain = 'Estás muy cerca de tu objetivo';
+        } else if (weeksRemaining < 4) {
+            timeEstimate = `${weeksRemaining} semana${weeksRemaining > 1 ? 's' : ''} `;
+            timeExplain = `Aproximadamente ${daysRemaining} días`;
+        } else {
+            const months = Math.ceil(weeksRemaining / 4.3);
+            timeEstimate = `${months} mes${months > 1 ? 'es' : ''} `;
+            timeExplain = `Aproximadamente ${weeksRemaining} semanas`;
+        }
+    } else {
+        timeEstimate = '✅ ¡Objetivo alcanzado!';
+        timeExplain = 'Has llegado a tu peso objetivo';
+    }
+    
+    if (el('goalTimeEstimate')) el('goalTimeEstimate').textContent = timeEstimate;
+    if (el('goalTimeExplain')) el('goalTimeExplain').textContent = timeExplain;
+    
+    // Actualizar objetivos nutricionales
+    if (el('goalCals')) el('goalCals').textContent = Math.round(calsTarget);
+    if (el('goalProtein')) el('goalProtein').textContent = Math.round(proteinTarget);
+    if (el('goalCarbs')) el('goalCarbs').textContent = Math.round(carbsTarget);
+    if (el('goalFats')) el('goalFats').textContent = Math.round(fatsTarget);
+    
+    // Mensaje motivador
+    updateMotivationMessage(progressPercent, stillToLose);
+}
+
+function updateMotivationMessage(progressPercent, stillToLose) {
+    const container = document.getElementById('motivationMessage');
+    if (!container) return;
+    
+    let message = '';
+    
+    if (progressPercent === 0) {
+        message = '🚀 ¡Comienza tu viaje! Cada paso te acerca a tu objetivo.';
+    } else if (progressPercent < 25) {
+        message = '💪 ¡Buen comienzo! Llevas el impulso inicial. Sigue así.';
+    } else if (progressPercent < 50) {
+        message = '🔥 ¡Vas muy bien! Ya llevas avance visible. ¡Continúa!';
+    } else if (progressPercent < 75) {
+        message = '⚡ ¡Más de la mitad! Ya falta menos. La meta está a la vista.';
+    } else if (progressPercent < 100) {
+        message = '🎯 ¡Estás muy cerca! Sigue con el ritmo, ya casi lo logras.';
+    } else {
+        message = '🏆 ¡FELICIDADES! 🎉 ¡Has alcanzado tu objetivo!';
+    }
+    
+    container.innerHTML = `<p class="text-lg text-slate-100 leading-relaxed">${message}</p>`;
+}
+
+// ==================== END GOALS TRACKING ====================
 
 // Renderizar gráfico de peso predicho vs real
 function renderWeightPredictionChart() {

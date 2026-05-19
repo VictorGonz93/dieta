@@ -317,6 +317,10 @@
                         <span class="material-icons text-lg">home</span>
                         Hoy
                     </button>
+                    <button class="tab-btn" data-tab="objetivos" onclick="showTab('objetivos')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
+                        <span class="material-icons text-lg">flag</span>
+                        Objetivos
+                    </button>
                     <button class="tab-btn" data-tab="productos" onclick="showTab('productos')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
                         <span class="material-icons text-lg">restaurant</span>
                         Productos
@@ -440,6 +444,108 @@
                 <div id="weightPrediction"></div>
                 <div id="nextDayPrediction"></div>
                 <div id="weeklyProgress"></div>
+            </div>
+
+            <!-- TAB 1.5: GOALS TRACKING -->
+            <div class="tab-content" id="objetivos">
+                <div class="space-y-8">
+                    <!-- Header -->
+                    <div class="stat-card">
+                        <h2 class="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                            <span class="material-icons text-4xl text-primary">flag</span>
+                            Tus Objetivos
+                        </h2>
+                        <p class="text-slate-400">Seguimiento de tu progreso hacia tu meta</p>
+                    </div>
+
+                    <!-- Weight Progress -->
+                    <div class="stat-card">
+                        <h3 class="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                            <span class="material-icons text-primary">monitor_weight</span>
+                            Progreso de Peso
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <div class="bg-slate-800/50 rounded-lg p-4">
+                                    <p class="text-xs text-slate-400 mb-1">Peso Inicial</p>
+                                    <p class="text-2xl font-bold text-white" id="goalStartWeight">-</p>
+                                </div>
+                                <div class="bg-slate-800/50 rounded-lg p-4">
+                                    <p class="text-xs text-slate-400 mb-1">Peso Actual</p>
+                                    <p class="text-2xl font-bold text-emerald-400" id="goalCurrentWeight">-</p>
+                                </div>
+                                <div class="bg-slate-800/50 rounded-lg p-4">
+                                    <p class="text-xs text-slate-400 mb-1">Peso Objetivo</p>
+                                    <p class="text-2xl font-bold text-blue-400" id="goalTargetWeight">-</p>
+                                </div>
+                                <div class="bg-slate-800/50 rounded-lg p-4">
+                                    <p class="text-xs text-slate-400 mb-1">Perdidos</p>
+                                    <p class="text-2xl font-bold text-purple-400" id="goalWeightLost">-</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Weight Progress Bar -->
+                            <div>
+                                <div class="flex justify-between mb-3">
+                                    <span class="text-sm font-medium text-slate-300">Progreso General</span>
+                                    <span class="text-sm font-semibold text-primary" id="goalProgressPercent">0%</span>
+                                </div>
+                                <div class="w-full h-4 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div id="goalProgressBar" class="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Time Estimation -->
+                            <div class="bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg p-4 border border-primary/20">
+                                <p class="text-sm text-slate-300 mb-2">⏱️ <strong>Estimación:</strong></p>
+                                <p class="text-lg font-semibold text-primary" id="goalTimeEstimate">-</p>
+                                <p class="text-xs text-slate-400 mt-1" id="goalTimeExplain">Basado en 0.5 kg/semana</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Macro Goals -->
+                    <div class="stat-card">
+                        <h3 class="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                            <span class="material-icons text-primary">restaurant</span>
+                            Objetivos Nutricionales Diarios
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gradient-to-br from-red-500/20 to-red-600/20 rounded-lg p-4 border border-red-500/30">
+                                <p class="text-xs text-slate-400 mb-1">🔥 Calorías</p>
+                                <p class="text-2xl font-bold text-red-400" id="goalCals">1550</p>
+                                <p class="text-xs text-slate-500 mt-1">kcal/día</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-lg p-4 border border-blue-500/30">
+                                <p class="text-xs text-slate-400 mb-1">💪 Proteína</p>
+                                <p class="text-2xl font-bold text-blue-400" id="goalProtein">160</p>
+                                <p class="text-xs text-slate-500 mt-1">g/día</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 rounded-lg p-4 border border-yellow-500/30">
+                                <p class="text-xs text-slate-400 mb-1">🥔 Carbos</p>
+                                <p class="text-2xl font-bold text-yellow-400" id="goalCarbs">130</p>
+                                <p class="text-xs text-slate-500 mt-1">g/día</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-lg p-4 border border-green-500/30">
+                                <p class="text-xs text-slate-400 mb-1">🥑 Grasas</p>
+                                <p class="text-2xl font-bold text-green-400" id="goalFats">60</p>
+                                <p class="text-xs text-slate-500 mt-1">g/día</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400">💡 Estos objetivos se calculan automáticamente según tu perfil. Actualízalos en la pestaña ⚙️ Config</p>
+                    </div>
+
+                    <!-- Motivation Section -->
+                    <div class="stat-card">
+                        <h3 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                            <span class="material-icons text-primary">emoji_events</span>
+                            Tu Motivación
+                        </h3>
+                        <div id="motivationMessage" class="text-lg text-slate-300">
+                            <!-- Será llenado por JavaScript -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- TAB 2: PRODUCTS & MANAGEMENT (CONSOLIDATED) -->
