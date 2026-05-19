@@ -329,10 +329,6 @@
                         <span class="material-icons text-lg">trending_up</span>
                         Estadísticas
                     </button>
-                    <button class="tab-btn" data-tab="objetivos" onclick="showTab('objetivos')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
-                        <span class="material-icons text-lg">flag</span>
-                        Objetivos
-                    </button>
                     <button class="tab-btn" data-tab="config" onclick="showTab('config')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
                         <span class="material-icons text-lg">settings</span>
                         Config
@@ -777,168 +773,6 @@
 
                 <button onclick="saveConfig()" class="mt-8 w-full py-4 gradient-primary text-white font-bold rounded-lg hover:shadow-lg smooth-transition">Guardar Configuración</button>
             </div>
-
-            <!-- TAB 7: GOALS TRACKING -->
-            <div class="tab-content" id="objetivos">
-                <h2 class="text-3xl font-bold text-white mb-8 flex items-center gap-3">
-                    <span class="material-icons text-4xl text-accent">flag</span>
-                    Seguimiento de Objetivos
-                </h2>
-
-                <!-- Main Goals Overview -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <!-- Weight Progress Card -->
-                    <div class="lg:col-span-2 stat-card">
-                        <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                            <span class="material-icons text-accent">trending_down</span>
-                            Progreso de Peso
-                        </h3>
-                        
-                        <div class="space-y-6">
-                            <!-- Current Weight -->
-                            <div>
-                                <div class="flex items-center justify-between mb-3">
-                                    <div>
-                                        <p class="text-sm text-slate-400 font-medium">Peso Actual</p>
-                                        <p class="text-3xl font-bold text-white" id="goalCurrentWeight">-</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-sm text-slate-400 font-medium">Meta</p>
-                                        <p class="text-3xl font-bold text-emerald-400" id="goalTargetWeight">-</p>
-                                    </div>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="goalWeightBar" style="width: 0%; background: linear-gradient(90deg, #f093fb 0%, #667eea 100%);"></div>
-                                </div>
-                                <p class="text-xs text-slate-400 mt-2 text-center" id="goalWeightStatus">-</p>
-                            </div>
-
-                            <!-- Weight Change Stats -->
-                            <div class="grid grid-cols-3 gap-4">
-                                <div class="p-4 bg-slate-800/50 rounded-lg text-center">
-                                    <p class="text-xs text-slate-400 font-medium mb-2">Pérdida Total</p>
-                                    <p class="text-2xl font-bold text-emerald-400" id="goalTotalLost">-</p>
-                                </div>
-                                <div class="p-4 bg-slate-800/50 rounded-lg text-center">
-                                    <p class="text-xs text-slate-400 font-medium mb-2">Falta Perder</p>
-                                    <p class="text-2xl font-bold text-amber-400" id="goalRemaining">-</p>
-                                </div>
-                                <div class="p-4 bg-slate-800/50 rounded-lg text-center">
-                                    <p class="text-xs text-slate-400 font-medium mb-2">Progreso %</p>
-                                    <p class="text-2xl font-bold text-blue-400" id="goalPercentage">-</p>
-                                </div>
-                            </div>
-
-                            <!-- Timeline -->
-                            <div class="p-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-lg border border-slate-700/50">
-                                <p class="text-sm text-slate-400 font-medium mb-3">Estimación de Meta</p>
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-xs text-slate-500 mb-1">Días estimados</p>
-                                        <p class="text-2xl font-bold text-white" id="goalDaysRemaining">-</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-xs text-slate-500 mb-1">Fecha aproximada</p>
-                                        <p class="text-lg font-semibold text-emerald-400" id="goalTargetDate">-</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quick Stats -->
-                    <div class="stat-card">
-                        <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <span class="material-icons">info</span>
-                            Resumen
-                        </h3>
-                        <div class="space-y-4">
-                            <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">Días en Déficit</p>
-                                <p class="text-2xl font-bold text-white" id="goalDaysTracking">-</p>
-                            </div>
-                            <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">Promedio Semanal</p>
-                                <p class="text-2xl font-bold text-white" id="goalWeeklyAvg">-</p>
-                            </div>
-                            <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">IMC Actual</p>
-                                <p class="text-2xl font-bold text-white" id="goalCurrentBMI">-</p>
-                            </div>
-                            <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">IMC Meta</p>
-                                <p class="text-2xl font-bold text-emerald-400" id="goalTargetBMI">-</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Daily Nutrition Goals -->
-                <div class="stat-card mb-8">
-                    <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                        <span class="material-icons text-primary">restaurant</span>
-                        Objetivos Nutricionales Diarios
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Calories -->
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <p class="text-sm text-slate-400 font-medium">Calorías Entrenamiento</p>
-                                    <p class="text-2xl font-bold text-white" id="goalCalsTraining">-</p>
-                                </div>
-                                <span class="material-icons text-orange-400 text-3xl">local_fire_department</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Para días de entrenamiento / TDEE ×1.55</p>
-                        </div>
-
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <p class="text-sm text-slate-400 font-medium">Calorías Descanso</p>
-                                    <p class="text-2xl font-bold text-white" id="goalCalsRest">-</p>
-                                </div>
-                                <span class="material-icons text-blue-400 text-3xl">bed_time</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Para días de descanso / TDEE ×1.30</p>
-                        </div>
-
-                        <!-- Macros Grid -->
-                        <div class="grid grid-cols-3 gap-3 md:col-span-2">
-                            <div class="p-4 bg-gradient-to-br from-slate-800/50 to-slate-700/50 rounded-lg border border-slate-700/50 text-center">
-                                <span class="material-icons text-blue-400 text-3xl">fitness_center</span>
-                                <p class="text-xs text-slate-400 font-medium mt-2 mb-1">Proteína</p>
-                                <p class="text-2xl font-bold text-white" id="goalProtein">-</p>
-                                <p class="text-xs text-slate-500">g/día</p>
-                            </div>
-                            <div class="p-4 bg-gradient-to-br from-slate-800/50 to-slate-700/50 rounded-lg border border-slate-700/50 text-center">
-                                <span class="material-icons text-yellow-400 text-3xl">grain</span>
-                                <p class="text-xs text-slate-400 font-medium mt-2 mb-1">Carbos</p>
-                                <p class="text-2xl font-bold text-white" id="goalCarbs">-</p>
-                                <p class="text-xs text-slate-500">g/día</p>
-                            </div>
-                            <div class="p-4 bg-gradient-to-br from-slate-800/50 to-slate-700/50 rounded-lg border border-slate-700/50 text-center">
-                                <span class="material-icons text-red-400 text-3xl">opacity</span>
-                                <p class="text-xs text-slate-400 font-medium mt-2 mb-1">Grasas</p>
-                                <p class="text-2xl font-bold text-white" id="goalFats">-</p>
-                                <p class="text-xs text-slate-500">g/día</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Motivational Message -->
-                <div class="stat-card bg-gradient-to-r from-slate-800/50 to-purple-900/20 border border-purple-700/30">
-                    <div class="flex items-start gap-4">
-                        <span class="material-icons text-4xl text-accent">celebration</span>
-                        <div>
-                            <h3 class="text-lg font-bold text-white mb-2">¡Vas Por Buen Camino!</h3>
-                            <p class="text-slate-300 text-sm" id="goalMotivation">Continúa con el déficit calórico para alcanzar tu meta de peso.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </main>
 
         <!-- MODAL -->
@@ -1014,6 +848,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=20250519-9"></script>
+    <script src="app.js?v=20250519-4"></script>
 </body>
 </html>

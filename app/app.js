@@ -1,11 +1,5 @@
-// NUTRITION TRACKER PRO - VERSIÃ“N MEJORADA
-// Sistema profesional con grÃ¡ficos, estadÃ­sticas y funcionalidades avanzadas
-
-// ==================== UTILITY FUNCTIONS ====================
-
-function el(id) {
-    return document.getElementById(id);
-}
+// NUTRITION TRACKER PRO - VERSIÓN MEJORADA
+// Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // ==================== ACCORDION FUNCTIONS (TOP-LEVEL) ====================
 function toggleAccordion(headerElement) {
@@ -36,7 +30,7 @@ function toggleAccordion(headerElement) {
 // ==================== ONBOARDING FUNCTIONS ====================
 
 function isConfigComplete() {
-    // Retorna true si la configuraciÃ³n bÃ¡sica estÃ¡ completa
+    // Retorna true si la configuración básica está completa
     return !!(
         config.startWeight && 
         config.currentWeight && 
@@ -49,7 +43,7 @@ function isConfigComplete() {
 }
 
 function showOnboarding() {
-    // Solo mostrar si no estÃ¡ completa la config y no estÃ¡ cerrada manualmente
+    // Solo mostrar si no está completa la config y no está cerrada manualmente
     if (!isConfigComplete() && !localStorage.getItem('onboardingClosed')) {
         const modal = document.getElementById('onboardingModal');
         if (modal) {
@@ -62,7 +56,7 @@ function closeOnboarding() {
     const modal = document.getElementById('onboardingModal');
     if (modal) {
         modal.classList.add('hidden');
-        // Guardar que el usuario cerrÃ³ el modal (no mostrar hasta que recargue)
+        // Guardar que el usuario cerró el modal (no mostrar hasta que recargue)
         localStorage.setItem('onboardingClosed', 'true');
     }
 }
@@ -70,9 +64,9 @@ function closeOnboarding() {
 function startOnboarding() {
     // Cerrar modal
     closeOnboarding();
-    // Ir a pestaÃ±a Config
+    // Ir a pestaña Config
     showTab('config');
-    // Scroll al acordeÃ³n Personal
+    // Scroll al acordeón Personal
     setTimeout(() => {
         const personalAccordion = document.querySelector('[data-step="personal"]');
         if (personalAccordion) {
@@ -81,126 +75,9 @@ function startOnboarding() {
     }, 300);
 }
 
-// ==================== GOALS TRACKING FUNCTIONS ====================
-
-// Calcular y mostrar objetivos
-function updateGoalsDisplay() {
-    if (!isConfigComplete()) return;
-
-    const { startWeight, currentWeight, targetWeight, startDate, height, gender, age } = config;
-    const now = new Date();
-    
-    // CÃ¡lculos de progreso
-    const totalToLose = startWeight - targetWeight;
-    const alreadyLost = startWeight - currentWeight;
-    const remaining = currentWeight - targetWeight;
-    const progressPercent = Math.round((alreadyLost / totalToLose) * 100);
-    
-    // BMI
-    const heightM = height / 100;
-    const currentBMI = (currentWeight / (heightM * heightM)).toFixed(1);
-    const targetBMI = (targetWeight / (heightM * heightM)).toFixed(1);
-    
-    // DÃ­as en dÃ©ficit
-    const startD = new Date(startDate);
-    const daysTracking = Math.floor((now - startD) / (1000 * 60 * 60 * 24));
-    
-    // Promedio semanal
-    const weeklyAvg = daysTracking > 0 ? (alreadyLost / (daysTracking / 7)).toFixed(2) : 0;
-    
-    // EstimaciÃ³n para alcanzar meta
-    const expectedWeeklyLoss = 0.5;
-    const daysRemaining = remaining > 0 ? Math.round((remaining / (expectedWeeklyLoss / 7))) : 0;
-    const targetDateObj = new Date(now.getTime() + daysRemaining * 24 * 60 * 60 * 1000);
-    const targetDateStr = targetDateObj.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-    
-    // Actualizar elementos del DOM
-    el('goalCurrentWeight').textContent = currentWeight.toFixed(1) + ' kg';
-    el('goalTargetWeight').textContent = targetWeight.toFixed(1) + ' kg';
-    el('goalWeightStatus').textContent = `${alreadyLost.toFixed(1)} kg perdidos de ${totalToLose.toFixed(1)} kg`;
-    el('goalTotalLost').textContent = alreadyLost.toFixed(1) + ' kg';
-    el('goalRemaining').textContent = remaining.toFixed(1) + ' kg';
-    el('goalPercentage').textContent = progressPercent + '%';
-    el('goalDaysRemaining').textContent = daysRemaining;
-    el('goalTargetDate').textContent = targetDateStr;
-    el('goalDaysTracking').textContent = daysTracking;
-    el('goalWeeklyAvg').textContent = weeklyAvg + ' kg/sem';
-    el('goalCurrentBMI').textContent = currentBMI;
-    el('goalTargetBMI').textContent = targetBMI;
-    
-    // Barra de progreso
-    const barPercent = Math.min(progressPercent, 100);
-    const goalWeightBar = document.getElementById('goalWeightBar');
-    if (goalWeightBar) {
-        goalWeightBar.style.width = barPercent + '%';
-    }
-    
-    // Macros y calorÃ­as
-    const tmr = calculateTMR(currentWeight, height, age, gender);
-    const calsTraining = Math.round(tmr * 1.55);
-    const calsRest = Math.round(tmr * 1.30);
-    
-    el('goalCalsTraining').textContent = calsTraining + ' kcal';
-    el('goalCalsRest').textContent = calsRest + ' kcal';
-    el('goalProtein').textContent = config.proteinGoal || '160' + ' g';
-    el('goalCarbs').textContent = (config.carbsMax || 130) + ' g';
-    el('goalFats').textContent = (config.fatsMax || 60) + ' g';
-    
-    // Mensajes motivacionales
-    updateMotivationalMessage(progressPercent, alreadyLost, remaining);
-}
-
-function updateMotivationalMessage(progressPercent, lostWeight, remainingWeight) {
-    const messages = [
-        'Â¡Vas por buen camino! ContinÃºa con el dÃ©ficit calÃ³rico.',
-        `Â¡Excelente! Ya has perdido ${lostWeight.toFixed(1)} kg. Solo faltan ${remainingWeight.toFixed(1)} kg.`,
-        `Ya estÃ¡s al ${progressPercent}% de tu objetivo. Â¡Casi lo logras!`,
-        'MantÃ©n la consistencia y alcanzarÃ¡s tu meta de peso.',
-        `Con el ritmo actual, alcanzarÃ¡s tu objetivo en poco tiempo.`,
-    ];
-    
-    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-    const motivationEl = document.getElementById('goalMotivation');
-    if (motivationEl) {
-        motivationEl.textContent = randomMessage;
-    }
-}
-
-function calculateTMR(weight, height, age, gender) {
-    // Fórmula Mifflin-St Jeor
-    if (gender === 'male') {
-        return (10 * weight) + (6.25 * height) - (5 * age) + 5;
-    } else {
-        return (10 * weight) + (6.25 * height) - (5 * age) - 161;
-    }
-}
-
-// ==================== NAVIGATION & UI FUNCTIONS ====================
-
-function toggleDarkMode() {
-    const html = document.documentElement;
-    const isDark = html.classList.toggle('dark');
-    localStorage.darkModeEnabled = isDark;
-}
-
-function nextDay() {
-    currentDateOffset++;
-    loadCurrentDay();
-}
-
-function previousDay() {
-    currentDateOffset--;
-    loadCurrentDay();
-}
-
-function todayDay() {
-    currentDateOffset = 0;
-    loadCurrentDay();
-}
-
 // ==================== DATA INITIALIZATION ====================
 
-
+// DATOS INICIALES EXPANDIDA
 const PRODUCTS_DB = [
     // Bebidas/Lácteos
     { id: 1, name: '🥛 Leche entera', portion: 100, unit: 'ml', category: 'bebidas', kcal: 61, protein: 3.2, carbs: 4.7, fats: 3.6 },
@@ -214,11 +91,11 @@ const PRODUCTS_DB = [
     { id: 9, name: '💪 Proteína Whey', portion: 40, unit: 'g', category: 'proteinas', kcal: 155, protein: 34.4, carbs: 1.2, fats: 1.5 },
     { id: 10, name: '💊 Creatina monohidrato', portion: 5, unit: 'g', category: 'suplementos', kcal: 0, protein: 0, carbs: 0, fats: 0 },
     // Carbohidratos
-    { id: 11, name: 'ðŸ¥” Patata cocida', portion: 100, unit: 'g', category: 'carbos', kcal: 77, protein: 2, carbs: 17, fats: 0.1 },
-    { id: 12, name: 'ðŸŒ PlÃ¡tano', portion: 100, unit: 'g', category: 'carbos', kcal: 89, protein: 1.1, carbs: 23, fats: 0.3 },
-    { id: 13, name: 'ðŸš Arroz blanco cocido', portion: 100, unit: 'g', category: 'carbos', kcal: 130, protein: 2.7, carbs: 28, fats: 0.3 },
+    { id: 11, name: '🥔 Patata cocida', portion: 100, unit: 'g', category: 'carbos', kcal: 77, protein: 2, carbs: 17, fats: 0.1 },
+    { id: 12, name: '🍌 Plátano', portion: 100, unit: 'g', category: 'carbos', kcal: 89, protein: 1.1, carbs: 23, fats: 0.3 },
+    { id: 13, name: '🍚 Arroz blanco cocido', portion: 100, unit: 'g', category: 'carbos', kcal: 130, protein: 2.7, carbs: 28, fats: 0.3 },
     // Platos completos
-    { id: 14, name: 'ðŸ– AlbÃ³ndigas cerdo (5) + patatas', portion: 487, unit: 'g', category: 'platos', kcal: 646, protein: 34, carbs: 54, fats: 33 },
+    { id: 14, name: '🍖 Albóndigas cerdo (5) + patatas', portion: 487, unit: 'g', category: 'platos', kcal: 646, protein: 34, carbs: 54, fats: 33 },
 ];
 
 // PRODUCTOS PERSONALIZADOS
@@ -281,7 +158,7 @@ function addNewProduct() {
     
     renderCustomProducts();
     renderProductsList();
-    showNotification(`âœ… Producto "${name}" agregado correctamente`);
+    showNotification(`✅ Producto "${name}" agregado correctamente`);
 }
 
 function deleteCustomProduct(productId) {
@@ -294,7 +171,7 @@ function deleteCustomProduct(productId) {
         saveCustomProducts();
         renderCustomProducts();
         renderProductsList();
-        showNotification(`âœ… Producto "${name}" eliminado`);
+        showNotification(`✅ Producto "${name}" eliminado`);
     }
 }
 
@@ -303,7 +180,7 @@ function renderCustomProducts() {
     if (!container) return;
     
     if (customProducts.length === 0) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.6;">No hay productos personalizados aÃºn</p>';
+        container.innerHTML = '<p style="text-align: center; opacity: 0.6;">No hay productos personalizados aún</p>';
         return;
     }
     
@@ -312,14 +189,14 @@ function renderCustomProducts() {
             <div class="custom-product-info">
                 <div class="custom-product-name">${p.name}</div>
                 <div class="custom-product-macros">
-                    <span class="macro-badge">ðŸ”¥ ${p.kcal}kcal</span>
-                    <span class="macro-badge">ðŸ’ª ${p.protein}g</span>
-                    <span class="macro-badge">ðŸ¥” ${p.carbs}g</span>
-                    <span class="macro-badge">ðŸ¥‘ ${p.fats}g</span>
+                    <span class="macro-badge">🔥 ${p.kcal}kcal</span>
+                    <span class="macro-badge">💪 ${p.protein}g</span>
+                    <span class="macro-badge">🥔 ${p.carbs}g</span>
+                    <span class="macro-badge">🥑 ${p.fats}g</span>
                 </div>
                 <small style="opacity: 0.6;">Por 100${p.unit}</small>
             </div>
-            <button class="btn-delete" onclick="deleteCustomProduct(${p.id})">ðŸ—‘ï¸ Eliminar</button>
+            <button class="btn-delete" onclick="deleteCustomProduct(${p.id})">🗑️ Eliminar</button>
         </div>
     `).join('');
 }
@@ -335,7 +212,7 @@ function loadMealHistory() {
 }
 
 function saveMealHistory() {
-    localStorage.setItem('meal_history', JSON.stringify(mealHistory.slice(0, 50))); // Guardar Ãºltimas 50
+    localStorage.setItem('meal_history', JSON.stringify(mealHistory.slice(0, 50))); // Guardar últimas 50
 }
 
 function addToMealHistory(mealData) {
@@ -367,7 +244,7 @@ function getFrequentMeals() {
 }
 
 function getRecentMeals() {
-    return mealHistory.slice(0, 10); // Ãšltimas 10 comidas
+    return mealHistory.slice(0, 10); // Últimas 10 comidas
 }
 
 function renderRecentMeals() {
@@ -385,10 +262,10 @@ function renderRecentMeals() {
             <div class="recent-meal-info">
                 <div class="recent-meal-name">${meal.name} (${meal.quantity}${meal.unit})</div>
                 <div class="recent-meal-macros">
-                    <span class="macro-badge">ðŸ”¥ ${Math.round(meal.kcal)}</span>
-                    <span class="macro-badge">ðŸ’ª ${meal.protein.toFixed(1)}g</span>
-                    <span class="macro-badge">ðŸ¥” ${meal.carbs.toFixed(1)}g</span>
-                    <span class="macro-badge">ðŸ¥‘ ${meal.fats.toFixed(1)}g</span>
+                    <span class="macro-badge">🔥 ${Math.round(meal.kcal)}</span>
+                    <span class="macro-badge">💪 ${meal.protein.toFixed(1)}g</span>
+                    <span class="macro-badge">🥔 ${meal.carbs.toFixed(1)}g</span>
+                    <span class="macro-badge">🥑 ${meal.fats.toFixed(1)}g</span>
                 </div>
             </div>
             <span class="recent-meal-badge">+ Agregar</span>
@@ -410,7 +287,7 @@ function reuseRecentMeal(index) {
     document.getElementById('foodFats').value = meal.fats.toFixed(1);
 }
 
-// PREDICCIÃ“N DE PESO
+// PREDICCIÓN DE PESO
 function loadWeightHistory() {
     const saved = localStorage.getItem('weight_history');
     if (!saved) {
@@ -486,13 +363,13 @@ function calculateWeightPrediction() {
         };
     }
     
-    // Usar los Ãºltimos 14 dÃ­as para calcular tendencia
+    // Usar los últimos 14 días para calcular tendencia
     const recentHistory = config.weightHistory.slice(-14);
     const first = recentHistory[0];
     const last = recentHistory[recentHistory.length - 1];
     
     const daysDiff = (new Date(last.date) - new Date(first.date)) / (1000 * 60 * 60 * 24);
-    const weightDiff = first.weight - last.weight; // positivo = pÃ©rdida
+    const weightDiff = first.weight - last.weight; // positivo = pérdida
     
     if (daysDiff === 0) return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, confidence: 'low' };
     
@@ -527,15 +404,15 @@ function getWeightTrendData() {
         day: w.day,
         date: w.date,
         actual: w.weight,
-        theoretical: config.startWeight - ((w.day - 1) * 0.3) // 0.3 kg/dÃ­a teÃ³rico
+        theoretical: config.startWeight - ((w.day - 1) * 0.3) // 0.3 kg/día teórico
     }));
 }
 
 function calculateNextDayPredictionForDate(dateKey, nextDayWeight = config.currentWeight) {
-    // VersiÃ³n genÃ©rica que calcula para cualquier fecha
+    // Versión genérica que calcula para cualquier fecha
     const dayData = allDays[dateKey];
     
-    // Si no hay datos de comidas para ese dÃ­a, asumir 0 calorÃ­as (descanso o sin registro)
+    // Si no hay datos de comidas para ese día, asumir 0 calorías (descanso o sin registro)
     let totalKcal = 0, totalCarbs = 0;
     let totalWaterRetention = 0;
     
@@ -545,14 +422,14 @@ function calculateNextDayPredictionForDate(dateKey, nextDayWeight = config.curre
                 totalKcal += food.kcal;
                 totalCarbs += food.carbs;
                 
-                // Calcular retenciÃ³n de agua con timing para cada comida
+                // Calcular retención de agua con timing para cada comida
                 const foodWaterRetention = calculateWaterRetentionWithTiming(food.carbs, food.time, dateKey);
                 totalWaterRetention += foodWaterRetention;
             });
         });
     }
     
-    // Obtener datos segÃºn tipo de dÃ­a - PARSEAR CORRECTAMENTE EL DATEKEY
+    // Obtener datos según tipo de día - PARSEAR CORRECTAMENTE EL DATEKEY
     // dateKey es "YYYY-MM-DD", necesitamos convertirlo a Date correctamente
     const [year, month, day] = dateKey.split('-').map(Number);
     const dayDate = new Date(year, month - 1, day);
@@ -560,20 +437,20 @@ function calculateNextDayPredictionForDate(dateKey, nextDayWeight = config.curre
     const calorieTarget = dayInfo.type === 'entreno' ? config.calsEntrenamiento : config.calsDescanso;
     const tdee = calculateTDEE(dayInfo.type);
     
-    // DÃ‰FICIT PARA RESUMEN: vs Meta de ingesta (para mostrar avance hacia objetivo)
-    const deficitVsMeta = totalKcal - calorieTarget; // negativo = dÃ©ficit, positivo = superÃ¡vit
+    // DÉFICIT PARA RESUMEN: vs Meta de ingesta (para mostrar avance hacia objetivo)
+    const deficitVsMeta = totalKcal - calorieTarget; // negativo = déficit, positivo = superávit
     
-    // DÃ‰FICIT REAL PARA PESO: vs TDEE (gasto real - lo que importa para pÃ©rdida de grasa)
-    const deficitVsTDEE = totalKcal - tdee; // negativo = dÃ©ficit de verdad, positivo = superÃ¡vit
+    // DÉFICIT REAL PARA PESO: vs TDEE (gasto real - lo que importa para pérdida de grasa)
+    const deficitVsTDEE = totalKcal - tdee; // negativo = déficit de verdad, positivo = superávit
     
-    // Convertir DÃ‰FICIT REAL a cambio de peso graso (1 kg grasa = 7700 kcal)
-    // Usamos deficitVsTDEE porque es el dÃ©ficit real contra tu gasto
+    // Convertir DÉFICIT REAL a cambio de peso graso (1 kg grasa = 7700 kcal)
+    // Usamos deficitVsTDEE porque es el déficit real contra tu gasto
     const fatChange = (deficitVsTDEE / 7700) * 0.45;
     
-    // Entrenamientos tambiÃ©n pueden causar inflamaciÃ³n (~200-300g para dÃ­as de entreno)
+    // Entrenamientos también pueden causar inflamación (~200-300g para días de entreno)
     const trainingInflammation = dayInfo.type === 'entreno' ? 0.2 : 0;
     
-    // Peso predicho para maÃ±ana (cambio de grasa + retenciÃ³n agua + inflamaciÃ³n)
+    // Peso predicho para mañana (cambio de grasa + retención agua + inflamación)
     const predictedWeight = parseFloat((nextDayWeight + fatChange + totalWaterRetention + trainingInflammation).toFixed(2));
     
     return {
@@ -586,27 +463,27 @@ function calculateNextDayPredictionForDate(dateKey, nextDayWeight = config.curre
         caloriesConsumed: Math.round(totalKcal),
         calorieTarget,
         tdee,
-        deficitVsMeta: Math.round(deficitVsMeta), // DÃ©ficit vs meta (para resumen)
-        deficitVsTDEE: Math.round(deficitVsTDEE), // DÃ©ficit real (para peso)
+        deficitVsMeta: Math.round(deficitVsMeta), // Déficit vs meta (para resumen)
+        deficitVsTDEE: Math.round(deficitVsTDEE), // Déficit real (para peso)
         carbsConsumed: Math.round(totalCarbs),
         confidence: 'medium'
     };
 }
 
 function calculateNextDayPrediction() {
-    // Usar versiÃ³n genÃ©rica para hoy
+    // Usar versión genérica para hoy
     const today = getDateKey(currentDate);
     const pred = calculateNextDayPredictionForDate(today);
     
     if (!pred) return null;
     
-    // Agregar explanaciÃ³n basada en dÃ©ficit REAL vs TDEE
+    // Agregar explanación basada en déficit REAL vs TDEE
     return {
         ...pred,
         date: currentDate.toLocaleDateString('es-ES'),
         explanation: pred.deficitVsTDEE < 0 ? 
-            `DÃ©ficit REAL de ${Math.abs(pred.deficitVsTDEE)} kcal vs TDEE (${pred.carbsConsumed}g carbos = ${pred.waterRetention}kg retenciÃ³n)` :
-            `SuperÃ¡vit REAL de ${pred.deficitVsTDEE} kcal vs TDEE`
+            `Déficit REAL de ${Math.abs(pred.deficitVsTDEE)} kcal vs TDEE (${pred.carbsConsumed}g carbos = ${pred.waterRetention}kg retención)` :
+            `Superávit REAL de ${pred.deficitVsTDEE} kcal vs TDEE`
     };
 }
 
@@ -619,14 +496,14 @@ function updateWeightPrediction() {
     if (pred.estimatedDays && pred.weeklyLoss > 0) {
         predictionEl.innerHTML = `
             <div class="prediction-card">
-                <div class="prediction-title">ðŸ“Š ProyecciÃ³n</div>
+                <div class="prediction-title">📊 Proyección</div>
                 <div class="prediction-content">
                     <div class="prediction-stat">
-                        <span>PÃ©rdida semanal:</span>
+                        <span>Pérdida semanal:</span>
                         <strong>${pred.weeklyLoss} kg</strong>
                     </div>
                     <div class="prediction-stat">
-                        <span>DÃ­as para meta:</span>
+                        <span>Días para meta:</span>
                         <strong>${pred.estimatedDays}</strong>
                     </div>
                     <div class="prediction-stat">
@@ -642,9 +519,9 @@ function updateWeightPrediction() {
     } else {
         predictionEl.innerHTML = `
             <div class="prediction-card">
-                <div class="prediction-title">ðŸ“Š ProyecciÃ³n</div>
+                <div class="prediction-title">📊 Proyección</div>
                 <div class="prediction-content">
-                    <small>Registra tu peso regularmente para ver la predicciÃ³n</small>
+                    <small>Registra tu peso regularmente para ver la predicción</small>
                 </div>
             </div>
         `;
@@ -657,7 +534,7 @@ function saveDailyWeight() {
     
     const weight = parseFloat(input.value);
     if (isNaN(weight) || weight <= 0) {
-        showNotification('âš ï¸ Ingresa un peso vÃ¡lido', 'warning');
+        showNotification('⚠️ Ingresa un peso válido', 'warning');
         return;
     }
     
@@ -668,12 +545,11 @@ function saveDailyWeight() {
     // Guardar config y actualizar todo
     localStorage.setItem('nutrition_config', JSON.stringify(config));
     
-    showNotification(`âœ… Peso registrado: ${weight}kg`, 'success');
+    showNotification(`✅ Peso registrado: ${weight}kg`, 'success');
     updateHeaderInfo();
     updateWeightPrediction();
     displayNextDayPrediction();
     renderDay();
-    updateGoalsDisplay();
 }
 
 function displayNextDayPrediction() {
@@ -682,19 +558,19 @@ function displayNextDayPrediction() {
     
     if (!predictionEl || !nextPred) return;
     
-    const sign = nextPred.deficitVsTDEE < 0 ? 'ðŸ“‰' : 'ðŸ“ˆ';
+    const sign = nextPred.deficitVsTDEE < 0 ? '📉' : '📈';
     const weightChange = nextPred.predictedWeight - config.currentWeight;
     const weightChangeSign = weightChange > 0 ? '+' : '';
     const weightColor = weightChange > 0 ? '#f56565' : '#48bb78';
-    const structuralDeficit = nextPred.tdee - nextPred.calorieTarget; // DÃ©ficit diario incorporado
+    const structuralDeficit = nextPred.tdee - nextPred.calorieTarget; // Déficit diario incorporado
     
     predictionEl.innerHTML = `
         <div class="next-day-card">
-            <div class="prediction-title">ðŸ”® Peso MaÃ±ana (10:00 AM)</div>
+            <div class="prediction-title">🔮 Peso Mañana (10:00 AM)</div>
             <div class="next-day-content">
                 <div class="next-day-main">
                     <div class="next-day-weight">
-                        <div class="weight-label">Peso estimado maÃ±ana:</div>
+                        <div class="weight-label">Peso estimado mañana:</div>
                         <div class="weight-value">${nextPred.predictedWeight} kg</div>
                         <div class="weight-change" style="color: ${weightColor};">
                             ${sign} ${weightChangeSign}${weightChange.toFixed(2)} kg
@@ -704,45 +580,45 @@ function displayNextDayPrediction() {
                 
                 <div class="next-day-factors">
                     <div class="factor">
-                        <span class="factor-label">ðŸ’ª Consumidas:</span>
+                        <span class="factor-label">💪 Consumidas:</span>
                         <span class="factor-value">${nextPred.caloriesConsumed} kcal</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">ðŸŽ¯ Meta ingesta:</span>
+                        <span class="factor-label">🎯 Meta ingesta:</span>
                         <span class="factor-value">${nextPred.calorieTarget || '-'} kcal</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">ðŸ’¨ TDEE (gasto):</span>
+                        <span class="factor-label">💨 TDEE (gasto):</span>
                         <span class="factor-value">${nextPred.tdee || '-'} kcal</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">âŒ DÃ©ficit vs META:</span>
+                        <span class="factor-label">❌ Déficit vs META:</span>
                         <span class="factor-value">${nextPred.deficitVsMeta} kcal</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">âœ… DÃ©ficit REAL vs TDEE:</span>
+                        <span class="factor-label">✅ Déficit REAL vs TDEE:</span>
                         <span class="factor-value">${nextPred.deficitVsTDEE} kcal</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">ðŸ“Š DÃ©ficit diario:</span>
-                        <span class="factor-value">${structuralDeficit} kcal/dÃ­a</span>
+                        <span class="factor-label">📊 Déficit diario:</span>
+                        <span class="factor-value">${structuralDeficit} kcal/día</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">ðŸ¥” Carbos:</span>
+                        <span class="factor-label">🥔 Carbos:</span>
                         <span class="factor-value">${nextPred.carbsConsumed}g</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">${nextPred.fatChange < 0 ? 'ðŸ”¥ PÃ©rdida grasa:' : 'ðŸ“ˆ Ganancia grasa:'}</span>
+                        <span class="factor-label">${nextPred.fatChange < 0 ? '🔥 Pérdida grasa:' : '📈 Ganancia grasa:'}</span>
                         <span class="factor-value">${Math.abs(nextPred.fatChange).toFixed(2)}kg</span>
                     </div>
                     <div class="factor">
-                        <span class="factor-label">ðŸ’§ RetenciÃ³n agua:</span>
+                        <span class="factor-label">💧 Retención agua:</span>
                         <span class="factor-value">+${nextPred.waterRetention.toFixed(2)}kg</span>
                     </div>
                 </div>
                 
                 <div class="next-day-explanation">
-                    <small>âš ï¸ ${nextPred.explanation}</small>
+                    <small>⚠️ ${nextPred.explanation}</small>
                 </div>
             </div>
         </div>
@@ -759,9 +635,9 @@ var config = {
     startDate: null,
     // Datos personales
     height: null, // cm
-    age: null, // aÃ±os
+    age: null, // años
     gender: null, // male/female
-    // Objetivos nutricionales (deprecated, calculados automÃ¡ticamente ahora)
+    // Objetivos nutricionales (deprecated, calculados automáticamente ahora)
     proteinGoal: null,
     calsEntrenamiento: null,
     calsDescanso: null,
@@ -775,47 +651,47 @@ var config = {
 const GYM_ROUTINE = {
     'Lunes': { type: 'descanso', label: 'Descanso' },
     'Martes': { type: 'entreno', label: 'Pierna (fuerte)' },
-    'MiÃ©rcoles': { type: 'entreno', label: 'Espalda + Pecho (ligero)' },
+    'Miércoles': { type: 'entreno', label: 'Espalda + Pecho (ligero)' },
     'Jueves': { type: 'descanso', label: 'Descanso' },
     'Viernes': { type: 'entreno', label: 'Hombro + Brazos' },
-    'SÃ¡bado': { type: 'entreno', label: 'Pecho + Espalda (fuerte)' },
+    'Sábado': { type: 'entreno', label: 'Pecho + Espalda (fuerte)' },
     'Domingo': { type: 'entreno', label: 'Core + Antebrazo' },
 };
 
-// FunciÃ³n para obtener tipo de dÃ­a (entreno/descanso)
+// Función para obtener tipo de día (entreno/descanso)
 function getDayType(date) {
-    const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'MiÃ©rcoles', 'Jueves', 'Viernes', 'SÃ¡bado'];
+    const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const dayName = daysOfWeek[date.getDay()];
     return GYM_ROUTINE[dayName];
 }
 
-// FunciÃ³n para obtener calorÃ­as objetivo segÃºn tipo de dÃ­a (META DE INGESTA)
+// Función para obtener calorías objetivo según tipo de día (META DE INGESTA)
 function getCalorieTarget() {
     const dayInfo = getDayType(currentDate);
-    // Si no estÃ¡n configuradas las calorÃ­as, retorna 0
+    // Si no están configuradas las calorías, retorna 0
     if (!config.calsEntrenamiento && !config.calsDescanso) return 0;
-    // Retorna la meta de ingesta (dÃ©ficit ya aplicado)
+    // Retorna la meta de ingesta (déficit ya aplicado)
     return dayInfo.type === 'entreno' ? (config.calsEntrenamiento || 0) : (config.calsDescanso || 0);
 }
 
-// FunciÃ³n para obtener TDEE personalizado (GASTO REAL)
+// Función para obtener TDEE personalizado (GASTO REAL)
 function getTDEE() {
     const dayInfo = getDayType(currentDate);
     return calculateTDEE(dayInfo.type);
 }
 
-// FunciÃ³n para calcular dÃ©ficit actual
+// Función para calcular déficit actual
 function getCurrentDeficit() {
     const tdee = getTDEE();
     const meta = getCalorieTarget();
-    return tdee - meta; // DÃ©ficit positivo = necesario para perder peso
+    return tdee - meta; // Déficit positivo = necesario para perder peso
 }
 
-// Calcular TMR (Tasa MetabÃ³lica en Reposo) usando Mifflin-St Jeor
+// Calcular TMR (Tasa Metabólica en Reposo) usando Mifflin-St Jeor
 function calculateTMR() {
     const { currentWeight, height, age, gender } = config;
     
-    // Si falta informaciÃ³n, retorna 0
+    // Si falta información, retorna 0
     if (!currentWeight || !height || !age || !gender) return 0;
     
     if (gender === 'male') {
@@ -825,11 +701,11 @@ function calculateTMR() {
     }
 }
 
-// Calcular TDEE (Gasto EnergÃ©tico Diario Total) basado en actividad
+// Calcular TDEE (Gasto Energético Diario Total) basado en actividad
 function calculateTDEE(dayType) {
     const tmr = calculateTMR();
     
-    // Factores de actividad ajustados segÃºn tipo de dÃ­a
+    // Factores de actividad ajustados según tipo de día
     const activityFactors = {
         'entreno': 1.55,  // Entrenamiento + actividad (~55% encima de TMR)
         'descanso': 1.30  // Descanso + actividad baja (~30% encima de TMR)
@@ -841,7 +717,7 @@ function calculateTDEE(dayType) {
 
 // ==================== FUNCIONES DE TIMING DE COMIDAS ====================
 
-// Obtener hora de entrenamiento del dÃ­a (si existe evento de entreno)
+// Obtener hora de entrenamiento del día (si existe evento de entreno)
 function getTrainingTime(dateKey) {
     const dayData = allDays[dateKey];
     if (!dayData) return null;
@@ -849,11 +725,11 @@ function getTrainingTime(dateKey) {
     const dayInfo = getDayType(new Date(dateKey.split('-').map((d, i) => i === 1 ? parseInt(d) - 1 : d).join('-')));
     if (dayInfo.type !== 'entreno') return null;
     
-    // Hora tÃ­pica de entreno: 18:00 (6 PM) si no se especifica
+    // Hora típica de entreno: 18:00 (6 PM) si no se especifica
     return '18:00';
 }
 
-// Calcular retenciÃ³n de agua ajustada por timing de comida
+// Calcular retención de agua ajustada por timing de comida
 function calculateWaterRetentionWithTiming(carbs, mealTime, dateKey) {
     const baseRetention = carbs * 0.0035;
     
@@ -867,19 +743,19 @@ function calculateWaterRetentionWithTiming(carbs, mealTime, dateKey) {
     const trainingMinutes = parseInt(trainingTime.split(':')[0]) * 60 + parseInt(trainingTime.split(':')[1]);
     const pesajeTime = 10 * 60; // 10:00 AM
     
-    // Si comida fue pre-entreno (menos de 2 horas antes), mejor absorciÃ³n
+    // Si comida fue pre-entreno (menos de 2 horas antes), mejor absorción
     if (mealTime < trainingTime && trainingMinutes - mealMinutes < 120) {
-        return baseRetention * 0.7; // 30% menos retenciÃ³n (mejor absorciÃ³n)
+        return baseRetention * 0.7; // 30% menos retención (mejor absorción)
     }
     
-    // Si comida fue post-entreno (hasta 2 horas despuÃ©s), mayor retenciÃ³n
+    // Si comida fue post-entreno (hasta 2 horas después), mayor retención
     if (mealTime > trainingTime && mealMinutes - trainingMinutes < 120) {
-        return baseRetention * 1.3; // 30% mÃ¡s retenciÃ³n (mÃºsculos cargan glucÃ³geno)
+        return baseRetention * 1.3; // 30% más retención (músculos cargan glucógeno)
     }
     
     // Si comida fue menos de 2 horas antes del pesaje
     if (mealMinutes < pesajeTime && pesajeTime - mealMinutes < 120) {
-        return baseRetention * 1.2; // 20% mÃ¡s retenciÃ³n (aÃºn en tracto digestivo)
+        return baseRetention * 1.2; // 20% más retención (aún en tracto digestivo)
     }
     
     return baseRetention;
@@ -900,7 +776,7 @@ function getMealType(mealName, mealTime, dateKey) {
     }
     
     if (mealTime > trainingTime && mealMinutes - trainingMinutes < 180) {
-        return 'post-entreno'; // Menos de 3 horas despuÃ©s
+        return 'post-entreno'; // Menos de 3 horas después
     }
     
     return 'normal';
@@ -908,7 +784,7 @@ function getMealType(mealName, mealTime, dateKey) {
 
 var charts = {};
 
-// INICIALIZACIÃ“N
+// INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', () => {
     loadDarkMode();
     loadConfig();
@@ -925,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabSearch();
     updateHeaderInfo();
     
-    // Mostrar onboarding si la config no estÃ¡ completa
+    // Mostrar onboarding si la config no está completa
     showOnboarding();
 });
 
@@ -936,7 +812,7 @@ function setupTabNavigation() {
             const tabId = btn.dataset.tab;
             showTab(tabId);
             
-            // Inicializar grÃ¡ficos si es necesario
+            // Inicializar gráficos si es necesario
             if (tabId === 'historial' || tabId === 'estadisticas') {
                 setTimeout(() => initializeCharts(), 100);
             }
@@ -958,7 +834,7 @@ function showTab(tabId) {
         btn.classList.add('active');
     }
     
-    // Renderizar contenido especÃ­fico por tab
+    // Renderizar contenido específico por tab
     if (tabId === 'gestionar') {
         renderCustomProducts();
     } else if (tabId === 'hoy') {
@@ -968,8 +844,6 @@ function showTab(tabId) {
     } else if (tabId === 'estadisticas') {
         displayWeeklyStats();
         displayPredictionAccuracy();
-    } else if (tabId === 'objetivos') {
-        updateGoalsDisplay();
     }
 }
 
@@ -992,7 +866,7 @@ function renderWeightHistory() {
             return `
                 <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-primary smooth-transition flex items-center justify-between gap-4">
                     <div class="flex-1">
-                        <p class="text-white font-semibold">DÃ­a ${dayNum}</p>
+                        <p class="text-white font-semibold">Día ${dayNum}</p>
                         <p class="text-xs text-slate-400">${dayName}</p>
                     </div>
                     <div class="flex items-center gap-2">
@@ -1026,7 +900,7 @@ function updateWeightEntry(date, newWeight) {
         
         saveWeightHistory();
         renderWeightHistory();
-        showNotification(`âœ… Peso actualizado: ${weight}kg`, 'success');
+        showNotification(`✅ Peso actualizado: ${weight}kg`, 'success');
         updateHeaderInfo();
         updateWeightPrediction();
         displayNextDayPrediction();
@@ -1035,19 +909,19 @@ function updateWeightEntry(date, newWeight) {
 }
 
 function deleteWeightEntry(date) {
-    if (!confirm('Â¿EstÃ¡s seguro de que quieres eliminar este registro?')) return;
+    if (!confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
     
     config.weightHistory = config.weightHistory.filter(w => w.date !== date);
     saveWeightHistory();
     renderWeightHistory();
-    showNotification('âœ… Registro eliminado', 'success');
+    showNotification('✅ Registro eliminado', 'success');
     updateHeaderInfo();
     updateWeightPrediction();
     displayNextDayPrediction();
     renderDay();
 }
 
-// ==================== CONFIGURACIÃ“N ====================
+// ==================== CONFIGURACIÓN ====================
 function loadConfig() {
     const saved = localStorage.getItem('nutrition_config');
     if (saved) {
@@ -1080,21 +954,20 @@ function saveConfig() {
     config.fatsMin = parseInt(document.getElementById('fatsMin')?.value || config.fatsMin);
     config.fatsMax = parseInt(document.getElementById('fatsMax')?.value || config.fatsMax);
     
-    // Registrar peso si cambiÃ³
+    // Registrar peso si cambió
     if (newWeight !== oldWeight) {
         recordWeight(new Date(), newWeight);
     }
     
     localStorage.setItem('nutrition_config', JSON.stringify(config));
-    showNotification('âœ… ConfiguraciÃ³n guardada correctamente', 'success');
+    showNotification('✅ Configuración guardada correctamente', 'success');
     updateHeaderInfo();
     updateCalculatedValues();
     updateWeightPrediction();
     displayNextDayPrediction();
     renderDay();
-    updateGoalsDisplay();
     
-    // Si la configuraciÃ³n estÃ¡ completa, cerrar onboarding y limpiar flag
+    // Si la configuración está completa, cerrar onboarding y limpiar flag
     if (isConfigComplete()) {
         closeOnboarding();
         localStorage.removeItem('onboardingClosed');
@@ -1123,7 +996,7 @@ function updateConfigUI() {
 }
 
 function updateCalculatedValues() {
-    // Si falta informaciÃ³n, no calcular
+    // Si falta información, no calcular
     if (!config.age || !config.height || !config.gender) {
         const el = (id) => document.getElementById(id);
         if (el('tmrValue')) el('tmrValue').textContent = '-';
@@ -1137,9 +1010,9 @@ function updateCalculatedValues() {
     const tdeeDescanso = calculateTDEE('descanso');
     
     const el = (id) => document.getElementById(id);
-    if (el('tmrValue')) el('tmrValue').textContent = `${Math.round(tmr)} kcal/dÃ­a`;
-    if (el('tdeeEntrenoValue')) el('tdeeEntrenoValue').textContent = `${tdeeEntreno} kcal/dÃ­a`;
-    if (el('tdeeDescansoValue')) el('tdeeDescansoValue').textContent = `${tdeeDescanso} kcal/dÃ­a`;
+    if (el('tmrValue')) el('tmrValue').textContent = `${Math.round(tmr)} kcal/día`;
+    if (el('tdeeEntrenoValue')) el('tdeeEntrenoValue').textContent = `${tdeeEntreno} kcal/día`;
+    if (el('tdeeDescansoValue')) el('tdeeDescansoValue').textContent = `${tdeeDescanso} kcal/día`;
 }
 
 function updateHeaderInfo() {
@@ -1150,7 +1023,7 @@ function updateHeaderInfo() {
     const dayInfo = getDayType(currentDate);
     const targetCals = getCalorieTarget();
     
-    // Si no hay configuraciÃ³n, mostrar estados iniciales
+    // Si no hay configuración, mostrar estados iniciales
     if (!config.startDate || !startWeight || !currentWeight) {
         if (document.getElementById('dayCounter')) document.getElementById('dayCounter').textContent = '-';
         if (document.getElementById('currentWeight')) document.getElementById('currentWeight').textContent = '- kg';
@@ -1166,19 +1039,19 @@ function updateHeaderInfo() {
     if (document.getElementById('currentWeight')) document.getElementById('currentWeight').textContent = `${currentWeight} kg`;
     if (document.getElementById('progressPercent')) document.getElementById('progressPercent').textContent = `${Math.min(progressPercent, 100)}%`;
     
-    // Mostrar tipo de dÃ­a (entreno/descanso)
+    // Mostrar tipo de día (entreno/descanso)
     const dayTypeEl = document.getElementById('dayType');
     if (dayTypeEl) {
         if (dayInfo.type === 'entreno') {
-            dayTypeEl.textContent = `ðŸ’ª ${dayInfo.label}`;
+            dayTypeEl.textContent = `💪 ${dayInfo.label}`;
             dayTypeEl.style.color = '#4299e1';
         } else {
-            dayTypeEl.textContent = `ðŸ˜´ ${dayInfo.label}`;
+            dayTypeEl.textContent = `😴 ${dayInfo.label}`;
             dayTypeEl.style.color = '#48bb78';
         }
     }
     
-    // Actualizar objetivo de calorÃ­as en quick-macros
+    // Actualizar objetivo de calorías en quick-macros
     if (document.getElementById('quickCals')) {
         const currentCals = document.getElementById('quickCals').textContent.split(' / ')[0] || '0';
         document.getElementById('quickCals').textContent = `${currentCals} / ${targetCals}`;
@@ -1234,9 +1107,9 @@ function toggleDarkMode() {
     }
 }
 
-// ==================== GESTIÃ“N DE DÃAS ====================
+// ==================== GESTIÓN DE DÍAS ====================
 function getDayNumber(date) {
-    // Si no hay fecha de inicio, no hay dÃ­a registrado
+    // Si no hay fecha de inicio, no hay día registrado
     if (!config.startDate) return 0;
     
     const start = new Date(config.startDate);
@@ -1267,7 +1140,7 @@ function renderDay() {
         return;
     }
     
-    // Recalcular dayNumber cada vez para asegurar que estÃ© actualizado
+    // Recalcular dayNumber cada vez para asegurar que esté actualizado
     const dayNumber = getDayNumber(currentDate);
     
     const formattedDate = currentDate.toLocaleDateString('es-ES', { 
@@ -1277,19 +1150,19 @@ function renderDay() {
         day: 'numeric' 
     });
     
-    // Obtener tipo de dÃ­a real del GYM_ROUTINE
+    // Obtener tipo de día real del GYM_ROUTINE
     const dayInfo = getDayType(currentDate);
-    const emoji = dayInfo.type === 'entreno' ? 'ðŸ’ª' : 'ðŸ˜´';
+    const emoji = dayInfo.type === 'entreno' ? '💪' : '😴';
     const dayName = dayInfo.label; // Usa el label del GYM_ROUTINE
     
     if (document.getElementById('dayTitle')) {
-        document.getElementById('dayTitle').textContent = `DÃ­a ${dayNumber} â€¢ ${emoji} ${dayName}`;
+        document.getElementById('dayTitle').textContent = `Día ${dayNumber} • ${emoji} ${dayName}`;
     }
     if (document.getElementById('dayDate')) {
         document.getElementById('dayDate').textContent = formattedDate;
     }
     
-    // Cargar peso actual del dÃ­a en el input
+    // Cargar peso actual del día en el input
     const todayWeight = config.weightHistory?.find(w => w.date === dateKey);
     if (document.getElementById('dailyWeightInput')) {
         if (todayWeight) {
@@ -1308,7 +1181,7 @@ function renderDay() {
     // Actualizar totales
     updateDaySummary(dayData);
     
-    // Actualizar predicciÃ³n del peso
+    // Actualizar predicción del peso
     displayNextDayPrediction();
     
     // Actualizar progreso semanal
@@ -1327,14 +1200,14 @@ function renderMealSection(mealName, foods) {
     foods.forEach((food, index) => {
         const foodEl = document.createElement('div');
         foodEl.className = 'food-item';
-        const timeDisplay = food.time ? ` <span class="food-time">â° ${food.time}</span>` : '';
+        const timeDisplay = food.time ? ` <span class="food-time">⏰ ${food.time}</span>` : '';
         foodEl.innerHTML = `
             <span class="food-item-name">${food.name} (${food.quantity}${food.unit})${timeDisplay}</span>
             <span class="food-item-macros">
-                <span class="food-macro">ðŸ”¥${food.kcal.toFixed(0)}</span>
-                <span class="food-macro">ðŸ’ª${food.protein.toFixed(1)}g</span>
+                <span class="food-macro">🔥${food.kcal.toFixed(0)}</span>
+                <span class="food-macro">💪${food.protein.toFixed(1)}g</span>
             </span>
-            <button class="food-item-delete" onclick="deleteFood('${mealName}', ${index})">âœ•</button>
+            <button class="food-item-delete" onclick="deleteFood('${mealName}', ${index})">✕</button>
         `;
         container.appendChild(foodEl);
         
@@ -1360,7 +1233,7 @@ function updateDaySummary(dayData) {
         });
     });
     
-    // Determinar objetivos segÃºn el tipo de dÃ­a
+    // Determinar objetivos según el tipo de día
     const targetCals = getCalorieTarget();
     const targetProtein = config.proteinGoal;
     
@@ -1405,24 +1278,24 @@ function updateQuickMacros(kcal, protein, carbs, fats, targetCals) {
     }
 }
 
-// Status para TARGET (calorÃ­as, proteÃ­na) - compara vs meta con tolerancia de Â±50 kcal/g
+// Status para TARGET (calorías, proteína) - compara vs meta con tolerancia de ±50 kcal/g
 function getStatusTarget(value, target) {
     const diff = value - target;
     const absDiff = Math.abs(diff);
     
-    if (absDiff <= 50) return 'âœ…'; // Verde: dentro de Â±50
-    if (absDiff <= 150) return `âš ï¸ ${diff > 0 ? '+' : ''}${diff.toFixed(0)}`; // Naranja: Â±50 a Â±150
-    return `âŒ ${diff > 0 ? '+' : ''}${diff.toFixed(0)}`; // Rojo: >Â±150
+    if (absDiff <= 50) return '✅'; // Verde: dentro de ±50
+    if (absDiff <= 150) return `⚠️ ${diff > 0 ? '+' : ''}${diff.toFixed(0)}`; // Naranja: ±50 a ±150
+    return `❌ ${diff > 0 ? '+' : ''}${diff.toFixed(0)}`; // Rojo: >±150
 }
 
-// Status para RANGO (carbos, grasas) - verifica si estÃ¡ dentro del rango
+// Status para RANGO (carbos, grasas) - verifica si está dentro del rango
 function getStatusRange(value, min, max) {
-    if (value >= min && value <= max) return 'âœ…'; // Verde: dentro del rango
-    if (value > max) return `âš ï¸ +${(value - max).toFixed(0)}`; // Naranja: arriba
-    return `âŒ -${(min - value).toFixed(0)}`; // Rojo: abajo
+    if (value >= min && value <= max) return '✅'; // Verde: dentro del rango
+    if (value > max) return `⚠️ +${(value - max).toFixed(0)}`; // Naranja: arriba
+    return `❌ -${(min - value).toFixed(0)}`; // Rojo: abajo
 }
 
-// ==================== ANÃLISIS Y ESTADÃSTICAS ====================
+// ==================== ANÁLISIS Y ESTADÍSTICAS ====================
 
 // Obtener sugerencias de macros inteligentes para hoy
 function getMacroSuggestions() {
@@ -1467,7 +1340,7 @@ function getMacroSuggestions() {
     };
 }
 
-// Calcular estadÃ­sticas de la semana
+// Calcular estadísticas de la semana
 function calculateWeeklyStats() {
     const today = new Date();
     const weekStart = new Date(today);
@@ -1485,13 +1358,13 @@ function calculateWeeklyStats() {
         date.setDate(weekStart.getDate() + i);
         const dateKey = getDateKey(date);
         
-        // Si hay peso registrado para este dÃ­a
+        // Si hay peso registrado para este día
         const weight = config.weightHistory?.find(w => w.date === dateKey);
         if (weight) {
             daysRecorded++;
             totalWeight += weight.weight;
             
-            // Calcular macros del dÃ­a
+            // Calcular macros del día
             const dayData = allDays[dateKey];
             if (dayData) {
                 let kcal = 0;
@@ -1530,7 +1403,7 @@ function getWeeklyProgress() {
     const expectedWeeklyLoss = 0.5; // 500g por semana = 500 kcal diarios vs TDEE
     
     const diff = parseFloat(stats.weeklyLoss) - expectedWeeklyLoss;
-    const status = diff > -0.05 ? 'âœ… En camino' : diff > -0.2 ? 'âš ï¸ Algo lento' : 'âŒ Muy lento';
+    const status = diff > -0.05 ? '✅ En camino' : diff > -0.2 ? '⚠️ Algo lento' : '❌ Muy lento';
     
     const daysToGoal = config.currentWeight > config.targetWeight 
         ? Math.round((config.currentWeight - config.targetWeight) / (expectedWeeklyLoss / 7)) 
@@ -1558,11 +1431,11 @@ function getPredictionAccuracy() {
         if (idx > 0) {
             let predictedWeight = null;
             
-            // Usar predicciÃ³n guardada si estÃ¡ disponible
+            // Usar predicción guardada si está disponible
             if (config.weightHistory[idx - 1]?.predictedWeight) {
                 predictedWeight = config.weightHistory[idx - 1].predictedWeight;
             } else {
-                // Si no estÃ¡ guardada, calcularla
+                // Si no está guardada, calcularla
                 const prevDate = config.weightHistory[idx - 1];
                 const pred = calculateNextDayPredictionForDate(prevDate.date, prevDate.weight);
                 predictedWeight = pred?.predictedWeight;
@@ -1582,7 +1455,7 @@ function getPredictionAccuracy() {
     });
     
     const avgError = errors.length > 0 ? (errors.reduce((a, b) => a + b, 0) / errors.length).toFixed(3) : 0;
-    const accuracy = 100 - (avgError * 100); // AproximaciÃ³n simple
+    const accuracy = 100 - (avgError * 100); // Aproximación simple
     
     return {
         predictions,
@@ -1611,38 +1484,38 @@ function displayMacroSuggestions() {
     
     container.innerHTML = `
         <div class="suggestions-card">
-            <div class="suggestions-title">âš¡ Sugerencias de Macros</div>
+            <div class="suggestions-title">⚡ Sugerencias de Macros</div>
             <div class="suggestions-content">
                 <div class="progress-item">
-                    <span>ðŸ”¥ CalorÃ­as: ${consumido.sumKcal}/${getCalorieTarget()}</span>
+                    <span>🔥 Calorías: ${consumido.sumKcal}/${getCalorieTarget()}</span>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: ${Math.min(porcentajeCals, 100)}%"></div>
                     </div>
-                    ${falta.kcal > 0 ? `<small>Te faltan ${falta.kcal} kcal</small>` : '<small>âœ… Alcanzada</small>'}
+                    ${falta.kcal > 0 ? `<small>Te faltan ${falta.kcal} kcal</small>` : '<small>✅ Alcanzada</small>'}
                 </div>
                 
                 <div class="progress-item">
-                    <span>ðŸ’ª ProteÃ­na: ${consumido.sumProtein.toFixed(0)}g / ${config.proteinGoal}g</span>
+                    <span>💪 Proteína: ${consumido.sumProtein.toFixed(0)}g / ${config.proteinGoal}g</span>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: ${Math.min((consumido.sumProtein / config.proteinGoal) * 100, 100)}%"></div>
                     </div>
-                    ${falta.protein > 0 ? `<small>Te faltan ${falta.protein.toFixed(0)}g</small>` : '<small>âœ… Alcanzada</small>'}
+                    ${falta.protein > 0 ? `<small>Te faltan ${falta.protein.toFixed(0)}g</small>` : '<small>✅ Alcanzada</small>'}
                 </div>
                 
                 <div class="progress-item">
-                    <span>ðŸ¥” Carbos: ${consumido.sumCarbs.toFixed(0)}g / ${targetCarbs}g</span>
+                    <span>🥔 Carbos: ${consumido.sumCarbs.toFixed(0)}g / ${targetCarbs}g</span>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: ${Math.min(porcentajeCarbos, 100)}%"></div>
                     </div>
-                    ${falta.carbs > 0 ? `<small>Te faltan ${falta.carbs.toFixed(0)}g</small>` : '<small>âœ… Alcanzada</small>'}
+                    ${falta.carbs > 0 ? `<small>Te faltan ${falta.carbs.toFixed(0)}g</small>` : '<small>✅ Alcanzada</small>'}
                 </div>
                 
                 <div class="progress-item">
-                    <span>ðŸ¥‘ Grasas: ${consumido.sumFats.toFixed(0)}g / ${config.fatsMax}g</span>
+                    <span>🥑 Grasas: ${consumido.sumFats.toFixed(0)}g / ${config.fatsMax}g</span>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: ${Math.min((consumido.sumFats / config.fatsMax) * 100, 100)}%"></div>
                     </div>
-                    ${falta.fats > 0 ? `<small>Te faltan ${falta.fats.toFixed(0)}g</small>` : '<small>âœ… Alcanzada</small>'}
+                    ${falta.fats > 0 ? `<small>Te faltan ${falta.fats.toFixed(0)}g</small>` : '<small>✅ Alcanzada</small>'}
                 </div>
             </div>
         </div>
@@ -1658,12 +1531,12 @@ function displayWeeklyProgress() {
     
     container.innerHTML = `
         <div class="progress-card">
-            <div class="progress-title">ðŸŽ¯ Progreso Semanal</div>
+            <div class="progress-title">🎯 Progreso Semanal</div>
             <div class="progress-content">
                 <div class="progress-indicator">
                     <div class="indicator-status">${progress.status}</div>
                     <div class="indicator-details">
-                        <small>PÃ©rdida actual: <strong>${progress.weeklyLoss} kg</strong> / Esperado: <strong>${progress.expectedWeeklyLoss} kg</strong></small>
+                        <small>Pérdida actual: <strong>${progress.weeklyLoss} kg</strong> / Esperado: <strong>${progress.expectedWeeklyLoss} kg</strong></small>
                         <br>
                         <small>Diferencia: <strong>${progress.diff} kg</strong></small>
                     </div>
@@ -1671,11 +1544,11 @@ function displayWeeklyProgress() {
                 
                 <div class="goal-info">
                     <div class="info-item">
-                        <span>ðŸ“… DÃ­as hasta meta:</span>
-                        <strong>${progress.daysToGoal} dÃ­as</strong>
+                        <span>📅 Días hasta meta:</span>
+                        <strong>${progress.daysToGoal} días</strong>
                     </div>
                     <div class="info-item">
-                        <span>ðŸŽ¯ Fecha estimada:</span>
+                        <span>🎯 Fecha estimada:</span>
                         <strong>${progress.estimatedDate}</strong>
                     </div>
                 </div>
@@ -1684,7 +1557,7 @@ function displayWeeklyProgress() {
     `;
 }
 
-// Mostrar estadÃ­sticas semanales
+// Mostrar estadísticas semanales
 function displayWeeklyStats() {
     const stats = calculateWeeklyStats();
     const container = document.getElementById('weeklyStats');
@@ -1693,48 +1566,48 @@ function displayWeeklyStats() {
     
     container.innerHTML = `
         <div class="stats-card">
-            <div class="stats-title">ðŸ“ˆ Resumen Semanal</div>
+            <div class="stats-title">📈 Resumen Semanal</div>
             <div class="stats-content">
                 <div class="stat-item">
-                    <span>ðŸ“Š DÃ­as registrados:</span>
+                    <span>📊 Días registrados:</span>
                     <strong>${stats.daysRecorded} / 7</strong>
                 </div>
                 <div class="stat-item">
-                    <span>âš–ï¸ Peso promedio:</span>
+                    <span>⚖️ Peso promedio:</span>
                     <strong>${stats.avgWeight.toFixed(1)} kg</strong>
                 </div>
                 <div class="stat-item">
-                    <span>ðŸ“‰ PÃ©rdida semanal:</span>
+                    <span>📉 Pérdida semanal:</span>
                     <strong>${stats.weeklyLoss} kg</strong>
                 </div>
                 <div class="stat-item">
-                    <span>ðŸ½ï¸ CalorÃ­as promedio:</span>
-                    <strong>${stats.avgKcal} kcal/dÃ­a</strong>
+                    <span>🍽️ Calorías promedio:</span>
+                    <strong>${stats.avgKcal} kcal/día</strong>
                 </div>
                 <div class="stat-item">
-                    <span>âŒ DÃ©ficit promedio:</span>
-                    <strong>${stats.avgDeficit} kcal/dÃ­a</strong>
+                    <span>❌ Déficit promedio:</span>
+                    <strong>${stats.avgDeficit} kcal/día</strong>
                 </div>
             </div>
         </div>
     `;
 }
 
-// Mostrar precisiÃ³n de predicciones
+// Mostrar precisión de predicciones
 function displayPredictionAccuracy() {
     const accuracy = getPredictionAccuracy();
     const container = document.getElementById('predictionAccuracy');
     
     if (!container || !accuracy) {
-        if (container) container.innerHTML = '<small>Necesitas mÃ¡s datos (al menos 2 pesos registrados)</small>';
+        if (container) container.innerHTML = '<small>Necesitas más datos (al menos 2 pesos registrados)</small>';
         return;
     }
     
-    const predictions = accuracy.predictions.slice(-7); // Ãšltimas 7 predicciones
+    const predictions = accuracy.predictions.slice(-7); // Últimas 7 predicciones
     
     container.innerHTML = `
         <div class="accuracy-card">
-            <div class="accuracy-title">ðŸŽ¯ PrecisiÃ³n de Predicciones</div>
+            <div class="accuracy-title">🎯 Precisión de Predicciones</div>
             <div class="accuracy-content">
                 <div class="accuracy-stats">
                     <div class="stat">
@@ -1742,7 +1615,7 @@ function displayPredictionAccuracy() {
                         <strong>${accuracy.avgError} kg</strong>
                     </div>
                     <div class="stat">
-                        <span>PrecisiÃ³n:</span>
+                        <span>Precisión:</span>
                         <strong>${accuracy.accuracy}%</strong>
                     </div>
                     <div class="stat">
@@ -1752,7 +1625,7 @@ function displayPredictionAccuracy() {
                 </div>
                 
                 <div class="predictions-list">
-                    <small><strong>Ãšltimas predicciones vs realidad:</strong></small>
+                    <small><strong>Últimas predicciones vs realidad:</strong></small>
                     ${predictions.map(p => `
                         <div class="prediction-item">
                             <span>${p.date}</span>
@@ -1767,11 +1640,11 @@ function displayPredictionAccuracy() {
     `;
 }
 
-// Renderizar grÃ¡fico de peso predicho vs real
+// Renderizar gráfico de peso predicho vs real
 function renderWeightPredictionChart() {
     const canvas = document.getElementById('weightPredictionChart');
     if (!canvas || !config.weightHistory || config.weightHistory.length < 2) {
-        if (canvas) canvas.parentElement.innerHTML = '<small>Necesitas mÃ¡s datos para mostrar el grÃ¡fico</small>';
+        if (canvas) canvas.parentElement.innerHTML = '<small>Necesitas más datos para mostrar el gráfico</small>';
         return;
     }
     
@@ -1784,11 +1657,11 @@ function renderWeightPredictionChart() {
         labels.push(entry.date);
         realWeights.push(entry.weight);
         
-        // Si hay predicciÃ³n guardada para este dÃ­a, usarla
+        // Si hay predicción guardada para este día, usarla
         if (entry.predictedWeight !== undefined && entry.predictedWeight !== null) {
             predictedWeights.push(entry.predictedWeight);
         } else if (idx > 0) {
-            // Si no hay predicciÃ³n guardada, calcularla del dÃ­a anterior
+            // Si no hay predicción guardada, calcularla del día anterior
             const pred = calculateNextDayPredictionForDate(config.weightHistory[idx - 1].date, config.weightHistory[idx - 1].weight);
             if (pred) {
                 predictedWeights.push(pred.predictedWeight);
@@ -1924,10 +1797,10 @@ function setupTabSearch() {
                     <div class="suggested-product-info">
                         <div class="suggested-product-name">${p.name}</div>
                         <div class="suggested-product-macros">
-                            <span class="macro-badge">ðŸ”¥ ${p.kcal}kcal</span>
-                            <span class="macro-badge">ðŸ’ª ${p.protein}g</span>
-                            <span class="macro-badge">ðŸ¥” ${p.carbs}g</span>
-                            <span class="macro-badge">ðŸ¥‘ ${p.fats}g</span>
+                            <span class="macro-badge">🔥 ${p.kcal}kcal</span>
+                            <span class="macro-badge">💪 ${p.protein}g</span>
+                            <span class="macro-badge">🥔 ${p.carbs}g</span>
+                            <span class="macro-badge">🥑 ${p.fats}g</span>
                         </div>
                     </div>
                     <span class="suggested-product-badge">+ Select</span>
@@ -1983,7 +1856,7 @@ function addFood() {
     };
     
     if (!food.name || !food.quantity || !food.kcal) {
-        showNotification('âŒ Completa todos los campos', 'error');
+        showNotification('❌ Completa todos los campos', 'error');
         return;
     }
     
@@ -1997,7 +1870,7 @@ function addFood() {
     closeModal();
     renderDay();
     renderRecentMeals();
-    showNotification(`âœ… ${food.name} agregado correctamente`);
+    showNotification(`✅ ${food.name} agregado correctamente`);
 }
 
 function deleteFood(meal, index) {
@@ -2025,12 +1898,12 @@ function renderProductsList() {
         <div class="product-item" onclick="openModal('${currentMealForModal || 'breakfast'}'); selectProduct(${p.id})">
             <div class="product-info">
                 <div class="product-name">${p.name}</div>
-                <div class="product-portion">ðŸ“ ${p.portion}${p.unit}</div>
+                <div class="product-portion">📏 ${p.portion}${p.unit}</div>
                 <div class="product-macros">
-                    <span class="macro-badge">ðŸ”¥ ${p.kcal}kcal</span>
-                    <span class="macro-badge">ðŸ’ª ${p.protein}g</span>
-                    <span class="macro-badge">ðŸ¥” ${p.carbs}g</span>
-                    <span class="macro-badge">ðŸ¥‘ ${p.fats}g</span>
+                    <span class="macro-badge">🔥 ${p.kcal}kcal</span>
+                    <span class="macro-badge">💪 ${p.protein}g</span>
+                    <span class="macro-badge">🥔 ${p.carbs}g</span>
+                    <span class="macro-badge">🥑 ${p.fats}g</span>
                 </div>
             </div>
             <button class="product-add-btn">Agregar</button>
@@ -2046,7 +1919,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (categorySelect) categorySelect.addEventListener('change', renderProductsList);
 });
 
-// ==================== GRÃFICOS ====================
+// ==================== GRÁFICOS ====================
 function initializeCharts() {
     if (window.Chart) {
         initWeightChart();
@@ -2067,10 +1940,10 @@ function initWeightChart() {
         charts.weight = null;
     }
     
-    // Usar el histÃ³rico de pesos en lugar de las fechas de allDays
+    // Usar el histórico de pesos en lugar de las fechas de allDays
     const weightsData = config.weightHistory || [];
     
-    // Obtener Ãºltimos 30 registros de peso
+    // Obtener últimos 30 registros de peso
     const displayData = weightsData.slice(-30);
     const labelsText = displayData.map(w => {
         const d = new Date(w.date);
@@ -2142,7 +2015,7 @@ function initCaloriesChart() {
         data: {
             labels: labelsText,
             datasets: [{
-                label: 'CalorÃ­as',
+                label: 'Calorías',
                 data: caloriesData,
                 backgroundColor: caloriesData.map(val => val > config.calsEntrenamiento ? '#f56565' : '#48bb78'),
                 borderRadius: 6,
@@ -2191,7 +2064,7 @@ function initProteinChart() {
         data: {
             labels: labelsText,
             datasets: [{
-                label: 'ProteÃ­na (g)',
+                label: 'Proteína (g)',
                 data: proteinData,
                 borderColor: '#48bb78',
                 backgroundColor: 'rgba(72, 187, 120, 0.1)',
@@ -2247,7 +2120,7 @@ function initMacroChart() {
     charts.macro = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['ProteÃ­na (4 kcal/g)', 'Carbos (4 kcal/g)', 'Grasas (9 kcal/g)'],
+            labels: ['Proteína (4 kcal/g)', 'Carbos (4 kcal/g)', 'Grasas (9 kcal/g)'],
             datasets: [{
                 data: [avgProteinCals, avgCarbsCals, avgFatsCals],
                 backgroundColor: ['#4299e1', '#48bb78', '#ed8936'],
@@ -2269,7 +2142,7 @@ function initMacroChart() {
     });
 }
 
-// ==================== ESTADÃSTICAS ====================
+// ==================== ESTADÍSTICAS ====================
 function updateStatistics() {
     updateWeekStats();
     updateAverageStats();
@@ -2314,8 +2187,8 @@ function updateWeekStats() {
     
     container.innerHTML = `
         <p><strong>Promedio semanal:</strong> ${avgCals} kcal</p>
-        <p><strong>Promedio proteÃ­na:</strong> ${avgProtein}g</p>
-        <p><strong>DÃ­as registrados:</strong> ${weekDaysLogged} / 7</p>
+        <p><strong>Promedio proteína:</strong> ${avgProtein}g</p>
+        <p><strong>Días registrados:</strong> ${weekDaysLogged} / 7</p>
     `;
 }
 
@@ -2346,9 +2219,9 @@ function updateAverageStats() {
     const avgProtein = count > 0 ? (totalProtein / count).toFixed(1) : 0;
     
     container.innerHTML = `
-        <p><strong>Total de dÃ­as:</strong> ${count}</p>
-        <p><strong>Promedio calÃ³rico:</strong> ${avgCals} kcal</p>
-        <p><strong>Promedio proteÃ­na:</strong> ${avgProtein}g</p>
+        <p><strong>Total de días:</strong> ${count}</p>
+        <p><strong>Promedio calórico:</strong> ${avgCals} kcal</p>
+        <p><strong>Promedio proteína:</strong> ${avgProtein}g</p>
     `;
 }
 
@@ -2376,8 +2249,8 @@ function updateBestDayStats() {
     
     if (bestDay) {
         container.innerHTML = `
-            <p><strong>DÃ­a ${bestDay.dayNumber}</strong></p>
-            <p><strong>ProteÃ­na:</strong> ${bestDay.protein.toFixed(1)}g</p>
+            <p><strong>Día ${bestDay.dayNumber}</strong></p>
+            <p><strong>Proteína:</strong> ${bestDay.protein.toFixed(1)}g</p>
             <p><strong>Fecha:</strong> ${bestDay.date}</p>
         `;
     } else {
@@ -2407,7 +2280,7 @@ function updateHistoryList() {
         return `
             <div class="history-item">
                 <div class="history-item-header">
-                    <span class="history-item-date">DÃ­a ${day.dayNumber} - ${date}</span>
+                    <span class="history-item-date">Día ${day.dayNumber} - ${date}</span>
                 </div>
                 <div class="history-item-macros">
                     <div class="history-macro">
@@ -2415,7 +2288,7 @@ function updateHistoryList() {
                         <span class="history-macro-value">${dayKcal.toFixed(0)}</span>
                     </div>
                     <div class="history-macro">
-                        <span class="history-macro-label">ProteÃ­na</span>
+                        <span class="history-macro-label">Proteína</span>
                         <span class="history-macro-value">${dayProtein.toFixed(1)}g</span>
                     </div>
                     <div class="history-macro">
@@ -2449,19 +2322,19 @@ function loadAllDays() {
     if (saved) {
         try {
             allDays = JSON.parse(saved);
-            console.log('âœ… loadAllDays: Cargados', Object.keys(allDays).length, 'dÃ­as desde localStorage');
+            console.log('✅ loadAllDays: Cargados', Object.keys(allDays).length, 'días desde localStorage');
         } catch (e) {
-            console.error('âŒ Error parsing nutrition_days:', e);
+            console.error('❌ Error parsing nutrition_days:', e);
             allDays = {};
         }
     } else {
-        console.log('âš ï¸ loadAllDays: No se encontraron datos en localStorage');
+        console.log('⚠️ loadAllDays: No se encontraron datos en localStorage');
         allDays = {};
     }
 }
 
 function exportData() {
-    // Calcular macros totales por dÃ­a
+    // Calcular macros totales por día
     const dailySummary = {};
     const dateArray = Object.keys(allDays).sort();
     
@@ -2486,7 +2359,7 @@ function exportData() {
             totalFats: parseFloat(totalFats.toFixed(1))
         };
         
-        // Agregar predicciÃ³n del prÃ³ximo dÃ­a
+        // Agregar predicción del próximo día
         const nextPrediction = calculateNextDayPredictionForDate(date);
         if (nextPrediction) {
             daySummary.nextDayPrediction = {
@@ -2501,7 +2374,7 @@ function exportData() {
         dailySummary[date] = daySummary;
     });
     
-    // Calcular estadÃ­sticas generales
+    // Calcular estadísticas generales
     const summaryValues = Object.values(dailySummary);
     const statistics = {
         totalDays: summaryValues.length,
@@ -2513,14 +2386,14 @@ function exportData() {
         progressPercent: Math.round(((config.startWeight - config.currentWeight) / (config.startWeight - config.targetWeight)) * 100)
     };
     
-    // PredicciÃ³n de peso
+    // Predicción de peso
     const prediction = calculateWeightPrediction();
     
     const data = {
         version: '1.0',
         exportDate: new Date().toISOString(),
         
-        // ConfiguraciÃ³n y metas
+        // Configuración y metas
         config,
         
         // Datos detallados
@@ -2528,11 +2401,11 @@ function exportData() {
         customProducts,
         mealHistory,
         
-        // ResÃºmenes y estadÃ­sticas
+        // Resúmenes y estadísticas
         dailySummary,
         statistics,
         
-        // PredicciÃ³n
+        // Predicción
         weightPrediction: prediction ? {
             weeklyLoss: typeof prediction.weeklyLoss === 'string' ? parseFloat(prediction.weeklyLoss) : parseFloat(prediction.weeklyLoss?.toFixed(2)),
             estimatedDays: prediction.estimatedDays,
@@ -2543,7 +2416,7 @@ function exportData() {
         // Preferencias
         darkModeEnabled: localStorage.getItem('darkModeEnabled') === 'true',
         
-        note: 'Backup completo de todos los datos de la app con resÃºmenes y estadÃ­sticas'
+        note: 'Backup completo de todos los datos de la app con resúmenes y estadísticas'
     };
     
     const json = JSON.stringify(data, null, 2);
@@ -2554,7 +2427,7 @@ function exportData() {
     a.download = `nutrition_backup_${getDateKey(new Date())}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('âœ… Datos exportados correctamente (con estadÃ­sticas)');
+    showNotification('✅ Datos exportados correctamente (con estadísticas)');
 }
 
 function exportCSV() {
@@ -2573,8 +2446,7 @@ function exportCSV() {
             });
         });
         
-        csv += `${date},${day.dayNumber},${dayKcal.toFixed(0)},${dayProtein.toFixed(1)},${dayCarbs.toFixed(1)},${dayFats.toFixed(1)}
-`;
+        csv += `${date},${day.dayNumber},${dayKcal.toFixed(0)},${dayProtein.toFixed(1)},${dayCarbs.toFixed(1)},${dayFats.toFixed(1)}\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -2584,7 +2456,7 @@ function exportCSV() {
     a.download = `nutrition_data_${getDateKey(new Date())}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('âœ… CSV exportado correctamente');
+    showNotification('✅ CSV exportado correctamente');
 }
 
 function importData(event) {
@@ -2602,7 +2474,7 @@ function importData(event) {
                 localStorage.setItem('nutrition_config', JSON.stringify(config));
             }
             
-            // Restaurar dÃ­as
+            // Restaurar días
             if (data.days) {
                 allDays = data.days;
                 saveDays();
@@ -2627,12 +2499,12 @@ function importData(event) {
                     document.documentElement.classList.add('dark-mode');
                     document.body.classList.add('dark-mode');
                     const toggleBtn = document.getElementById('darkModeToggle');
-                    if (toggleBtn) toggleBtn.textContent = 'â˜€ï¸';
+                    if (toggleBtn) toggleBtn.textContent = '☀️';
                 } else {
                     document.documentElement.classList.remove('dark-mode');
                     document.body.classList.remove('dark-mode');
                     const toggleBtn = document.getElementById('darkModeToggle');
-                    if (toggleBtn) toggleBtn.textContent = 'ðŸŒ™';
+                    if (toggleBtn) toggleBtn.textContent = '🌙';
                 }
             }
             
@@ -2643,19 +2515,19 @@ function importData(event) {
             updateWeightPrediction();
             displayNextDayPrediction();
             initializeToday();
-            showNotification('âœ… Todos los datos importados correctamente');
+            showNotification('✅ Todos los datos importados correctamente');
         } catch (err) {
-            showNotification('âŒ Error al importar: ' + err.message, 'error');
+            showNotification('❌ Error al importar: ' + err.message, 'error');
         }
     };
     reader.readAsText(file);
 }
 
 function clearAllData() {
-    if (!confirm('âš ï¸ Â¿EstÃ¡s seguro? Esto eliminarÃ¡ TODOS los datos.')) return;
+    if (!confirm('⚠️ ¿Estás seguro? Esto eliminará TODOS los datos.')) return;
     localStorage.clear();
     allDays = {};
-    showNotification('âœ… Todos los datos fueron eliminados');
+    showNotification('✅ Todos los datos fueron eliminados');
     location.reload();
 }
 
@@ -2682,8 +2554,8 @@ function showUpdateNotification(onUpdate) {
                 <h2>📲 Actualización Disponible</h2>
             </div>
             <div class="update-modal-body">
-                <p>Hay una nueva versiÃ³n de <strong>Nutrition Tracker Pro</strong> disponible.</p>
-                <p style="font-size: 0.9em; opacity: 0.7;">âœ… Tus datos se conservarÃ¡n automÃ¡ticamente</p>
+                <p>Hay una nueva versión de <strong>Nutrition Tracker Pro</strong> disponible.</p>
+                <p style="font-size: 0.9em; opacity: 0.7;">✅ Tus datos se conservarán automáticamente</p>
             </div>
             <div class="update-modal-footer">
                 <button class="btn-secondary" id="update-later">Después</button>
