@@ -2529,8 +2529,7 @@ function exportData() {
 }
 
 function exportCSV() {
-    let csv = 'Fecha,DÃ­a,CalorÃ­as,ProteÃ­na (g),Carbos (g),Grasas (g)
-';
+    let csv = 'Fecha,Día,Calorías,Proteína (g),Carbos (g),Grasas (g)\n';
     
     Object.keys(allDays).sort().forEach(date => {
         const day = allDays[date];
