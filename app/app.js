@@ -1841,13 +1841,16 @@ function initWeightChart() {
     const ctx = document.getElementById('weightChart');
     if (!ctx || charts.weight) return;
     
-    const dates = Object.keys(allDays).sort();
-    const weights = dates.map(date => {
-        // Aquí iría la lógica de peso real si lo tienes registrado
-        return config.currentWeight;
-    }).slice(-30); // Últimos 30 días
+    // Usar el histórico de pesos en lugar de las fechas de allDays
+    const weightsData = config.weightHistory || [];
     
-    const labelsText = dates.slice(-30).map(d => new Date(d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
+    // Obtener últimos 30 registros de peso
+    const displayData = weightsData.slice(-30);
+    const labelsText = displayData.map(w => {
+        const d = new Date(w.date);
+        return d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+    });
+    const weights = displayData.map(w => w.weight);
     
     charts.weight = new Chart(ctx, {
         type: 'line',
