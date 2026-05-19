@@ -2468,20 +2468,6 @@ function showUpdateNotification(onUpdate) {
 
 // ==================== OPENFOODFACTS SEARCH ====================
 
-// Productos de ejemplo desde OpenFoodFacts
-const OFF_SAMPLE_PRODUCTS = [
-    { name: 'Pechuga de pollo cocida', kcal: 165, protein: 31, carbs: 0, fats: 3.6, brands: 'Varios' },
-    { name: 'Arroz blanco cocido', kcal: 130, protein: 2.7, carbs: 28, fats: 0.3, brands: 'Varios' },
-    { name: 'Pan blanco', kcal: 265, protein: 9, carbs: 49, fats: 3.3, brands: 'Varios' },
-    { name: 'Leche desnatada', kcal: 35, protein: 3.6, carbs: 5, fats: 0.1, brands: 'Varios' },
-    { name: 'Huevo cocido', kcal: 155, protein: 13, carbs: 1.1, fats: 11, brands: 'Varios' },
-    { name: 'Atún en lata', kcal: 99, protein: 22, carbs: 0, fats: 0.8, brands: 'Varios' },
-    { name: 'Manzana', kcal: 52, protein: 0.3, carbs: 14, fats: 0.2, brands: 'Natural' },
-    { name: 'Plátano', kcal: 89, protein: 1.1, carbs: 23, fats: 0.3, brands: 'Natural' },
-    { name: 'Brócoli cocido', kcal: 34, protein: 2.8, carbs: 7, fats: 0.4, brands: 'Natural' },
-    { name: 'Yogur natural', kcal: 59, protein: 10, carbs: 3.3, fats: 0.4, brands: 'Varios' }
-];
-
 async function searchOpenFoodFacts() {
     const searchInput = document.getElementById('offSearchInput');
     const query = searchInput.value.trim().toLowerCase();
@@ -2498,35 +2484,67 @@ async function searchOpenFoodFacts() {
     results.innerHTML = '';
     
     try {
-        // Simulated search from local database
-        await new Promise(resolve => setTimeout(resolve, 800)); // Simular delay de API
+        // Try to use local/remote API server first
+        const apiEndpoints = [
+            `http://localhost:8000/api/search?q=${encodeURIComponent(query)}`, // Local dev
+            `/.netlify/functions/search-products?query=${encodeURIComponent(query)}` // Netlify (if available)
+        ];
         
-        const filtered = OFF_SAMPLE_PRODUCTS.filter(p => 
-            p.name.toLowerCase().includes(query) || 
-            p.brands.toLowerCase().includes(query)
-        );
+        let data = null;
+        let apiUsed = null;
         
-        if (filtered.length === 0) {
-            results.innerHTML = '<p class="text-slate-400 text-center">No se encontraron productos 😕<br><small>Base de datos limitada. Usa "Crear Nuevo Producto" para agregar otro.</small></p>';
+        for (const endpoint of apiEndpoints) {
+            try {
+                console.log(`Intentando con: ${endpoint}`);
+                const response = await fetch(endpoint, { timeout: 5000 });
+                if (response.ok) {
+                    data = await response.json();
+                    apiUsed = endpoint;
+                    console.log(`✅ API respondió desde: ${endpoint}`);
+                    // If API returned empty results, don't break - continue searching locally
+                    if (data.products && data.products.length > 0) {
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.log(`❌ Falló: ${endpoint} - ${e.message}`);
+            }
+        }
+        
+        // If API returned no results or failed, show error
+        if (!data || !data.products) {
+            console.log('❌ No se encontraron productos en ninguna fuente');
+            results.innerHTML = '<p class="text-slate-400 text-center">No se encontraron productos 😕<br><small>Ni en la API ni en la base de datos local.</small></p>';
+            spinner.classList.add('hidden');
+            return;
+        }
+        
+        const products = data.products || [];
+        
+        if (products.length === 0) {
+            results.innerHTML = '<p class="text-slate-400 text-center">No se encontraron productos 😕</p>';
             spinner.classList.add('hidden');
             return;
         }
         
         // Mostrar resultados
-        results.innerHTML = filtered.map((product, index) => {
-            const kcal = Math.round(product.kcal);
-            const protein = product.protein;
-            const carbs = product.carbs;
-            const fats = product.fats;
+        results.innerHTML = products.slice(0, 10).map((product, index) => {
+            // Handle both API format and local format
+            const kcal = product.kcal || Math.round(product.nutriments?.energy_kcal || 0);
+            const protein = product.protein || product.nutriments?.proteins || 0;
+            const carbs = product.carbs || product.nutriments?.carbohydrates || 0;
+            const fats = product.fats || product.nutriments?.fat || 0;
+            const name = product.name || product.product_name || 'Producto desconocido';
+            const brand = product.brand || product.brands || 'Desconocida';
             
             return `
                 <div class="off-product-result p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-accent smooth-transition">
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex-1">
-                            <h4 class="text-white font-semibold truncate">${product.name}</h4>
-                            <p class="text-sm text-slate-400">${product.brands}</p>
+                            <h4 class="text-white font-semibold truncate">${name}</h4>
+                            <p class="text-sm text-slate-400">${brand}</p>
                         </div>
-                        <button onclick='addProductFromOFF(${index}, ${JSON.stringify(product).replace(/'/g, "\\'")})'
+                        <button onclick='addProductFromOFF(${index}, ${JSON.stringify({name, brand, kcal, protein, carbs, fats}).replace(/'/g, "\\'")})'
                                 class="ml-2 px-3 py-1 bg-accent text-white rounded-lg text-sm font-semibold hover:bg-opacity-80 smooth-transition">
                             ✓ Agregar
                         </button>
@@ -2538,15 +2556,15 @@ async function searchOpenFoodFacts() {
                         </div>
                         <div class="text-center bg-slate-800/50 rounded p-2">
                             <div class="text-xs text-slate-400">Proteína</div>
-                            <div class="text-sm text-blue-400 font-bold">${protein.toFixed(1)}g</div>
+                            <div class="text-sm text-blue-400 font-bold">${parseFloat(protein).toFixed(1)}g</div>
                         </div>
                         <div class="text-center bg-slate-800/50 rounded p-2">
                             <div class="text-xs text-slate-400">Carbos</div>
-                            <div class="text-sm text-green-400 font-bold">${carbs.toFixed(1)}g</div>
+                            <div class="text-sm text-green-400 font-bold">${parseFloat(carbs).toFixed(1)}g</div>
                         </div>
                         <div class="text-center bg-slate-800/50 rounded p-2">
                             <div class="text-xs text-slate-400">Grasas</div>
-                            <div class="text-sm text-yellow-400 font-bold">${fats.toFixed(1)}g</div>
+                            <div class="text-sm text-yellow-400 font-bold">${parseFloat(fats).toFixed(1)}g</div>
                         </div>
                     </div>
                 </div>
