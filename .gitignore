@@ -40,7 +40,11 @@ Thumbs.db
 
 # Old/Legacy versions
 app-pro.js
+app/app-pro.js
+app/app.js.bak
+app/index-old.html
 app/styles-old.css
+app/README.md
 server.js
 server.py
 serve_app.py
@@ -54,3 +58,4 @@ netlify.toml
 comidas_diarias.md
 gym.md
 SETUP.md
+info.md
