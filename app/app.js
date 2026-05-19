@@ -579,22 +579,22 @@ function displayNextDayPrediction() {
 var currentDate = new Date();
 var allDays = {};
 var config = {
-    startWeight: 85.4,
-    currentWeight: 73.1,
-    targetWeight: 70,
-    startDate: new Date('2025-12-29'),
+    startWeight: null,
+    currentWeight: null,
+    targetWeight: null,
+    startDate: null,
     // Datos personales
-    height: 170, // cm
-    age: 33, // años
-    gender: 'male', // male/female
+    height: null, // cm
+    age: null, // años
+    gender: null, // male/female
     // Objetivos nutricionales (deprecated, calculados automáticamente ahora)
-    proteinGoal: 160,
-    calsEntrenamiento: 1800,
-    calsDescanso: 1650,
-    carbsMin: 90,
-    carbsMax: 130,
-    fatsMin: 50,
-    fatsMax: 60,
+    proteinGoal: null,
+    calsEntrenamiento: null,
+    calsDescanso: null,
+    carbsMin: null,
+    carbsMax: null,
+    fatsMin: null,
+    fatsMax: null,
 };
 
 // RUTINA DE GIMNASIO
@@ -618,8 +618,10 @@ function getDayType(date) {
 // Función para obtener calorías objetivo según tipo de día (META DE INGESTA)
 function getCalorieTarget() {
     const dayInfo = getDayType(currentDate);
+    // Si no están configuradas las calorías, retorna 0
+    if (!config.calsEntrenamiento && !config.calsDescanso) return 0;
     // Retorna la meta de ingesta (déficit ya aplicado)
-    return dayInfo.type === 'entreno' ? config.calsEntrenamiento : config.calsDescanso;
+    return dayInfo.type === 'entreno' ? (config.calsEntrenamiento || 0) : (config.calsDescanso || 0);
 }
 
 // Función para obtener TDEE personalizado (GASTO REAL)
@@ -638,6 +640,9 @@ function getCurrentDeficit() {
 // Calcular TMR (Tasa Metabólica en Reposo) usando Mifflin-St Jeor
 function calculateTMR() {
     const { currentWeight, height, age, gender } = config;
+    
+    // Si falta información, retorna 0
+    if (!currentWeight || !height || !age || !gender) return 0;
     
     if (gender === 'male') {
         return (10 * currentWeight) + (6.25 * height) - (5 * age) + 5;
@@ -909,26 +914,35 @@ function saveConfig() {
 
 function updateConfigUI() {
     const el = (id) => document.getElementById(id);
-    if (el('startWeight')) el('startWeight').value = config.startWeight;
-    if (el('currentWeightInput')) el('currentWeightInput').value = config.currentWeight;
-    if (el('targetWeight')) el('targetWeight').value = config.targetWeight;
-    if (el('startDate')) el('startDate').value = config.startDate.toISOString().split('T')[0];
-    if (el('height')) el('height').value = config.height;
-    if (el('age')) el('age').value = config.age;
-    if (el('gender')) el('gender').value = config.gender;
-    if (el('proteinGoalInput')) el('proteinGoalInput').value = config.proteinGoal;
-    if (el('calsEntrenamiento')) el('calsEntrenamiento').value = config.calsEntrenamiento;
-    if (el('calsDescanso')) el('calsDescanso').value = config.calsDescanso;
-    if (el('carbsMin')) el('carbsMin').value = config.carbsMin;
-    if (el('carbsMax')) el('carbsMax').value = config.carbsMax;
-    if (el('fatsMin')) el('fatsMin').value = config.fatsMin;
-    if (el('fatsMax')) el('fatsMax').value = config.fatsMax;
+    if (el('startWeight')) el('startWeight').value = config.startWeight || '';
+    if (el('currentWeightInput')) el('currentWeightInput').value = config.currentWeight || '';
+    if (el('targetWeight')) el('targetWeight').value = config.targetWeight || '';
+    if (el('startDate')) el('startDate').value = config.startDate ? config.startDate.toISOString().split('T')[0] : '';
+    if (el('height')) el('height').value = config.height || '';
+    if (el('age')) el('age').value = config.age || '';
+    if (el('gender')) el('gender').value = config.gender || '';
+    if (el('proteinGoalInput')) el('proteinGoalInput').value = config.proteinGoal || '';
+    if (el('calsEntrenamiento')) el('calsEntrenamiento').value = config.calsEntrenamiento || '';
+    if (el('calsDescanso')) el('calsDescanso').value = config.calsDescanso || '';
+    if (el('carbsMin')) el('carbsMin').value = config.carbsMin || '';
+    if (el('carbsMax')) el('carbsMax').value = config.carbsMax || '';
+    if (el('fatsMin')) el('fatsMin').value = config.fatsMin || '';
+    if (el('fatsMax')) el('fatsMax').value = config.fatsMax || '';
     
     // Actualizar valores calculados
     updateCalculatedValues();
 }
 
 function updateCalculatedValues() {
+    // Si falta información, no calcular
+    if (!config.age || !config.height || !config.gender) {
+        const el = (id) => document.getElementById(id);
+        if (el('tmrValue')) el('tmrValue').textContent = '-';
+        if (el('tdeeEntrenoValue')) el('tdeeEntrenoValue').textContent = '-';
+        if (el('tdeeDescansoValue')) el('tdeeDescansoValue').textContent = '-';
+        return;
+    }
+    
     const tmr = calculateTMR();
     const tdeeEntreno = calculateTDEE('entreno');
     const tdeeDescanso = calculateTDEE('descanso');
@@ -947,9 +961,17 @@ function updateHeaderInfo() {
     const dayInfo = getDayType(currentDate);
     const targetCals = getCalorieTarget();
     
+    // Si no hay configuración, mostrar estados iniciales
+    if (!config.startDate || !startWeight || !currentWeight) {
+        if (document.getElementById('dayCounter')) document.getElementById('dayCounter').textContent = '-';
+        if (document.getElementById('currentWeight')) document.getElementById('currentWeight').textContent = '- kg';
+        if (document.getElementById('progressPercent')) document.getElementById('progressPercent').textContent = '-';
+        return;
+    }
+    
     const totalToLose = startWeight - targetWeight;
     const alreadyLost = startWeight - currentWeight;
-    const progressPercent = Math.round((alreadyLost / totalToLose) * 100);
+    const progressPercent = totalToLose !== 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0;
     
     if (document.getElementById('dayCounter')) document.getElementById('dayCounter').textContent = dayNumber;
     if (document.getElementById('currentWeight')) document.getElementById('currentWeight').textContent = `${currentWeight} kg`;
@@ -1025,6 +1047,9 @@ function toggleDarkMode() {
 
 // ==================== GESTIÓN DE DÍAS ====================
 function getDayNumber(date) {
+    // Si no hay fecha de inicio, no hay día registrado
+    if (!config.startDate) return 0;
+    
     const start = new Date(config.startDate);
     const diff = date - start;
     return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
