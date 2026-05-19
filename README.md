@@ -94,10 +94,11 @@ https://victorgonz93.github.io/dieta
 ### Instalación Local
 ```bash
 git clone https://github.com/VictorGonz93/dieta.git
-cd dieta/app
+cd dieta
 # Abre index.html en tu navegador
 # O ejecuta un servidor local:
-python -m http.server 5000
+python -m http.server 8000
+# Luego accede a: http://localhost:8000
 ```
 
 ---
