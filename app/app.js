@@ -668,12 +668,43 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabSearch();
     updateHeaderInfo();
     
-    // Service Worker
+    // Service Worker con detección de actualizaciones
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').then(() => {
+        navigator.serviceWorker.register('/sw.js').then((registration) => {
             console.log('Service Worker registrado exitosamente');
+            
+            // Verificar actualizaciones cada 30 segundos
+            setInterval(() => {
+                registration.update();
+            }, 30000);
+            
+            // Detectar cuando hay una nueva versión disponible
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // Nueva versión disponible
+                        showUpdateNotification(() => {
+                            newWorker.postMessage({ type: 'SKIP_WAITING' });
+                            // Recargar página para aplicar actualización
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 500);
+                        });
+                    }
+                });
+            });
+            
         }).catch((err) => {
             console.log('Error registrando Service Worker:', err);
+        });
+    }
+    
+    // Escuchar cuando el Service Worker se activa (cambio de versión)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('Nueva versión de Service Worker activada');
         });
     }
 });
@@ -2283,6 +2314,144 @@ function showNotification(message, type = 'success') {
     setTimeout(() => {
         notification.classList.remove('show');
     }, 3000);
+}
+
+function showUpdateNotification(onUpdate) {
+    // Crear modal de actualización
+    const updateModal = document.createElement('div');
+    updateModal.className = 'update-modal';
+    updateModal.innerHTML = `
+        <div class="update-modal-content">
+            <div class="update-modal-header">
+                <h2>📲 Actualización Disponible</h2>
+            </div>
+            <div class="update-modal-body">
+                <p>Hay una nueva versión de <strong>Nutrition Tracker Pro</strong> disponible.</p>
+                <p style="font-size: 0.9em; opacity: 0.7;">✅ Tus datos se conservarán automáticamente</p>
+            </div>
+            <div class="update-modal-footer">
+                <button class="btn-secondary" onclick="this.closest('.update-modal').remove()">Después</button>
+                <button class="btn-primary" onclick="this.closest('.update-modal').remove(); ${onUpdate.toString()}()">Actualizar Ahora</button>
+            </div>
+        </div>
+    `;
+    
+    // Agregar estilos CSS si no existen
+    if (!document.getElementById('update-modal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'update-modal-styles';
+        style.textContent = `
+            .update-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+                animation: fadeIn 0.3s ease-in-out;
+            }
+            
+            .update-modal-content {
+                background: white;
+                border-radius: 12px;
+                padding: 24px;
+                max-width: 400px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: slideUp 0.3s ease-out;
+            }
+            
+            html.dark-mode .update-modal-content {
+                background: rgba(30, 41, 59, 0.95);
+                color: #e2e8f0;
+            }
+            
+            .update-modal-header h2 {
+                margin: 0 0 16px 0;
+                font-size: 1.3em;
+            }
+            
+            .update-modal-body {
+                margin: 0 0 24px 0;
+                line-height: 1.6;
+            }
+            
+            .update-modal-body p {
+                margin: 8px 0;
+            }
+            
+            .update-modal-footer {
+                display: flex;
+                gap: 12px;
+                justify-content: flex-end;
+            }
+            
+            .update-modal-footer button {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+                transition: all 0.2s;
+            }
+            
+            .btn-secondary {
+                background: #cbd5e1;
+                color: #1e293b;
+            }
+            
+            .btn-secondary:hover {
+                background: #94a3b8;
+            }
+            
+            html.dark-mode .btn-secondary {
+                background: #475569;
+                color: #e2e8f0;
+            }
+            
+            html.dark-mode .btn-secondary:hover {
+                background: #64748b;
+            }
+            
+            .btn-primary {
+                background: #4299e1;
+                color: white;
+            }
+            
+            .btn-primary:hover {
+                background: #3182ce;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            
+            @keyframes slideUp {
+                from {
+                    transform: translateY(20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(updateModal);
+    
+    // Cerrar modal si se presiona ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            updateModal.remove();
+        }
+    });
 }
 
 // ==================== UTILITIES ====================

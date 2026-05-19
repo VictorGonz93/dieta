@@ -1,4 +1,5 @@
-const CACHE_NAME = 'nutrition-tracker-v2';
+const CACHE_VERSION = 3; // Incrementa esto cuando hagas cambios
+const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
     '/index.html',
@@ -22,6 +23,16 @@ self.addEventListener('install', (event) => {
         })
     );
     self.skipWaiting();
+});
+
+// Escuchar mensajes del cliente (app.js)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'CHECK_UPDATE') {
+        event.ports[0].postMessage({ version: CACHE_VERSION });
+    }
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 self.addEventListener('fetch', (event) => {
