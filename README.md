@@ -74,7 +74,7 @@ Diseñada para maximizar privacidad con almacenamiento 100% local y sin conexió
 
 ### Acceso Online (GitHub Pages)
 ```
-https://victorgonz93.github.io/dieta/app/
+https://victorgonz93.github.io/dieta
 ```
 
 ### Instalación en Móvil
