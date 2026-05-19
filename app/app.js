@@ -717,46 +717,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabNavigation();
     setupTabSearch();
     updateHeaderInfo();
-    
-    // Service Worker con detección de actualizaciones
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').then((registration) => {
-            console.log('Service Worker registrado exitosamente');
-            
-            // Verificar actualizaciones cada 30 segundos
-            setInterval(() => {
-                registration.update();
-            }, 30000);
-            
-            // Detectar cuando hay una nueva versión disponible
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        // Nueva versión disponible
-                        showUpdateNotification(() => {
-                            newWorker.postMessage({ type: 'SKIP_WAITING' });
-                            // Recargar página para aplicar actualización
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 500);
-                        });
-                    }
-                });
-            });
-            
-        }).catch((err) => {
-            console.log('Error registrando Service Worker:', err);
-        });
-    }
-    
-    // Escuchar cuando el Service Worker se activa (cambio de versión)
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log('Nueva versión de Service Worker activada');
-        });
-    }
 });
 
 // ==================== TAB NAVIGATION ====================
