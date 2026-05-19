@@ -228,14 +228,20 @@ function loadWeightHistory() {
         config.weightHistory = JSON.parse(saved);
         
         // Migrate: add predictedWeight if missing
+        let migratedCount = 0;
         config.weightHistory.forEach((entry, idx) => {
             if (entry.predictedWeight === undefined) {
                 const prediction = calculateNextDayPredictionForDate(entry.date, entry.weight);
                 entry.predictedWeight = prediction?.predictedWeight || null;
+                migratedCount++;
             }
         });
         
-        saveWeightHistory();
+        // Save if any migrations happened
+        if (migratedCount > 0) {
+            console.log(`[Weight History] Migrated ${migratedCount} entries with predicted weights`);
+            saveWeightHistory();
+        }
     }
 }
 
