@@ -888,7 +888,10 @@ function saveConfig() {
     config.startWeight = parseFloat(document.getElementById('startWeight')?.value || config.startWeight);
     config.currentWeight = newWeight;
     config.targetWeight = parseFloat(document.getElementById('targetWeight')?.value || config.targetWeight);
-    config.startDate = new Date(document.getElementById('startDate')?.value || config.startDate.toISOString().split('T')[0]);
+    
+    const startDateInput = document.getElementById('startDate')?.value;
+    config.startDate = startDateInput ? new Date(startDateInput) : (config.startDate || null);
+    
     config.height = parseInt(document.getElementById('height')?.value || config.height);
     config.age = parseInt(document.getElementById('age')?.value || config.age);
     config.gender = document.getElementById('gender')?.value || config.gender;
