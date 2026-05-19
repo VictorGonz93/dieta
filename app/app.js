@@ -1776,28 +1776,6 @@ function displayGoalsTracking() {
 }
 
 function updateGoalsDisplay() {
-    // Validar que la configuración esté completa
-    if (!isConfigComplete()) {
-        const container = document.getElementById('objetivos');
-        if (container) {
-            container.innerHTML = `
-                <div class="stat-card">
-                    <div class="flex items-center gap-4 mb-4">
-                        <span class="material-icons text-4xl text-primary">info</span>
-                        <div>
-                            <h3 class="text-xl font-semibold text-white mb-2">Completa tu perfil primero</h3>
-                            <p class="text-slate-400">Necesitamos tu información personal para mostrar tus objetivos</p>
-                            <button onclick="showTab('config')" class="mt-4 px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg font-medium smooth-transition">
-                                Ir a Configuración
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        return;
-    }
-    
     // Calcular datos de progreso
     const startWeight = config.startWeight;
     const currentWeight = config.currentWeight;
