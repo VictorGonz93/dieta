@@ -2330,8 +2330,8 @@ function showUpdateNotification(onUpdate) {
                 <p style="font-size: 0.9em; opacity: 0.7;">✅ Tus datos se conservarán automáticamente</p>
             </div>
             <div class="update-modal-footer">
-                <button class="btn-secondary" onclick="this.closest('.update-modal').remove()">Después</button>
-                <button class="btn-primary" onclick="this.closest('.update-modal').remove(); ${onUpdate.toString()}()">Actualizar Ahora</button>
+                <button class="btn-secondary" id="update-later">Después</button>
+                <button class="btn-primary" id="update-now">Actualizar Ahora</button>
             </div>
         </div>
     `;
@@ -2446,12 +2446,24 @@ function showUpdateNotification(onUpdate) {
     
     document.body.appendChild(updateModal);
     
+    // Event listeners
+    document.getElementById('update-later').addEventListener('click', () => {
+        updateModal.remove();
+    });
+    
+    document.getElementById('update-now').addEventListener('click', () => {
+        updateModal.remove();
+        onUpdate();
+    });
+    
     // Cerrar modal si se presiona ESC
-    document.addEventListener('keydown', (e) => {
+    const handleEsc = (e) => {
         if (e.key === 'Escape') {
             updateModal.remove();
+            document.removeEventListener('keydown', handleEsc);
         }
-    });
+    };
+    document.addEventListener('keydown', handleEsc);
 }
 
 // ==================== UTILITIES ====================
