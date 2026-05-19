@@ -2484,10 +2484,13 @@ async function searchOpenFoodFacts() {
     results.innerHTML = '';
     
     try {
-        // Use Netlify Function as proxy
-        const response = await fetch(
-            `/.netlify/functions/search-products?query=${encodeURIComponent(query)}`
-        );
+        // OpenFoodFacts API directly (use JSONP or alternative endpoint)
+        const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&page_size=10&json=1`;
+        
+        // Use CORS-bypass proxy (thingproxy)
+        const proxyUrl = `https://thingproxy.freeboard.io/fetch/${apiUrl}`;
+        
+        const response = await fetch(proxyUrl);
         
         if (!response.ok) throw new Error('Error en la búsqueda');
         
