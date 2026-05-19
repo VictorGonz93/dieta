@@ -972,6 +972,7 @@ function showTab(tabId) {
     } else if (tabId === 'estadisticas') {
         displayWeeklyStats();
         displayPredictionAccuracy();
+        updateStatistics();
     }
 }
 
