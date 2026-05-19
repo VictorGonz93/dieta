@@ -67,6 +67,21 @@ h1, h2, h3, h4, h5, h6 {
     transform: translateY(-4px);
 }
 
+.stat-content {
+    color: #e2e8f0;
+}
+
+.stat-content p {
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.stat-content strong {
+    color: #cbd5e1;
+    font-weight: 600;
+}
+
 .meal-card {
     padding: 1.5rem;
     border-radius: 0.75rem;
