@@ -1792,6 +1792,8 @@ function displayPredictionAccuracy() {
 
 function displayGoalsTracking() {
     updateGoalsDisplay();
+    displayWeeklyStats();
+    renderWeightHistory();
 }
 
 function updateGoalsDisplay() {
