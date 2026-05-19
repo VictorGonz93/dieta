@@ -2466,6 +2466,146 @@ function showUpdateNotification(onUpdate) {
     document.addEventListener('keydown', handleEsc);
 }
 
+// ==================== OPENFOODFACTS SEARCH ====================
+
+async function searchOpenFoodFacts() {
+    const searchInput = document.getElementById('offSearchInput');
+    const query = searchInput.value.trim();
+    
+    if (!query || query.length < 2) {
+        showNotification('⚠️ Ingresa al menos 2 caracteres', 'warning');
+        return;
+    }
+    
+    const spinner = document.getElementById('offLoadingSpinner');
+    const results = document.getElementById('offSearchResults');
+    
+    spinner.classList.remove('hidden');
+    results.innerHTML = '';
+    
+    try {
+        // API de OpenFoodFacts (acceso CORS-friendly)
+        const response = await fetch(
+            `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&page_size=10&json=1`
+        );
+        
+        if (!response.ok) throw new Error('Error en la búsqueda');
+        
+        const data = await response.json();
+        const products = data.products || [];
+        
+        if (products.length === 0) {
+            results.innerHTML = '<p class="text-slate-400 text-center">No se encontraron productos 😕</p>';
+            spinner.classList.add('hidden');
+            return;
+        }
+        
+        // Filtrar productos con información nutricional completa
+        const validProducts = products.filter(p => 
+            p.nutriments && 
+            p.nutriments.energy_kcal && 
+            p.nutriments.proteins && 
+            p.nutriments.carbohydrates && 
+            p.nutriments.fat
+        );
+        
+        if (validProducts.length === 0) {
+            results.innerHTML = '<p class="text-slate-400 text-center">No hay productos con información nutricional completa 📊</p>';
+            spinner.classList.add('hidden');
+            return;
+        }
+        
+        // Mostrar resultados
+        results.innerHTML = validProducts.map((product, index) => {
+            const kcal = Math.round(product.nutriments.energy_kcal);
+            const protein = product.nutriments.proteins || 0;
+            const carbs = product.nutriments.carbohydrates || 0;
+            const fats = product.nutriments.fat || 0;
+            const productName = product.product_name || product.name || 'Producto desconocido';
+            
+            return `
+                <div class="off-product-result p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-accent smooth-transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1">
+                            <h4 class="text-white font-semibold truncate">${productName}</h4>
+                            <p class="text-sm text-slate-400">${product.brands || 'Marca desconocida'}</p>
+                        </div>
+                        <button onclick='addProductFromOFF(${index}, ${JSON.stringify(validProducts[index]).replace(/'/g, "\\'")})'
+                                class="ml-2 px-3 py-1 bg-accent text-white rounded-lg text-sm font-semibold hover:bg-opacity-80 smooth-transition">
+                            ✓ Agregar
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 mt-2">
+                        <div class="text-center bg-slate-800/50 rounded p-2">
+                            <div class="text-xs text-slate-400">Kcal</div>
+                            <div class="text-sm text-orange-400 font-bold">${kcal}</div>
+                        </div>
+                        <div class="text-center bg-slate-800/50 rounded p-2">
+                            <div class="text-xs text-slate-400">Proteína</div>
+                            <div class="text-sm text-blue-400 font-bold">${protein.toFixed(1)}g</div>
+                        </div>
+                        <div class="text-center bg-slate-800/50 rounded p-2">
+                            <div class="text-xs text-slate-400">Carbos</div>
+                            <div class="text-sm text-green-400 font-bold">${carbs.toFixed(1)}g</div>
+                        </div>
+                        <div class="text-center bg-slate-800/50 rounded p-2">
+                            <div class="text-xs text-slate-400">Grasas</div>
+                            <div class="text-sm text-yellow-400 font-bold">${fats.toFixed(1)}g</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error en búsqueda de OpenFoodFacts:', error);
+        results.innerHTML = `<p class="text-red-400 text-center">⚠️ Error en la búsqueda: ${error.message}</p>`;
+    } finally {
+        spinner.classList.add('hidden');
+    }
+}
+
+function addProductFromOFF(index, productData) {
+    try {
+        const kcal = Math.round(productData.nutriments.energy_kcal);
+        const protein = productData.nutriments.proteins || 0;
+        const carbs = productData.nutriments.carbohydrates || 0;
+        const fats = productData.nutriments.fat || 0;
+        const name = productData.product_name || productData.name || 'Producto OpenFoodFacts';
+        
+        // Crear objeto de producto
+        const newProduct = {
+            id: Date.now(),
+            name: name,
+            portion: 100,
+            unit: 'g',
+            category: 'otros',
+            kcal: kcal,
+            protein: protein,
+            carbs: carbs,
+            fats: fats,
+            source: 'OpenFoodFacts'
+        };
+        
+        // Agregar a productos personalizados
+        customProducts.push(newProduct);
+        PRODUCTS_DB.push(newProduct);
+        saveCustomProducts();
+        
+        // Limpiar búsqueda
+        document.getElementById('offSearchInput').value = '';
+        document.getElementById('offSearchResults').innerHTML = '';
+        
+        renderCustomProducts();
+        renderProductsList();
+        
+        showNotification(`✅ "${name.substring(0, 30)}" agregado desde OpenFoodFacts`, 'success');
+    } catch (error) {
+        console.error('Error al agregar producto:', error);
+        showNotification('❌ Error al agregar producto', 'error');
+    }
+}
+
 // ==================== UTILITIES ====================
 document.addEventListener('DOMContentLoaded', () => {
     // Atajos de teclado
