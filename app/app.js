@@ -2484,10 +2484,10 @@ async function searchOpenFoodFacts() {
     results.innerHTML = '';
     
     try {
-        // Try to use local/remote API server first
+        // Try local dev server first, then free CORS proxy
         const apiEndpoints = [
-            `http://localhost:8000/api/search?q=${encodeURIComponent(query)}`, // Local dev
-            `/.netlify/functions/search-products?query=${encodeURIComponent(query)}` // Netlify (if available)
+            `http://localhost:8000/api/search?q=${encodeURIComponent(query)}`, // Local dev only
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v2/search?q=${query}`)}` // Free CORS proxy for production
         ];
         
         let data = null;
@@ -2495,19 +2495,19 @@ async function searchOpenFoodFacts() {
         
         for (const endpoint of apiEndpoints) {
             try {
-                console.log(`Intentando con: ${endpoint}`);
+                console.log(`Intentando con: ${endpoint.split('?')[0]}...`);
                 const response = await fetch(endpoint, { timeout: 5000 });
                 if (response.ok) {
                     data = await response.json();
                     apiUsed = endpoint;
-                    console.log(`✅ API respondió desde: ${endpoint}`);
+                    console.log(`✅ API respondió correctamente`);
                     // If API returned empty results, don't break - continue searching locally
                     if (data.products && data.products.length > 0) {
                         break;
                     }
                 }
             } catch (e) {
-                console.log(`❌ Falló: ${endpoint} - ${e.message}`);
+                console.log(`❌ Falló: ${e.message}`);
             }
         }
         
