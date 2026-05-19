@@ -8,7 +8,11 @@
   status = 200
 
 [context.production]
+  command = ""
   environment = { NODE_ENV = "production" }
-
+  
 [context.deploy-preview]
   environment = { NODE_ENV = "preview" }
+
+[context.branch-deploy]
+  environment = { NODE_ENV = "development" }
