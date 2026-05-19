@@ -1,6 +1,34 @@
 // NUTRITION TRACKER PRO - VERSIÓN MEJORADA
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
+// ==================== ACCORDION FUNCTIONS (TOP-LEVEL) ====================
+function toggleAccordion(headerElement) {
+    // Close all other accordions
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        if (header !== headerElement) {
+            header.classList.remove('active');
+            const content = header.nextElementSibling;
+            if (content && content.classList.contains('accordion-content')) {
+                content.classList.remove('active');
+            }
+        }
+    });
+    
+    // Toggle current accordion
+    headerElement.classList.toggle('active');
+    const contentElement = headerElement.nextElementSibling;
+    if (contentElement && contentElement.classList.contains('accordion-content')) {
+        contentElement.classList.toggle('active');
+        
+        // Render weight history if this is the weight section
+        if (contentElement.id === 'tab-pesos') {
+            renderWeightHistory();
+        }
+    }
+}
+
+// ==================== DATA INITIALIZATION ====================
+
 // DATOS INICIALES EXPANDIDA
 const PRODUCTS_DB = [
     // Bebidas/Lácteos
@@ -758,32 +786,6 @@ function showTab(tabId) {
     } else if (tabId === 'estadisticas') {
         displayWeeklyStats();
         displayPredictionAccuracy();
-    }
-}
-
-// ==================== CONFIG TABS ====================
-function toggleAccordion(headerElement) {
-    // Close all other accordions
-    document.querySelectorAll('.accordion-header').forEach(header => {
-        if (header !== headerElement) {
-            header.classList.remove('active');
-            const content = header.nextElementSibling;
-            if (content && content.classList.contains('accordion-content')) {
-                content.classList.remove('active');
-            }
-        }
-    });
-    
-    // Toggle current accordion
-    headerElement.classList.toggle('active');
-    const contentElement = headerElement.nextElementSibling;
-    if (contentElement && contentElement.classList.contains('accordion-content')) {
-        contentElement.classList.toggle('active');
-        
-        // Render weight history if this is the weight section
-        if (contentElement.id === 'tab-pesos') {
-            renderWeightHistory();
-        }
     }
 }
 
