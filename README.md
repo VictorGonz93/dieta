@@ -137,7 +137,7 @@ MIT - Uso libre para proyectos personales
 
 ## 🎉 ¡Gracias por usar Nutrition Tracker Pro!
 
-**Última actualización:** 19 de Mayo 2026 (GitHub Pages Deploy)  
+**Última actualización:** 19 de Mayo 2026 (Daily Weight Feature)  
 **Versión:** 1.0 Profesional  
 **Estado:** Production Ready ✅
 
