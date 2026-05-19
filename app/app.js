@@ -99,6 +99,96 @@ function updateGoalsDisplay() {
     const startD = new Date(startDate);
     const daysTracking = Math.floor((now - startD) / (1000 * 60 * 60 * 24));
     
+    // Promedio semanal
+    const weeklyAvg = daysTracking > 0 ? (alreadyLost / (daysTracking / 7)).toFixed(2) : 0;
+    
+    // Estimación para alcanzar meta
+    const expectedWeeklyLoss = 0.5;
+    const daysRemaining = remaining > 0 ? Math.round((remaining / (expectedWeeklyLoss / 7))) : 0;
+    const targetDateObj = new Date(now.getTime() + daysRemaining * 24 * 60 * 60 * 1000);
+    const targetDateStr = targetDateObj.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+    
+    // Actualizar elementos del DOM
+    el('goalCurrentWeight').textContent = currentWeight.toFixed(1) + ' kg';
+    el('goalTargetWeight').textContent = targetWeight.toFixed(1) + ' kg';
+    el('goalWeightStatus').textContent = `${alreadyLost.toFixed(1)} kg perdidos de ${totalToLose.toFixed(1)} kg`;
+    el('goalTotalLost').textContent = alreadyLost.toFixed(1) + ' kg';
+    el('goalRemaining').textContent = remaining.toFixed(1) + ' kg';
+    el('goalPercentage').textContent = progressPercent + '%';
+    el('goalDaysRemaining').textContent = daysRemaining;
+    el('goalTargetDate').textContent = targetDateStr;
+    el('goalDaysTracking').textContent = daysTracking;
+    el('goalWeeklyAvg').textContent = weeklyAvg + ' kg/sem';
+    el('goalCurrentBMI').textContent = currentBMI;
+    el('goalTargetBMI').textContent = targetBMI;
+    
+    // Barra de progreso
+    const barPercent = Math.min(progressPercent, 100);
+    const goalWeightBar = document.getElementById('goalWeightBar');
+    if (goalWeightBar) {
+        goalWeightBar.style.width = barPercent + '%';
+    }
+    
+    // Macros y calorías
+    const tmr = calculateTMR(currentWeight, height, age, gender);
+    const calsTraining = Math.round(tmr * 1.55);
+    const calsRest = Math.round(tmr * 1.30);
+    
+    el('goalCalsTraining').textContent = calsTraining + ' kcal';
+    el('goalCalsRest').textContent = calsRest + ' kcal';
+    el('goalProtein').textContent = config.proteinGoal || '160' + ' g';
+    el('goalCarbs').textContent = (config.carbsMax || 130) + ' g';
+    el('goalFats').textContent = (config.fatsMax || 60) + ' g';
+    
+    // Mensajes motivacionales
+    updateMotivationalMessage(progressPercent, alreadyLost, remaining);
+}
+
+function updateMotivationalMessage(progressPercent, lostWeight, remainingWeight) {
+    const messages = [
+        '¡Vas por buen camino! Continúa con el déficit calórico.',
+        `¡Excelente! Ya has perdido ${lostWeight.toFixed(1)} kg. Solo faltan ${remainingWeight.toFixed(1)} kg.`,
+        `Ya estás al ${progressPercent}% de tu objetivo. ¡Casi lo logras!`,
+        'Mantén la consistencia y alcanzarás tu meta de peso.',
+        `Con el ritmo actual, alcanzarás tu objetivo en poco tiempo.`,
+    ];
+    
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    const motivationEl = document.getElementById('goalMotivation');
+    if (motivationEl) {
+        motivationEl.textContent = randomMessage;
+    }
+}
+
+function calculateTMR(weight, height, age, gender) {
+    // Fórmula Mifflin-St Jeor
+    if (gender === 'male') {
+        return (10 * weight) + (6.25 * height) - (5 * age) + 5;
+    } else {
+        return (10 * weight) + (6.25 * height) - (5 * age) - 161;
+    }
+}
+function updateGoalsDisplay() {
+    if (!isConfigComplete()) return;
+
+    const { startWeight, currentWeight, targetWeight, startDate, height, gender, age } = config;
+    const now = new Date();
+    
+    // Cálculos de progreso
+    const totalToLose = startWeight - targetWeight;
+    const alreadyLost = startWeight - currentWeight;
+    const remaining = currentWeight - targetWeight;
+    const progressPercent = Math.round((alreadyLost / totalToLose) * 100);
+    
+    // BMI
+    const heightM = height / 100;
+    const currentBMI = (currentWeight / (heightM * heightM)).toFixed(1);
+    const targetBMI = (targetWeight / (heightM * heightM)).toFixed(1);
+    
+    // Días en déficit
+    const startD = new Date(startDate);
+    const daysTracking = Math.floor((now - startD) / (1000 * 60 * 60 * 24));
+    
     // Promedio semanal\n    const weeklyAvg = daysTracking > 0 ? (alreadyLost / (daysTracking / 7)).toFixed(2) : 0;
     
     // Estimación para alcanzar meta\n    const expectedWeeklyLoss = 0.5; // kg por semana (asumido)\n    const daysRemaining = remaining > 0 ? Math.round((remaining / (expectedWeeklyLoss / 7))) : 0;
