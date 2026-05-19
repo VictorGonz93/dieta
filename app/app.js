@@ -2063,9 +2063,14 @@ function loadAllDays() {
     if (saved) {
         try {
             allDays = JSON.parse(saved);
+            console.log('✅ loadAllDays: Cargados', Object.keys(allDays).length, 'días desde localStorage');
         } catch (e) {
+            console.error('❌ Error parsing nutrition_days:', e);
             allDays = {};
         }
+    } else {
+        console.log('⚠️ loadAllDays: No se encontraron datos en localStorage');
+        allDays = {};
     }
 }
 
