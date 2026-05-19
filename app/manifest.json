@@ -2,8 +2,8 @@
   "name": "Nutrition Tracker - Corte 2026",
   "short_name": "📊 Nutrition",
   "description": "Sistema de rastreo nutricional con cálculo automático de macros - Defcit 615 kcal/día",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/dieta/app/",
+  "scope": "/dieta/app/",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#2c3e50",
@@ -36,7 +36,7 @@
       "name": "Hoy",
       "short_name": "Hoy",
       "description": "Ver registro de hoy",
-      "url": "/?tab=hoy",
+      "url": "/dieta/app/?tab=hoy",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><text y='150' font-size='150'>🏠</text></svg>",

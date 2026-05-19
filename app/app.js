@@ -1,6 +1,15 @@
 // NUTRITION TRACKER PRO - VERSIÓN MEJORADA
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
+// ==================== SERVICE WORKER REGISTRATION ====================
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(registration => {
+        console.log('✅ Service Worker registrado:', registration);
+    }).catch(error => {
+        console.log('❌ Error al registrar Service Worker:', error);
+    });
+}
+
 // ==================== ACCORDION FUNCTIONS (TOP-LEVEL) ====================
 function toggleAccordion(headerElement) {
     // Close all other accordions
