@@ -424,6 +424,30 @@ function updateWeightPrediction() {
     }
 }
 
+function saveDailyWeight() {
+    const input = document.getElementById('dailyWeightInput');
+    if (!input) return;
+    
+    const weight = parseFloat(input.value);
+    if (isNaN(weight) || weight <= 0) {
+        showNotification('⚠️ Ingresa un peso válido', 'warning');
+        return;
+    }
+    
+    // Registrar peso para hoy
+    recordWeight(currentDate, weight);
+    config.currentWeight = weight;
+    
+    // Guardar config y actualizar todo
+    localStorage.setItem('nutrition_config', JSON.stringify(config));
+    
+    showNotification(`✅ Peso registrado: ${weight}kg`, 'success');
+    updateHeaderInfo();
+    updateWeightPrediction();
+    displayNextDayPrediction();
+    renderDay();
+}
+
 function displayNextDayPrediction() {
     const nextPred = calculateNextDayPrediction();
     const predictionEl = document.getElementById('nextDayPrediction');
@@ -1054,6 +1078,16 @@ function renderDay() {
     }
     if (document.getElementById('dayDate')) {
         document.getElementById('dayDate').textContent = formattedDate;
+    }
+    
+    // Cargar peso actual del día en el input
+    const todayWeight = config.weightHistory?.find(w => w.date === dateKey);
+    if (document.getElementById('dailyWeightInput')) {
+        if (todayWeight) {
+            document.getElementById('dailyWeightInput').value = todayWeight.weight;
+        } else {
+            document.getElementById('dailyWeightInput').value = '';
+        }
     }
     
     // Renderizar comidas
