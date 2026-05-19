@@ -1693,6 +1693,24 @@ function displayWeeklyStats() {
     
     if (!container) return;
     
+    // Validar que tengamos datos
+    if (!stats || stats.daysRecorded === 0) {
+        container.innerHTML = `
+            <div class="stats-card">
+                <div class="stats-title">📈 Resumen Semanal</div>
+                <div class="stats-content">
+                    <p class="text-slate-400 text-sm">Registra pesos esta semana para ver estadísticas</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    const avgWeight = stats.avgWeight || config.currentWeight || 0;
+    const weeklyLoss = stats.weeklyLoss || 0;
+    const avgKcal = stats.avgKcal || 0;
+    const avgDeficit = stats.avgDeficit || 0;
+    
     container.innerHTML = `
         <div class="stats-card">
             <div class="stats-title">📈 Resumen Semanal</div>
@@ -1703,19 +1721,19 @@ function displayWeeklyStats() {
                 </div>
                 <div class="stat-item">
                     <span>⚖️ Peso promedio:</span>
-                    <strong>${stats.avgWeight.toFixed(1)} kg</strong>
+                    <strong>${avgWeight.toFixed(1)} kg</strong>
                 </div>
                 <div class="stat-item">
                     <span>📉 Pérdida semanal:</span>
-                    <strong>${stats.weeklyLoss} kg</strong>
+                    <strong>${weeklyLoss} kg</strong>
                 </div>
                 <div class="stat-item">
                     <span>🍽️ Calorías promedio:</span>
-                    <strong>${stats.avgKcal} kcal/día</strong>
+                    <strong>${avgKcal} kcal/día</strong>
                 </div>
                 <div class="stat-item">
                     <span>❌ Déficit promedio:</span>
-                    <strong>${stats.avgDeficit} kcal/día</strong>
+                    <strong>${avgDeficit} kcal/día</strong>
                 </div>
             </div>
         </div>
