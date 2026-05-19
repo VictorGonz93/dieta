@@ -1398,6 +1398,81 @@ html:not(.dark-mode) .tab-btn.active .material-icons {
     color: #0f172a !important;
 }
 
+/* ==================== ONBOARDING MODAL ==================== */
+
+#onboardingModal {
+    animation: fadeInScale 0.4s ease-out;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#onboardingModal:not(.hidden) {
+    display: flex !important;
+}
+
+#onboardingModal.hidden {
+    display: none !important;
+}
+
+.onboarding-step {
+    transition: all 0.3s ease;
+}
+
+.onboarding-step.completed {
+    opacity: 0.6;
+}
+
+.onboarding-step .check-icon {
+    color: #22c55e;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.onboarding-step .arrow-icon {
+    transition: transform 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(-10px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Light mode onboarding */
+html:not(.dark-mode) #onboardingModal {
+    background: rgba(0, 0, 0, 0.5) !important;
+}
+
+html:not(.dark-mode) #onboardingModal > div {
+    background: linear-gradient(to bottom right, #ffffff 0%, #f8fafc 100%) !important;
+    border-color: rgba(102, 126, 234, 0.2) !important;
+}
+
+html:not(.dark-mode) .onboarding-step {
+    border-bottom-color: rgba(102, 126, 234, 0.1) !important;
+}
+
+html:not(.dark-mode) .onboarding-step h3 {
+    color: #0f172a !important;
+}
+
+html:not(.dark-mode) .onboarding-step p {
+    color: #64748b !important;
+}
+
 /* Header stat values */
 html:not(.dark-mode) #dayNumber,
 html:not(.dark-mode) #currentWeight,

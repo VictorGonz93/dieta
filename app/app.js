@@ -27,6 +27,54 @@ function toggleAccordion(headerElement) {
     }
 }
 
+// ==================== ONBOARDING FUNCTIONS ====================
+
+function isConfigComplete() {
+    // Retorna true si la configuración básica está completa
+    return !!(
+        config.startWeight && 
+        config.currentWeight && 
+        config.targetWeight && 
+        config.startDate && 
+        config.height && 
+        config.age && 
+        config.gender
+    );
+}
+
+function showOnboarding() {
+    // Solo mostrar si no está completa la config y no está cerrada manualmente
+    if (!isConfigComplete() && !localStorage.getItem('onboardingClosed')) {
+        const modal = document.getElementById('onboardingModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+}
+
+function closeOnboarding() {
+    const modal = document.getElementById('onboardingModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        // Guardar que el usuario cerró el modal (no mostrar hasta que recargue)
+        localStorage.setItem('onboardingClosed', 'true');
+    }
+}
+
+function startOnboarding() {
+    // Cerrar modal
+    closeOnboarding();
+    // Ir a pestaña Config
+    showTab('config');
+    // Scroll al acordeón Personal
+    setTimeout(() => {
+        const personalAccordion = document.querySelector('[data-step="personal"]');
+        if (personalAccordion) {
+            personalAccordion.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 300);
+}
+
 // ==================== DATA INITIALIZATION ====================
 
 // DATOS INICIALES EXPANDIDA
@@ -752,6 +800,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabNavigation();
     setupTabSearch();
     updateHeaderInfo();
+    
+    // Mostrar onboarding si la config no está completa
+    showOnboarding();
 });
 
 // ==================== TAB NAVIGATION ====================
@@ -915,6 +966,12 @@ function saveConfig() {
     updateWeightPrediction();
     displayNextDayPrediction();
     renderDay();
+    
+    // Si la configuración está completa, cerrar onboarding y limpiar flag
+    if (isConfigComplete()) {
+        closeOnboarding();
+        localStorage.removeItem('onboardingClosed');
+    }
 }
 
 function updateConfigUI() {
