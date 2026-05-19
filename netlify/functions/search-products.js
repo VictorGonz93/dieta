@@ -2,11 +2,24 @@ const https = require('https');
 const url = require('url');
 
 exports.handler = async (event) => {
-    const { query } = event.queryStringParameters || {};
+    // Handle both URL-encoded and decoded parameters
+    let query = event.queryStringParameters?.query || event.query || '';
+    
+    // Decode if needed
+    if (query) {
+        try {
+            query = decodeURIComponent(query);
+        } catch (e) {
+            // Already decoded
+        }
+    }
+    
+    query = query.trim();
 
     if (!query || query.length < 2) {
         return {
             statusCode: 400,
+            headers: { 'Access-Control-Allow-Origin': '*' },
             body: JSON.stringify({ error: 'Query must be at least 2 characters' })
         };
     }
@@ -23,7 +36,7 @@ exports.handler = async (event) => {
                     try {
                         resolve(JSON.parse(body));
                     } catch (e) {
-                        reject(e);
+                        reject(new Error('Failed to parse JSON: ' + e.message));
                     }
                 });
             }).on('error', reject);
@@ -40,12 +53,14 @@ exports.handler = async (event) => {
             body: JSON.stringify(data)
         };
     } catch (error) {
+        console.error('Error:', error);
         return {
             statusCode: 500,
             headers: {
+                'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
-            body: JSON.stringify({ error: error.message })
+            body: JSON.stringify({ error: error.message || 'Unknown error' })
         };
     }
 };
