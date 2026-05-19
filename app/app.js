@@ -1,6 +1,12 @@
 // NUTRITION TRACKER PRO - VERSIÃ“N MEJORADA
 // Sistema profesional con grÃ¡ficos, estadÃ­sticas y funcionalidades avanzadas
 
+// ==================== UTILITY FUNCTIONS ====================
+
+function el(id) {
+    return document.getElementById(id);
+}
+
 // ==================== ACCORDION FUNCTIONS (TOP-LEVEL) ====================
 function toggleAccordion(headerElement) {
     // Close all other accordions
@@ -196,17 +202,17 @@ function todayDay() {
 
 
 const PRODUCTS_DB = [
-    // Bebidas/LÃ¡cteos
-    { id: 1, name: 'ðŸ¥› Leche entera', portion: 100, unit: 'ml', category: 'bebidas', kcal: 61, protein: 3.2, carbs: 4.7, fats: 3.6 },
-    { id: 3, name: 'ðŸ¯ Yogur ProteÃ­nas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 52, protein: 10, carbs: 1, fats: 0.1 },
-    { id: 4, name: 'ðŸ® Gelatina ProteÃ­nas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 40, protein: 10, carbs: 1, fats: 0.1 },
-    { id: 5, name: 'ðŸ« Cacao Hacendado', portion: 10, unit: 'g', category: 'bebidas', kcal: 30, protein: 1.5, carbs: 4.5, fats: 0.5 },
-    // ProteÃ­nas
-    { id: 6, name: 'ðŸ¥š Huevo entero', portion: 50, unit: 'g', category: 'proteinas', kcal: 72, protein: 6.3, carbs: 0.6, fats: 5.1 },
-    { id: 7, name: 'âšª Clara de huevo', portion: 30, unit: 'g', category: 'proteinas', kcal: 17, protein: 3.6, carbs: 0.4, fats: 0.1 },
-    { id: 8, name: 'ðŸŸ AtÃºn en lata (lata 80g)', portion: 80, unit: 'g', category: 'proteinas', kcal: 78, protein: 16.8, carbs: 0.7, fats: 1 },
-    { id: 9, name: 'ðŸ’ª ProteÃ­na Whey', portion: 40, unit: 'g', category: 'proteinas', kcal: 155, protein: 34.4, carbs: 1.2, fats: 1.5 },
-    { id: 10, name: 'ðŸ’Š Creatina monohidrato', portion: 5, unit: 'g', category: 'suplementos', kcal: 0, protein: 0, carbs: 0, fats: 0 },
+    // Bebidas/Lácteos
+    { id: 1, name: '🥛 Leche entera', portion: 100, unit: 'ml', category: 'bebidas', kcal: 61, protein: 3.2, carbs: 4.7, fats: 3.6 },
+    { id: 3, name: '🍯 Yogur Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 52, protein: 10, carbs: 1, fats: 0.1 },
+    { id: 4, name: '🍮 Gelatina Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 40, protein: 10, carbs: 1, fats: 0.1 },
+    { id: 5, name: '🍫 Cacao Hacendado', portion: 10, unit: 'g', category: 'bebidas', kcal: 30, protein: 1.5, carbs: 4.5, fats: 0.5 },
+    // Proteínas
+    { id: 6, name: '🥚 Huevo entero', portion: 50, unit: 'g', category: 'proteinas', kcal: 72, protein: 6.3, carbs: 0.6, fats: 5.1 },
+    { id: 7, name: '⚪ Clara de huevo', portion: 30, unit: 'g', category: 'proteinas', kcal: 17, protein: 3.6, carbs: 0.4, fats: 0.1 },
+    { id: 8, name: '🐟 Atún en lata (lata 80g)', portion: 80, unit: 'g', category: 'proteinas', kcal: 78, protein: 16.8, carbs: 0.7, fats: 1 },
+    { id: 9, name: '💪 Proteína Whey', portion: 40, unit: 'g', category: 'proteinas', kcal: 155, protein: 34.4, carbs: 1.2, fats: 1.5 },
+    { id: 10, name: '💊 Creatina monohidrato', portion: 5, unit: 'g', category: 'suplementos', kcal: 0, protein: 0, carbs: 0, fats: 0 },
     // Carbohidratos
     { id: 11, name: 'ðŸ¥” Patata cocida', portion: 100, unit: 'g', category: 'carbos', kcal: 77, protein: 2, carbs: 17, fats: 0.1 },
     { id: 12, name: 'ðŸŒ PlÃ¡tano', portion: 100, unit: 'g', category: 'carbos', kcal: 89, protein: 1.1, carbs: 23, fats: 0.3 },
@@ -246,7 +252,7 @@ function addNewProduct() {
     const fats = parseFloat(document.getElementById('newProductFats').value);
     
     if (!name || isNaN(kcal) || isNaN(protein) || isNaN(carbs) || isNaN(fats)) {
-        showNotification('âŒ Completa todos los campos', 'error');
+        showNotification('❌ Completa todos los campos', 'error');
         return;
     }
     
@@ -2667,20 +2673,20 @@ function showNotification(message, type = 'success') {
 }
 
 function showUpdateNotification(onUpdate) {
-    // Crear modal de actualizaciÃ³n
+    // Crear modal de actualización
     const updateModal = document.createElement('div');
     updateModal.className = 'update-modal';
     updateModal.innerHTML = `
         <div class="update-modal-content">
             <div class="update-modal-header">
-                <h2>ðŸ“² ActualizaciÃ³n Disponible</h2>
+                <h2>📲 Actualización Disponible</h2>
             </div>
             <div class="update-modal-body">
                 <p>Hay una nueva versiÃ³n de <strong>Nutrition Tracker Pro</strong> disponible.</p>
                 <p style="font-size: 0.9em; opacity: 0.7;">âœ… Tus datos se conservarÃ¡n automÃ¡ticamente</p>
             </div>
             <div class="update-modal-footer">
-                <button class="btn-secondary" id="update-later">DespuÃ©s</button>
+                <button class="btn-secondary" id="update-later">Después</button>
                 <button class="btn-primary" id="update-now">Actualizar Ahora</button>
             </div>
         </div>
