@@ -1839,7 +1839,13 @@ function initializeCharts() {
 
 function initWeightChart() {
     const ctx = document.getElementById('weightChart');
-    if (!ctx || charts.weight) return;
+    if (!ctx) return;
+    
+    // Destruir chart existente si existe
+    if (charts.weight) {
+        charts.weight.destroy();
+        charts.weight = null;
+    }
     
     // Usar el histórico de pesos en lugar de las fechas de allDays
     const weightsData = config.weightHistory || [];
@@ -1889,7 +1895,13 @@ function initWeightChart() {
 
 function initCaloriesChart() {
     const ctx = document.getElementById('caloriesChart');
-    if (!ctx || charts.calories) return;
+    if (!ctx) return;
+    
+    // Destruir chart existente si existe
+    if (charts.calories) {
+        charts.calories.destroy();
+        charts.calories = null;
+    }
     
     const dates = Object.keys(allDays).sort();
     const caloriesData = dates.map(date => {
@@ -1932,7 +1944,13 @@ function initCaloriesChart() {
 
 function initProteinChart() {
     const ctx = document.getElementById('proteinChart');
-    if (!ctx || charts.protein) return;
+    if (!ctx) return;
+    
+    // Destruir chart existente si existe
+    if (charts.protein) {
+        charts.protein.destroy();
+        charts.protein = null;
+    }
     
     const dates = Object.keys(allDays).sort();
     const proteinData = dates.map(date => {
@@ -1978,7 +1996,13 @@ function initProteinChart() {
 
 function initMacroChart() {
     const ctx = document.getElementById('macroChart');
-    if (!ctx || charts.macro) return;
+    if (!ctx) return;
+    
+    // Destruir chart existente si existe
+    if (charts.macro) {
+        charts.macro.destroy();
+        charts.macro = null;
+    }
     
     const dates = Object.keys(allDays).sort();
     let totalKcal = 0, totalProtein = 0, totalCarbs = 0, totalFats = 0, count = 0;
