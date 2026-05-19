@@ -141,8 +141,9 @@ function updateOnboardingProgress() {
 }
 
 function showOnboarding() {
-    // Solo mostrar si no está completa la config y no está cerrada manualmente
-    if (!isConfigComplete() && !localStorage.getItem('onboardingClosed')) {
+    // Solo mostrar si no está completa la config
+    // El modal reaparece automáticamente si el perfil no está completo
+    if (!isConfigComplete()) {
         const modal = document.getElementById('onboardingModal');
         if (modal) {
             modal.classList.remove('hidden');
@@ -156,9 +157,8 @@ function closeOnboarding() {
     const modal = document.getElementById('onboardingModal');
     if (modal) {
         modal.classList.add('hidden');
-        // Guardar que el usuario cerró el modal (no mostrar hasta que recargue)
-        localStorage.setItem('onboardingClosed', 'true');
     }
+    // NO guardamos ningún flag - el modal reaparece si el perfil sigue incompleto
 }
 
 function startOnboarding() {
@@ -1094,10 +1094,9 @@ function saveConfig() {
     updateGoalsDisplay();
     updateOnboardingProgress();
     
-    // Si la configuración está completa, cerrar onboarding y limpiar flag
+    // Si la configuración está completa, cerrar onboarding automáticamente
     if (isConfigComplete()) {
         closeOnboarding();
-        localStorage.removeItem('onboardingClosed');
     }
 }
 
