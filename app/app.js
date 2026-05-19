@@ -944,6 +944,9 @@ function setupTabNavigation() {
 }
 
 function showTab(tabId) {
+    // Cerrar modal de onboarding cuando se accede a cualquier pestaña
+    closeOnboarding();
+    
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     
