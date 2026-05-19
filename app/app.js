@@ -244,14 +244,16 @@ function loadWeightHistory() {
     const saved = localStorage.getItem('weight_history');
     if (!saved) {
         config.weightHistory = [];
-        // Inicializar con peso inicial
-        config.weightHistory.push({
-            date: config.startDate.toISOString().split('T')[0],
-            weight: config.startWeight,
-            day: 1,
-            predictedWeight: null
-        });
-        saveWeightHistory();
+        // Solo inicializar si hay startDate y startWeight configurados
+        if (config.startDate && config.startWeight) {
+            config.weightHistory.push({
+                date: config.startDate.toISOString().split('T')[0],
+                weight: config.startWeight,
+                day: 1,
+                predictedWeight: null
+            });
+            saveWeightHistory();
+        }
     } else {
         config.weightHistory = JSON.parse(saved);
         
