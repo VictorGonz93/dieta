@@ -498,6 +498,55 @@ canvas {
     backdrop-filter: blur(10px);
 }
 
+/* ==================== NOTIFICATION TOAST ==================== */
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 0.75rem;
+    background: rgba(30, 41, 59, 0.95);
+    color: #e2e8f0;
+    border-left: 4px solid #667eea;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    max-width: 400px;
+    opacity: 0;
+    transform: translateX(400px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9999;
+    pointer-events: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.notification.success {
+    border-left-color: #4ade80;
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+.notification.error {
+    border-left-color: #f87171;
+    background: linear-gradient(135deg, rgba(248, 113, 113, 0.1) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+.notification.warning {
+    border-left-color: #facc15;
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.1) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+.notification.info {
+    border-left-color: #60a5fa;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
 .prediction-stat span:first-child {
     font-size: 0.75rem;
     opacity: 0.85;

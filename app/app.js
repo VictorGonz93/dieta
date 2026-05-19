@@ -2123,6 +2123,7 @@ function deleteFood(meal, index) {
     allDays[dateKey].meals[meal].splice(index, 1);
     saveDays();
     renderDay();
+    showNotification('✅ Comida eliminada', 'success');
 }
 
 // ==================== PRODUCTOS ====================
