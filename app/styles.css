@@ -353,6 +353,56 @@ button {
     animation: fadeIn 0.3s ease;
 }
 
+/* ==================== ACCORDIONS ==================== */
+
+.config-accordion {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(30, 41, 59, 0.5);
+}
+
+.accordion-header {
+    width: 100%;
+    padding: 1rem;
+    background: rgba(30, 41, 59, 0.8);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #cbd5e1;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.accordion-header:hover {
+    background: rgba(30, 41, 59, 1);
+    color: #e2e8f0;
+}
+
+.accordion-icon {
+    margin-left: auto;
+    transition: transform 0.3s;
+}
+
+.accordion-header.active .accordion-icon {
+    transform: rotate(180deg);
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.accordion-content.active {
+    max-height: 2000px;
+    padding: 1.5rem;
+    background: rgba(30, 41, 59, 0.5);
+}
+
 /* ==================== SCROLLBAR ==================== */
 
 ::-webkit-scrollbar {

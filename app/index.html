@@ -236,10 +236,6 @@
                         <span class="material-icons text-lg">restaurant</span>
                         Productos
                     </button>
-                    <button class="tab-btn" data-tab="gestionar" onclick="showTab('gestionar')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
-                        <span class="material-icons text-lg">add_circle</span>
-                        Gestionar
-                    </button>
                     <button class="tab-btn" data-tab="historial" onclick="showTab('historial')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
                         <span class="material-icons text-lg">bar_chart</span>
                         Gráficos
@@ -334,74 +330,7 @@
                     </div>
                 </div>
 
-                <!-- Day Summary -->
-                <div class="stat-card mb-8">
-                    <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                        <span class="material-icons text-primary">summary</span>
-                        Day Summary
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <!-- Calories -->
-                        <div class="p-4 bg-slate-800/50 rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <p class="text-xs text-slate-400 font-medium mb-1">Calories</p>
-                                    <p class="text-2xl font-bold text-white" id="sumCals">0</p>
-                                </div>
-                                <div class="icon-circle gradient-accent">
-                                    <span class="material-icons">local_fire_department</span>
-                                </div>
-                            </div>
-                            <p class="text-xs text-slate-400" id="calsGoal">/ 1550</p>
-                            <p class="text-sm font-medium mt-2" id="statusCals">⚠️</p>
-                        </div>
 
-                        <!-- Protein -->
-                        <div class="p-4 bg-slate-800/50 rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <p class="text-xs text-slate-400 font-medium mb-1">Protein</p>
-                                    <p class="text-2xl font-bold text-white" id="sumProtein">0g</p>
-                                </div>
-                                <div class="icon-circle gradient-primary">
-                                    <span class="material-icons">fitness_center</span>
-                                </div>
-                            </div>
-                            <p class="text-xs text-slate-400" id="proteinGoal">/ 160g</p>
-                            <p class="text-sm font-medium mt-2" id="statusProtein">⚠️</p>
-                        </div>
-
-                        <!-- Carbs -->
-                        <div class="p-4 bg-slate-800/50 rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <p class="text-xs text-slate-400 font-medium mb-1">Carbs</p>
-                                    <p class="text-2xl font-bold text-white" id="sumCarbs">0g</p>
-                                </div>
-                                <div class="icon-circle gradient-warning">
-                                    <span class="material-icons">grain</span>
-                                </div>
-                            </div>
-                            <p class="text-xs text-slate-400" id="carbsGoal">/ 110g</p>
-                            <p class="text-sm font-medium mt-2" id="statusCarbs">⚠️</p>
-                        </div>
-
-                        <!-- Fats -->
-                        <div class="p-4 bg-slate-800/50 rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <p class="text-xs text-slate-400 font-medium mb-1">Fats</p>
-                                    <p class="text-2xl font-bold text-white" id="sumFats">0g</p>
-                                </div>
-                                <div class="icon-circle gradient-success">
-                                    <span class="material-icons">opacity</span>
-                                </div>
-                            </div>
-                            <p class="text-xs text-slate-400" id="fatsGoal">/ 50g</p>
-                            <p class="text-sm font-medium mt-2" id="statusFats">⚠️</p>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Daily Weight Input -->
                 <div class="stat-card mb-8">
@@ -428,43 +357,40 @@
                 <div id="weeklyProgress"></div>
             </div>
 
-            <!-- TAB 2: PRODUCTS -->
+            <!-- TAB 2: PRODUCTS & MANAGEMENT (CONSOLIDATED) -->
             <div class="tab-content" id="productos">
-                <div class="stat-card">
-                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                        <span class="material-icons text-primary">restaurant_menu</span>
-                        Food Database
-                    </h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left: Product Database -->
+                    <div class="lg:col-span-2 stat-card">
+                        <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                            <span class="material-icons text-primary">restaurant_menu</span>
+                            Base de Datos
+                        </h2>
 
-                    <div class="mb-6 flex gap-4 flex-col md:flex-row">
-                        <input type="text" id="searchProduct" placeholder="🔍 Buscar producto..." class="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
-                        <select id="categoryFilter" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                            <option value="">Todas las categorías</option>
-                            <option value="bebidas">🥛 Bebidas</option>
-                            <option value="proteinas">🥚 Proteínas</option>
-                            <option value="carbos">🥔 Carbohidratos</option>
-                            <option value="suplementos">💊 Suplementos</option>
-                        </select>
+                        <div class="mb-6 flex gap-4 flex-col md:flex-row">
+                            <input type="text" id="searchProduct" placeholder="🔍 Buscar producto..." class="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
+                            <select id="categoryFilter" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                <option value="">Todas</option>
+                                <option value="bebidas">🥛 Bebidas</option>
+                                <option value="proteinas">🥚 Proteínas</option>
+                                <option value="carbos">🥔 Carbohidratos</option>
+                                <option value="suplementos">💊 Suplementos</option>
+                            </select>
+                        </div>
+
+                        <div class="products-list grid grid-cols-1 md:grid-cols-2 gap-4" id="productsList"></div>
                     </div>
 
-                    <div class="products-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="productsList"></div>
-                </div>
-            </div>
-
-            <!-- TAB 3: MANAGE PRODUCTS -->
-            <div class="tab-content" id="gestionar">
-                <div class="stat-card">
-                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                        <span class="material-icons text-primary">add_circle</span>
-                        Gestionar Productos
-                    </h2>
-
-                    <div class="mb-8 p-6 bg-slate-800/50 rounded-xl">
-                        <h3 class="text-lg font-semibold text-white mb-4">Crear Nuevo Producto</h3>
-                        <div class="space-y-4">
-                            <input type="text" id="newProductName" placeholder="Nombre del producto" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
+                    <!-- Right: Create Product -->
+                    <div class="stat-card">
+                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                            <span class="material-icons">add_circle</span>
+                            Nuevo Producto
+                        </h3>
+                        <div class="space-y-3">
+                            <input type="text" id="newProductName" placeholder="Nombre" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:border-primary smooth-transition">
                             
-                            <select id="newProductCategory" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                            <select id="newProductCategory" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
                                 <option value="bebidas">🥛 Bebidas</option>
                                 <option value="proteinas">💪 Proteínas</option>
                                 <option value="carbos">🥔 Carbohidratos</option>
@@ -472,25 +398,22 @@
                                 <option value="suplementos">💊 Suplementos</option>
                             </select>
 
-                            <div class="grid grid-cols-2 gap-4">
-                                <input type="number" id="newProductKcal" placeholder="Kcal (por 100g)" step="0.1" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
-                                <input type="number" id="newProductProtein" placeholder="Proteína g (por 100g)" step="0.1" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
-                            </div>
+                            <input type="number" id="newProductKcal" placeholder="Kcal/100g" step="0.1" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:border-primary smooth-transition">
+                            <input type="number" id="newProductProtein" placeholder="Proteína g/100g" step="0.1" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:border-primary smooth-transition">
+                            <input type="number" id="newProductCarbs" placeholder="Carbos g/100g" step="0.1" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:border-primary smooth-transition">
+                            <input type="number" id="newProductFats" placeholder="Grasas g/100g" step="0.1" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:border-primary smooth-transition">
 
-                            <div class="grid grid-cols-2 gap-4">
-                                <input type="number" id="newProductCarbs" placeholder="Carbohidratos g (por 100g)" step="0.1" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
-                                <input type="number" id="newProductFats" placeholder="Grasas g (por 100g)" step="0.1" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
-                            </div>
+                            <button onclick="addNewProduct()" class="w-full py-2 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition text-sm">Crear</button>
+                        </div>
 
-                            <button onclick="addNewProduct()" class="w-full py-3 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition">Añadir Producto</button>
+                        <div class="mt-6 pt-6 border-t border-slate-700">
+                            <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                <span class="material-icons text-xs">list</span>
+                                Personalizados
+                            </h3>
+                            <div class="custom-products-list space-y-2 max-h-48 overflow-y-auto" id="customProductsList"></div>
                         </div>
                     </div>
-
-                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <span class="material-icons">list</span>
-                        Productos Personalizados
-                    </h3>
-                    <div class="custom-products-list grid gap-4" id="customProductsList"></div>
                 </div>
             </div>
 
@@ -582,15 +505,14 @@
                     Configuración
                 </h2>
 
-                <div class="flex gap-1 mb-8 border-b border-slate-700">
-                    <button class="config-tab-btn active flex-1 py-3 text-xs font-medium text-white border-b-2 border-primary smooth-transition" onclick="switchConfigTab('personal')"><span class="material-icons text-sm align-middle">person</span>Personal</button>
-                    <button class="config-tab-btn flex-1 py-3 text-xs font-medium text-slate-400 hover:text-white border-b-2 border-transparent smooth-transition" onclick="switchConfigTab('pesos')"><span class="material-icons text-sm align-middle">show_chart</span>Pesos</button>
-                    <button class="config-tab-btn flex-1 py-3 text-xs font-medium text-slate-400 hover:text-white border-b-2 border-transparent smooth-transition" onclick="switchConfigTab('objetivos')"><span class="material-icons text-sm align-middle">flag</span>Objetivos</button>
-                    <button class="config-tab-btn flex-1 py-3 text-xs font-medium text-slate-400 hover:text-white border-b-2 border-transparent smooth-transition" onclick="switchConfigTab('datos')"><span class="material-icons text-sm align-middle">storage</span>Datos</button>
-                </div>
-
-                <!-- Personal Tab -->
-                <div class="config-tab active" id="tab-personal">
+                <!-- Accordion: Personal -->
+                <div class="config-accordion mb-4">
+                    <button class="accordion-header active" onclick="toggleAccordion(this)">
+                        <span class="material-icons text-sm">person</span>
+                        <span>Personal</span>
+                        <span class="material-icons text-sm accordion-icon">expand_more</span>
+                    </button>
+                    <div class="accordion-content active" id="tab-personal">
                     <div class="stat-card mb-8">
                         <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
                             <span class="material-icons">person</span>
@@ -651,10 +573,17 @@
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
 
-                <!-- Weight History Tab -->
-                <div class="config-tab" id="tab-pesos">
+                <!-- Accordion: Weight History -->
+                <div class="config-accordion mb-4">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span class="material-icons text-sm">show_chart</span>
+                        <span>Histórico Pesos</span>
+                        <span class="material-icons text-sm accordion-icon">expand_more</span>
+                    </button>
+                    <div class="accordion-content" id="tab-pesos">
                     <div class="stat-card">
                         <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
                             <span class="material-icons">show_chart</span>
@@ -666,10 +595,17 @@
                             <!-- Se llena dinámicamente -->
                         </div>
                     </div>
+                    </div>
                 </div>
 
-                <!-- Goals Tab -->
-                <div class="config-tab" id="tab-objetivos">
+                <!-- Accordion: Goals -->
+                <div class="config-accordion mb-4">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span class="material-icons text-sm">flag</span>
+                        <span>Objetivos</span>
+                        <span class="material-icons text-sm accordion-icon">expand_more</span>
+                    </button>
+                    <div class="accordion-content" id="tab-objetivos">
                     <div class="stat-card">
                         <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
                             <span class="material-icons">target</span>
@@ -704,10 +640,17 @@
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
 
-                <!-- Data Tab -->
-                <div class="config-tab" id="tab-datos">
+                <!-- Accordion: Data -->
+                <div class="config-accordion mb-4">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span class="material-icons text-sm">storage</span>
+                        <span>Datos</span>
+                        <span class="material-icons text-sm accordion-icon">expand_more</span>
+                    </button>
+                    <div class="accordion-content" id="tab-datos">
                     <div class="stat-card mb-8">
                         <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
                             <span class="material-icons">storage</span>

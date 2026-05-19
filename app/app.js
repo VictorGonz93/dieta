@@ -762,26 +762,28 @@ function showTab(tabId) {
 }
 
 // ==================== CONFIG TABS ====================
-function switchConfigTab(tabName) {
-    // Remove active class from all tabs and buttons
-    document.querySelectorAll('.config-tab').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.config-tab-btn').forEach(btn => btn.classList.remove('active'));
-    
-    // Show selected tab
-    const tabElement = document.getElementById(`tab-${tabName}`);
-    if (tabElement) tabElement.classList.add('active');
-    
-    // Activate the button that matches this tabName
-    document.querySelectorAll('.config-tab-btn').forEach(btn => {
-        const onclick = btn.getAttribute('onclick');
-        if (onclick && onclick.includes(`'${tabName}'`)) {
-            btn.classList.add('active');
+function toggleAccordion(headerElement) {
+    // Close all other accordions
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        if (header !== headerElement) {
+            header.classList.remove('active');
+            const content = header.nextElementSibling;
+            if (content && content.classList.contains('accordion-content')) {
+                content.classList.remove('active');
+            }
         }
     });
     
-    // Renderizar histórico de pesos si se abre ese tab
-    if (tabName === 'pesos') {
-        renderWeightHistory();
+    // Toggle current accordion
+    headerElement.classList.toggle('active');
+    const contentElement = headerElement.nextElementSibling;
+    if (contentElement && contentElement.classList.contains('accordion-content')) {
+        contentElement.classList.toggle('active');
+        
+        // Render weight history if this is the weight section
+        if (contentElement.id === 'tab-pesos') {
+            renderWeightHistory();
+        }
     }
 }
 
