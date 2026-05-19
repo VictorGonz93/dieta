@@ -1,4 +1,5 @@
 const https = require('https');
+const url = require('url');
 
 exports.handler = async (event) => {
     const { query } = event.queryStringParameters || {};
@@ -13,12 +14,20 @@ exports.handler = async (event) => {
     try {
         const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&page_size=10&json=1`;
 
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`API returned ${response.status}`);
-        }
-
-        const data = await response.json();
+        // Use native https.get instead of fetch
+        const data = await new Promise((resolve, reject) => {
+            https.get(apiUrl, (res) => {
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                    try {
+                        resolve(JSON.parse(body));
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            }).on('error', reject);
+        });
         
         return {
             statusCode: 200,
