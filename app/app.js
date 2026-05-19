@@ -220,11 +220,22 @@ function loadWeightHistory() {
         config.weightHistory.push({
             date: config.startDate.toISOString().split('T')[0],
             weight: config.startWeight,
-            day: 1
+            day: 1,
+            predictedWeight: null
         });
         saveWeightHistory();
     } else {
         config.weightHistory = JSON.parse(saved);
+        
+        // Migrate: add predictedWeight if missing
+        config.weightHistory.forEach((entry, idx) => {
+            if (entry.predictedWeight === undefined) {
+                const prediction = calculateNextDayPredictionForDate(entry.date, entry.weight);
+                entry.predictedWeight = prediction?.predictedWeight || null;
+            }
+        });
+        
+        saveWeightHistory();
     }
 }
 
@@ -238,10 +249,20 @@ function recordWeight(date, weight) {
     const existingIndex = config.weightHistory.findIndex(w => w.date === dateStr);
     const dayNum = getDayNumber(date);
     
+    // Calculate and save the prediction for this day
+    const prediction = calculateNextDayPredictionForDate(dateStr, weight);
+    const predictedWeight = prediction?.predictedWeight || null;
+    
     if (existingIndex >= 0) {
         config.weightHistory[existingIndex].weight = weight;
+        config.weightHistory[existingIndex].predictedWeight = predictedWeight;
     } else {
-        config.weightHistory.push({ date: dateStr, weight, day: dayNum });
+        config.weightHistory.push({ 
+            date: dateStr, 
+            weight, 
+            day: dayNum,
+            predictedWeight: predictedWeight
+        });
     }
     
     config.weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -844,6 +865,11 @@ function updateWeightEntry(date, newWeight) {
     const index = config.weightHistory.findIndex(w => w.date === date);
     if (index >= 0) {
         config.weightHistory[index].weight = weight;
+        
+        // Calculate and save prediction for this day
+        const prediction = calculateNextDayPredictionForDate(date, weight);
+        config.weightHistory[index].predictedWeight = prediction?.predictedWeight || null;
+        
         saveWeightHistory();
         renderWeightHistory();
         showNotification(`✅ Peso actualizado: ${weight}kg`, 'success');
@@ -1346,16 +1372,23 @@ function getPredictionAccuracy() {
     // Para cada peso registrado, comparar con lo predicho
     config.weightHistory.forEach((entry, idx) => {
         if (idx > 0) {
-            const prevDate = config.weightHistory[idx - 1];
-            const dateKey = prevDate.date;
+            let predictedWeight = null;
             
-            // Obtener predicción del día anterior
-            const pred = calculateNextDayPredictionForDate(dateKey, prevDate.weight);
-            if (pred) {
-                const error = Math.abs(entry.weight - pred.predictedWeight);
+            // Usar predicción guardada si está disponible
+            if (config.weightHistory[idx - 1]?.predictedWeight) {
+                predictedWeight = config.weightHistory[idx - 1].predictedWeight;
+            } else {
+                // Si no está guardada, calcularla
+                const prevDate = config.weightHistory[idx - 1];
+                const pred = calculateNextDayPredictionForDate(prevDate.date, prevDate.weight);
+                predictedWeight = pred?.predictedWeight;
+            }
+            
+            if (predictedWeight) {
+                const error = Math.abs(entry.weight - predictedWeight);
                 predictions.push({
                     date: entry.date,
-                    predicted: pred.predictedWeight,
+                    predicted: predictedWeight,
                     actual: entry.weight,
                     error: error.toFixed(3)
                 });
@@ -1558,7 +1591,7 @@ function renderWeightPredictionChart() {
         return;
     }
     
-    // Preparar datos
+    // Preparar datos usando predicciones guardadas
     const labels = [];
     const realWeights = [];
     const predictedWeights = [];
@@ -1567,7 +1600,11 @@ function renderWeightPredictionChart() {
         labels.push(entry.date);
         realWeights.push(entry.weight);
         
-        if (idx > 0) {
+        // Si hay predicción guardada para este día, usarla
+        if (entry.predictedWeight !== undefined && entry.predictedWeight !== null) {
+            predictedWeights.push(entry.predictedWeight);
+        } else if (idx > 0) {
+            // Si no hay predicción guardada, calcularla del día anterior
             const pred = calculateNextDayPredictionForDate(config.weightHistory[idx - 1].date, config.weightHistory[idx - 1].weight);
             if (pred) {
                 predictedWeights.push(pred.predictedWeight);
