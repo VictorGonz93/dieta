@@ -8,7 +8,7 @@
 - ✅ **Cálculo automático de macros** - Proteína, carbohidratos, grasas
 - ✅ **4 gráficos interactivos** - Peso, calorías, proteína, macros
 - ✅ **Estadísticas detalladas** - Semanales, promedio general, mejor día
-- ✅ **Base de datos de productos** - Búsqueda desde OpenFoodFacts API
+- ✅ **Creación de productos** - Añade productos personalizados fácilmente
 - ✅ **Configuración personalizable** - Pesos, objetivos, rangos nutricionales
 - ✅ **Export/Import** - JSON y CSV para respaldo
 - ✅ **Modo Offline (PWA)** - Service Worker + cache-first
@@ -56,7 +56,6 @@ https://[tu-usuario].github.io/dieta/
 
 - **Frontend:** Vanilla JavaScript ES6+ + Tailwind CSS
 - **Gráficos:** Chart.js 3.9.1
-- **API Productos:** OpenFoodFacts (multilingual)
 - **PWA:** Service Worker + manifest.json
 - **Almacenamiento:** localStorage + IndexedDB
 
@@ -84,18 +83,12 @@ https://[tu-usuario].github.io/dieta/
 
 ---
 
-## 🌐 Búsqueda de Productos (OpenFoodFacts)
+## ➕ Creación de Productos
 
-- Busca en **español** o **inglés**
-- +1M de alimentos en la base de datos
-- Información nutricional verificada
-- Sin conexión, también funciona con el caché
-
-**Ejemplo de búsquedas:**
-- "pollo" → 13+ productos encontrados
-- "arroz" → 13+ productos encontrados
-- "manzana" → 13+ productos encontrados
-- "bread" → 13+ productos encontrados
+- Añade productos personalizados fácilmente
+- Define calorías y macros (proteína, carbohidratos, grasas)
+- Guarda en tu base de datos local
+- Categorías: Bebidas, Proteínas, Carbohidratos, Platos, Suplementos
 
 ---
 
