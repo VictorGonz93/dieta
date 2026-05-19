@@ -768,6 +768,74 @@ function switchConfigTab(tabName) {
             btn.classList.add('active');
         }
     });
+    
+    // Renderizar histórico de pesos si se abre ese tab
+    if (tabName === 'pesos') {
+        renderWeightHistory();
+    }
+}
+
+function renderWeightHistory() {
+    const container = document.getElementById('weightHistoryContainer');
+    if (!container) return;
+    
+    if (!config.weightHistory || config.weightHistory.length === 0) {
+        container.innerHTML = '<p class="text-slate-400 text-center py-4">No hay pesos registrados</p>';
+        return;
+    }
+    
+    container.innerHTML = config.weightHistory
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .map((entry, index) => {
+            const date = new Date(entry.date + 'T00:00:00');
+            const dayName = date.toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' });
+            const dayNum = entry.day || (index + 1);
+            
+            return `
+                <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-primary smooth-transition flex items-center justify-between gap-4">
+                    <div class="flex-1">
+                        <p class="text-white font-semibold">Día ${dayNum}</p>
+                        <p class="text-xs text-slate-400">${dayName}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="number" 
+                               step="0.1" 
+                               value="${entry.weight}" 
+                               class="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-right focus:outline-none focus:border-accent smooth-transition"
+                               onchange="updateWeightEntry('${entry.date}', this.value)"
+                               onkeyup="if(event.key === 'Enter') this.onchange()">
+                        <span class="text-slate-400 font-medium">kg</span>
+                        <button onclick="deleteWeightEntry('${entry.date}')" class="ml-2 p-2 hover:bg-red-600/20 text-red-400 rounded-lg smooth-transition" title="Eliminar">
+                            <span class="material-icons text-lg">delete</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+}
+
+function updateWeightEntry(date, newWeight) {
+    const weight = parseFloat(newWeight);
+    if (isNaN(weight) || weight <= 0) return;
+    
+    const index = config.weightHistory.findIndex(w => w.date === date);
+    if (index >= 0) {
+        config.weightHistory[index].weight = weight;
+        saveWeightHistory();
+        renderWeightHistory();
+        showNotification(`✅ Peso actualizado: ${weight}kg`, 'success');
+        updateAllUI();
+    }
+}
+
+function deleteWeightEntry(date) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
+    
+    config.weightHistory = config.weightHistory.filter(w => w.date !== date);
+    saveWeightHistory();
+    renderWeightHistory();
+    showNotification('✅ Registro eliminado', 'success');
+    updateAllUI();
 }
 
 // ==================== CONFIGURACIÓN ====================

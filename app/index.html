@@ -567,6 +567,9 @@
                     <button class="config-tab-btn active px-4 py-3 text-sm font-medium text-white border-b-2 border-primary smooth-transition" onclick="switchConfigTab('personal')">
                         <span class="material-icons text-lg align-middle">person</span> Personal
                     </button>
+                    <button class="config-tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-white border-b-2 border-transparent smooth-transition" onclick="switchConfigTab('pesos')">
+                        <span class="material-icons text-lg align-middle">show_chart</span> Histórico Pesos
+                    </button>
                     <button class="config-tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-white border-b-2 border-transparent smooth-transition" onclick="switchConfigTab('objetivos')">
                         <span class="material-icons text-lg align-middle">target</span> Objetivos
                     </button>
@@ -635,6 +638,21 @@
                                 <p class="text-xs text-slate-400 font-medium mb-2">TDEE Descanso (×1.30)</p>
                                 <p class="text-2xl font-bold text-white" id="tdeeDescansoValue">-</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weight History Tab -->
+                <div class="config-tab" id="tab-pesos">
+                    <div class="stat-card">
+                        <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                            <span class="material-icons">show_chart</span>
+                            Histórico de Pesos
+                        </h3>
+                        <p class="text-slate-400 text-sm mb-4">Edita los pesos registrados por día. Los cambios se guardan automáticamente.</p>
+                        
+                        <div class="space-y-3 max-h-96 overflow-y-auto" id="weightHistoryContainer">
+                            <!-- Se llena dinámicamente -->
                         </div>
                     </div>
                 </div>
