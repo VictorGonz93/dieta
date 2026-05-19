@@ -161,12 +161,35 @@ function updateMotivationalMessage(progressPercent, lostWeight, remainingWeight)
 }
 
 function calculateTMR(weight, height, age, gender) {
-    // FÃ³rmula Mifflin-St Jeor
+    // Fórmula Mifflin-St Jeor
     if (gender === 'male') {
         return (10 * weight) + (6.25 * height) - (5 * age) + 5;
     } else {
         return (10 * weight) + (6.25 * height) - (5 * age) - 161;
     }
+}
+
+// ==================== NAVIGATION & UI FUNCTIONS ====================
+
+function toggleDarkMode() {
+    const html = document.documentElement;
+    const isDark = html.classList.toggle('dark');
+    localStorage.darkModeEnabled = isDark;
+}
+
+function nextDay() {
+    currentDateOffset++;
+    loadCurrentDay();
+}
+
+function previousDay() {
+    currentDateOffset--;
+    loadCurrentDay();
+}
+
+function todayDay() {
+    currentDateOffset = 0;
+    loadCurrentDay();
 }
 
 // ==================== DATA INITIALIZATION ====================
