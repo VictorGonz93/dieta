@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Testing & Debug
+test_*.py
+debug_*.py
+*.test.js
+
+# Cache & Temporary
+products_cache.json
+.DS_Store
+*.log
+node_modules/
+
+# Local development
+.env
+.env.local
+.env.*.local
+localhost:*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Old/Legacy versions
+app-pro.js
+app/styles-old.css
+server.js
+server.py
+serve_app.py
+
+# Netlify (using GitHub Pages now)
+netlify/
+netlify.toml
+.netlify/
+
+# Personal/Private docs
+comidas_diarias.md
+gym.md
+SETUP.md
