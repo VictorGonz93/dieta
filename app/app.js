@@ -29,6 +29,17 @@ function toggleAccordion(headerElement) {
 
 // ==================== ONBOARDING FUNCTIONS ====================
 
+// Lista de campos requeridos del perfil
+const REQUIRED_FIELDS = [
+    { key: 'startWeight', label: 'Peso Inicial', icon: 'monitor_weight' },
+    { key: 'currentWeight', label: 'Peso Actual', icon: 'scale' },
+    { key: 'targetWeight', label: 'Peso Objetivo', icon: 'flag' },
+    { key: 'startDate', label: 'Fecha Inicio', icon: 'calendar_today' },
+    { key: 'height', label: 'Altura', icon: 'straighten' },
+    { key: 'age', label: 'Edad', icon: 'person' },
+    { key: 'gender', label: 'Género', icon: 'wc' }
+];
+
 function isConfigComplete() {
     // Retorna true si la configuración básica está completa
     return !!(
@@ -42,12 +53,101 @@ function isConfigComplete() {
     );
 }
 
+function calculateProfileProgress() {
+    // Calcula cuántos campos están completados
+    let completed = 0;
+    REQUIRED_FIELDS.forEach(field => {
+        if (config[field.key]) {
+            completed++;
+        }
+    });
+    
+    return {
+        completed,
+        total: REQUIRED_FIELDS.length,
+        percentage: Math.round((completed / REQUIRED_FIELDS.length) * 100)
+    };
+}
+
+function getMotivationalMessage(progress) {
+    // Mensajes motivacionales según el progreso
+    const { percentage } = progress;
+    
+    if (percentage === 0) {
+        return "¡Comienza rellenando los datos personales!";
+    } else if (percentage < 30) {
+        return "¡Buen comienzo! Continúa completando tu perfil.";
+    } else if (percentage < 60) {
+        return "¡Ya va bien! Falta poco para terminar.";
+    } else if (percentage < 100) {
+        return "¡Casi lo logras! Solo falta completar unos pocos campos.";
+    } else {
+        return "¡Perfil completado! ¡A rastrear!";
+    }
+}
+
+function updateOnboardingProgress() {
+    // Calcula el progreso y actualiza el modal
+    const progress = calculateProfileProgress();
+    const { completed, total, percentage } = progress;
+    
+    // Actualizar barra de progreso
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressPercentage = document.getElementById('progressPercentage');
+    
+    if (progressBar) {
+        progressBar.style.width = percentage + '%';
+    }
+    if (progressText) {
+        progressText.textContent = `${completed}/${total}`;
+    }
+    if (progressPercentage) {
+        progressPercentage.textContent = `${percentage}% completado`;
+    }
+    
+    // Actualizar lista de campos faltantes
+    const missingFieldsList = document.getElementById('missingFieldsList');
+    if (missingFieldsList) {
+        missingFieldsList.innerHTML = '';
+        REQUIRED_FIELDS.forEach(field => {
+            const isCompleted = !!config[field.key];
+            const fieldElement = document.createElement('div');
+            fieldElement.className = `flex items-center gap-2 p-2 rounded ${
+                isCompleted 
+                    ? 'bg-success/10 text-success' 
+                    : 'bg-slate-700/30 text-slate-400'
+            }`;
+            
+            const checkIcon = document.createElement('span');
+            checkIcon.className = 'material-icons text-sm';
+            checkIcon.textContent = isCompleted ? 'check_circle' : 'radio_button_unchecked';
+            
+            const label = document.createElement('span');
+            label.className = 'text-xs font-medium';
+            label.textContent = field.label;
+            
+            fieldElement.appendChild(checkIcon);
+            fieldElement.appendChild(label);
+            missingFieldsList.appendChild(fieldElement);
+        });
+    }
+    
+    // Actualizar mensaje motivacional
+    const motivationalText = document.getElementById('motivationalText');
+    if (motivationalText) {
+        motivationalText.textContent = getMotivationalMessage(progress);
+    }
+}
+
 function showOnboarding() {
     // Solo mostrar si no está completa la config y no está cerrada manualmente
     if (!isConfigComplete() && !localStorage.getItem('onboardingClosed')) {
         const modal = document.getElementById('onboardingModal');
         if (modal) {
             modal.classList.remove('hidden');
+            // Actualizar progreso al mostrar
+            updateOnboardingProgress();
         }
     }
 }
@@ -803,7 +903,30 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Mostrar onboarding si la config no está completa
     showOnboarding();
+    setupOnboardingListeners();
 });
+
+// ==================== ONBOARDING LISTENERS ====================
+function setupOnboardingListeners() {
+    // IDs de inputs que afectan el progreso del onboarding
+    const inputIds = [
+        'startWeight', 
+        'currentWeightInput', 
+        'targetWeight', 
+        'startDate', 
+        'height', 
+        'age', 
+        'gender'
+    ];
+    
+    inputIds.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('change', updateOnboardingProgress);
+            input.addEventListener('blur', updateOnboardingProgress);
+        }
+    });
+}
 
 // ==================== TAB NAVIGATION ====================
 function setupTabNavigation() {
@@ -969,6 +1092,7 @@ function saveConfig() {
     displayNextDayPrediction();
     renderDay();
     updateGoalsDisplay();
+    updateOnboardingProgress();
     
     // Si la configuración está completa, cerrar onboarding y limpiar flag
     if (isConfigComplete()) {
