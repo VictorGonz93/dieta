@@ -824,7 +824,10 @@ function updateWeightEntry(date, newWeight) {
         saveWeightHistory();
         renderWeightHistory();
         showNotification(`✅ Peso actualizado: ${weight}kg`, 'success');
-        updateAllUI();
+        updateHeaderInfo();
+        updateWeightPrediction();
+        displayNextDayPrediction();
+        renderDay();
     }
 }
 
@@ -835,7 +838,10 @@ function deleteWeightEntry(date) {
     saveWeightHistory();
     renderWeightHistory();
     showNotification('✅ Registro eliminado', 'success');
-    updateAllUI();
+    updateHeaderInfo();
+    updateWeightPrediction();
+    displayNextDayPrediction();
+    renderDay();
 }
 
 // ==================== CONFIGURACIÓN ====================
