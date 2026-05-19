@@ -1,4 +1,4 @@
-﻿// NUTRITION TRACKER PRO - VERSIÃ“N MEJORADA
+// NUTRITION TRACKER PRO - VERSIÃ“N MEJORADA
 // Sistema profesional con grÃ¡ficos, estadÃ­sticas y funcionalidades avanzadas
 
 // ==================== ACCORDION FUNCTIONS (TOP-LEVEL) ====================
