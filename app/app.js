@@ -23,7 +23,7 @@ const PRODUCTS_DB = [
 ];
 
 // PRODUCTOS PERSONALIZADOS
-let customProducts = [];
+var customProducts = [];
 
 function loadCustomProducts() {
     const saved = localStorage.getItem('custom_products');
@@ -126,7 +126,7 @@ function renderCustomProducts() {
 }
 
 // ==================== HISTORIAL FRECUENTE ====================
-let mealHistory = [];
+var mealHistory = [];
 
 function loadMealHistory() {
     const saved = localStorage.getItem('meal_history');
@@ -498,9 +498,9 @@ function displayNextDayPrediction() {
 }
 
 // ESTADO GLOBAL
-let currentDate = new Date();
-let allDays = {};
-let config = {
+var currentDate = new Date();
+var allDays = {};
+var config = {
     startWeight: 85.4,
     currentWeight: 73.1,
     targetWeight: 70,
@@ -649,7 +649,7 @@ function getMealType(mealName, mealTime, dateKey) {
     return 'normal';
 }
 
-let charts = {};
+var charts = {};
 
 // INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', () => {
@@ -1493,7 +1493,7 @@ function todayDay() {
 }
 
 // ==================== MODAL ====================
-let currentMealForModal = null;
+var currentMealForModal = null;
 
 function openModal(mealType) {
     currentMealForModal = mealType;
