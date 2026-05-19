@@ -307,23 +307,22 @@ function calculateNextDayPredictionForDate(dateKey, nextDayWeight = config.curre
     // Versión genérica que calcula para cualquier fecha
     const dayData = allDays[dateKey];
     
-    if (!dayData) {
-        return null;
-    }
-    
+    // Si no hay datos de comidas para ese día, asumir 0 calorías (descanso o sin registro)
     let totalKcal = 0, totalCarbs = 0;
     let totalWaterRetention = 0;
     
-    Object.values(dayData.meals).forEach(meal => {
-        meal.forEach(food => {
-            totalKcal += food.kcal;
-            totalCarbs += food.carbs;
-            
-            // Calcular retención de agua con timing para cada comida
-            const foodWaterRetention = calculateWaterRetentionWithTiming(food.carbs, food.time, dateKey);
-            totalWaterRetention += foodWaterRetention;
+    if (dayData) {
+        Object.values(dayData.meals).forEach(meal => {
+            meal.forEach(food => {
+                totalKcal += food.kcal;
+                totalCarbs += food.carbs;
+                
+                // Calcular retención de agua con timing para cada comida
+                const foodWaterRetention = calculateWaterRetentionWithTiming(food.carbs, food.time, dateKey);
+                totalWaterRetention += foodWaterRetention;
+            });
         });
-    });
+    }
     
     // Obtener datos según tipo de día - PARSEAR CORRECTAMENTE EL DATEKEY
     // dateKey es "YYYY-MM-DD", necesitamos convertirlo a Date correctamente
