@@ -1208,10 +1208,10 @@ function updateDaySummary(dayData) {
 }
 
 function updateQuickMacros(kcal, protein, carbs, fats, targetCals) {
-    if (document.getElementById('quickCals')) document.getElementById('quickCals').textContent = `${kcal.toFixed(0)} / ${targetCals}`;
-    if (document.getElementById('quickProtein')) document.getElementById('quickProtein').textContent = `${protein.toFixed(1)} / ${config.proteinGoal}g`;
-    if (document.getElementById('quickCarbs')) document.getElementById('quickCarbs').textContent = `${carbs.toFixed(1)} / ${config.carbsMax}g`;
-    if (document.getElementById('quickFats')) document.getElementById('quickFats').textContent = `${fats.toFixed(1)} / ${config.fatsMax}g`;
+    if (document.getElementById('quickCals')) document.getElementById('quickCals').textContent = `${kcal.toFixed(0)} / ${targetCals || 0}`;
+    if (document.getElementById('quickProtein')) document.getElementById('quickProtein').textContent = `${protein.toFixed(1)} / ${config.proteinGoal || '-'}g`;
+    if (document.getElementById('quickCarbs')) document.getElementById('quickCarbs').textContent = `${carbs.toFixed(1)} / ${config.carbsMax || '-'}g`;
+    if (document.getElementById('quickFats')) document.getElementById('quickFats').textContent = `${fats.toFixed(1)} / ${config.fatsMax || '-'}g`;
     
     // Actualizar barra de progreso
     const percent = Math.min((kcal / targetCals) * 100, 100);
