@@ -670,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/app/sw.js').then(() => {
+        navigator.serviceWorker.register('/sw.js').then(() => {
             console.log('Service Worker registrado exitosamente');
         }).catch((err) => {
             console.log('Error registrando Service Worker:', err);

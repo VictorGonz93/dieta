@@ -1,10 +1,10 @@
 const CACHE_NAME = 'nutrition-tracker-v2';
 const urlsToCache = [
-    '/app/',
-    '/app/index.html',
-    '/app/app.js',
-    '/app/styles.css',
-    '/app/manifest.json',
+    '/',
+    '/index.html',
+    '/app.js',
+    '/styles.css',
+    '/manifest.json',
     // CDN Resources
     'https://cdn.tailwindcss.com',
     'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js',
