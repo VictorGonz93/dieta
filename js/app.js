@@ -781,9 +781,6 @@ function displayNextDayPrediction() {
                         <div class="weight-change" style="color: ${weightColor};">
                             ${sign} ${weightChangeSign}${weightChange.toFixed(2)} kg
                         </div>
-                        <div style="font-size: 12px; color: #718096; margin-top: 4px;">
-                            ${confidenceEmoji} Rango: ${nextPred.predictedWeightLow} - ${nextPred.predictedWeightHigh} kg (±${nextPred.confidenceRange}kg)
-                        </div>
                     </div>
                 </div>
                 
@@ -2919,6 +2916,7 @@ function exportData() {
         days: allDays,
         customProducts,
         mealHistory,
+        weight_history: weight_history,
         
         // Resúmenes y estadísticas
         dailySummary,
