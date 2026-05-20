@@ -175,15 +175,133 @@ El archivo `app.js` (2838 líneas) está organizado en **secciones funcionales**
 **Ejemplo:**
 ```javascript
 // En sw.js
-const CACHE_VERSION = 12;  // ← Incrementa aquí
+const CACHE_VERSION = 14;  // ← Incrementa aquí
 ```
 
 ```html
 <!-- En index.html -->
-<script src="js/app.js?v=20250520-3"></script>  <!-- ← Y/o aquí -->
+<script src="js/app.js?v=20250520-5"></script>  <!-- ← Y/o aquí -->
+```
+## 🔄 Sistema de Actualización en Vivo (Híbrido)
+
+### Arquitectura Híbrida: Pasivo + Activo
+
+Detecta updates de **dos formas simultáneamente** para máxima cobertura:
+
+#### **1️⃣ Pasivo - Service Worker (SW)**
+```javascript
+// sw.js - Evento activate:
+self.clients.postMessage({
+    type: 'UPDATE_AVAILABLE',
+    version: CACHE_VERSION
+});
+```
+**Cuándo activa**: Cuando navegador detecta nuevo sw.js (puede tardar horas)  
+**Ventaja**: Sin costo de datos, automático  
+**Desventaja**: Lento en apps instaladas  
+
+#### **2️⃣ Activo - Polling (Nuevo)**
+```javascript
+// app.js - Cada 5 minutos:
+async function checkForUpdates() {
+    const response = await fetch('sw.js?_t=' + Date.now());
+    const swContent = await response.text();
+    const match = swContent.match(/const\s+CACHE_VERSION\s*=\s*(\d+)/);
+    const remoteVersion = parseInt(match[1]);
+    
+    if (remoteVersion > CURRENT_APP_VERSION) {
+        showUpdateAvailableModal(remoteVersion);
+    }
+}
+```
+**Cuándo activa**: Cada 5 minutos (configurable)  
+**Ventaja**: Detecta updates casi al instante  
+**Desventaja**: Pequeño costo de datos (~1KB cada 5 min)  
+**Smart**: Solo si hay conexión, silencioso si falla  
+
+### Flujo Completo
+
+```
+┌─ Versión 4 instalada ─────────────────────────┐
+│                                                │
+│  Opción A: Update cada 5 minutos (Polling)    │
+│  Chequea remoto y encuentra v5                │
+│  → Modal aparece INMEDIATAMENTE                │
+│                                                │
+│  Opción B: Service Worker (Pasivo)            │
+│  Si SW se actualiza → también notifica        │
+│                                                │
+│  Usuario clickea [Actualizar]:                │
+│  1. Limpia todos los caches                   │
+│  2. Unregistra Service Workers                │
+│  3. Recarga página → v5 descargada            │
+│  4. localStorage PRESERVADO ✅                 │
+└────────────────────────────────────────────────┘
 ```
 
-## 📱 PWA Manifest
+### Características
+
+✅ **Dual-layer**: No depende solo de uno  
+✅ **Smart polling**: Detecta changes en ~5 minutos (web + PWA)  
+✅ **Bajo costo**: Solo 1KB de datos cada 5 minutos  
+✅ **Fallback**: Si polling falla, SW aún funciona  
+✅ **Datos preservados**: localStorage intacto tras update  
+✅ **User control**: Modal informativo, no invasivo  
+
+### Configuración
+
+```javascript
+// En app.js:
+const CURRENT_APP_VERSION = 5; // Actualizar aquí
+updateCheckInterval = setInterval(checkForUpdates, 5 * 60 * 1000); // 5 minutos
+```
+
+Para cambiar intervalo:
+- 1 minuto: `1 * 60 * 1000` (Más detección, más datos)
+- 5 minutos: `5 * 60 * 1000` (Balance - ACTUAL)
+- 30 minutos: `30 * 60 * 1000` (Menos datos, más lento)
+- 1 hora: `60 * 60 * 1000` (Mínimo costo)
+## � Sistema de Actualización en Vivo (Update Modal)
+
+### Cómo Funciona
+1. **Service Worker detecta cambios**: Cuando hay nuevo `CACHE_VERSION`
+2. **Notifica al usuario**: Modal "📦 Nueva versión disponible"
+3. **Usuario controla**: Botones [Actualizar] o [Cerrar]
+4. **Actualización limpia**: 
+   - Limpia todos los caches
+   - Descarga versión nueva
+   - Recarga la app
+   - **Datos preservados**: localStorage intacto
+
+### Flujo Técnico
+```javascript
+// sw.js - En activate event:
+self.clients.postMessage({
+    type: 'UPDATE_AVAILABLE',
+    version: CACHE_VERSION
+});
+
+// app.js - Escucha mensaje:
+navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'UPDATE_AVAILABLE') {
+        showUpdateAvailableModal();
+    }
+});
+
+// Usuario clickea [Actualizar]:
+function performUpdate() {
+    caches.delete(); // Limpiar cache
+    window.location.reload(); // Recargar
+}
+```
+
+### Ventajas
+✅ Usuario ve cambios sin desinstalar/reinstalar  
+✅ Control consciente del update (no es forzado)  
+✅ Todos los datos persisten (localStorage preservado)  
+✅ Funciona tanto web como app instalada  
+
+## �📱 PWA Manifest
 
 El archivo `manifest.json` define:
 - `start_url: "/dieta/"` - Punto de partida en instalación

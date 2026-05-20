@@ -1,4 +1,4 @@
-const CACHE_VERSION = 12; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 14; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -33,6 +33,10 @@ self.addEventListener('message', (event) => {
     }
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
+    }
+    if (event.data && event.data.type === 'GET_VERSION') {
+        // Enviar versión actual del SW al cliente
+        event.ports[0].postMessage({ version: CACHE_VERSION });
     }
 });
 
@@ -76,7 +80,7 @@ self.addEventListener('activate', (event) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log('Deleting old cache:', cacheName);
+                        console.log('🔄 Limpiando cache antiguo:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -84,4 +88,14 @@ self.addEventListener('activate', (event) => {
         })
     );
     self.clients.claim();
+    
+    // Notificar a todos los clientes que hay actualización disponible
+    self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'UPDATE_AVAILABLE',
+                version: CACHE_VERSION
+            });
+        });
+    });
 });

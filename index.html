@@ -9,6 +9,20 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23667eea' width='192' height='192' rx='48'/><text y='140' font-size='120' fill='white' text-anchor='middle' x='96'>💪</text></svg>">
     
+    <!-- Animaciones personalizadas -->
+    <style>
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -133,7 +147,7 @@
         }
     </style>
 
-    <link rel="stylesheet" href="css/styles.css?v=20250520-2">
+    <link rel="stylesheet" href="css/styles.css?v=20250520-4">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -929,4 +943,4 @@
     <script src="js/modules/utils.js?v=20250519-1"></script>
     
     <!-- Main App Orchestrator -->
-    <script src="js/app.js?v=20250520-3"></script>
+    <script src="js/app.js?v=20250520-5"></script>
