@@ -4,6 +4,9 @@
 // Versión actual de la app (para polling de updates)
 const CURRENT_APP_VERSION = 5; // Coincide con v20250520-4
 
+// Variable global para guardar versión remota encontrada
+let latestRemoteVersion = null;
+
 // ==================== SERVICE WORKER REGISTRATION ====================
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(registration => {
@@ -62,9 +65,15 @@ async function checkForUpdates() {
         
         const remoteVersion = parseInt(versionMatch[1]);
         
-        // Si versión remota > versión local, hay update disponible
-        if (remoteVersion > CURRENT_APP_VERSION) {
-            console.log(`📦 Nueva versión detectada: ${remoteVersion} (local: ${CURRENT_APP_VERSION})`);
+        // Leer versión instalada desde localStorage (fallback: CURRENT_APP_VERSION)
+        const installedVersion = parseInt(localStorage.getItem('appInstalledVersion') || CURRENT_APP_VERSION);
+        
+        // Si versión remota > versión instalada, hay update disponible
+        if (remoteVersion > installedVersion) {
+            console.log(`📦 Nueva versión detectada: ${remoteVersion} (instalada: ${installedVersion})`);
+            
+            // Guardar versión remota en variable global
+            latestRemoteVersion = remoteVersion;
             
             // Solo mostrar si no hay ya un modal
             if (!document.getElementById('updateModal')) {
@@ -1049,12 +1058,6 @@ function showUpdateAvailableModal(remoteVersion = null) {
                 </h2>
             </div>
             
-            <p style="color: #4a5568; margin: 12px 0; text-align: center;">
-                Se han realizado mejoras en la predicción de peso y otras funcionalidades.
-            </p>
-            
-            ${remoteVersion ? `<p style="color: #a0aec0; margin: 8px 0; text-align: center; font-size: 13px;">Versión ${remoteVersion} disponible</p>` : ''}
-            
             <div style="display: flex; gap: 12px; margin-top: 24px;">
                 <button id="updateModalCancel" style="
                     flex: 1;
@@ -1111,6 +1114,12 @@ function showUpdateAvailableModal(remoteVersion = null) {
 
 function performUpdate() {
     console.log('🔄 Iniciando actualización...');
+    
+    // Guardar versión remota en localStorage ANTES de recargar
+    if (latestRemoteVersion) {
+        localStorage.setItem('appInstalledVersion', latestRemoteVersion);
+        console.log(`✅ Guardada versión ${latestRemoteVersion} en localStorage`);
+    }
     
     // Limpiar todos los caches
     if ('caches' in window) {
