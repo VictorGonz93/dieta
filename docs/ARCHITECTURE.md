@@ -175,12 +175,12 @@ El archivo `app.js` (2838 líneas) está organizado en **secciones funcionales**
 **Ejemplo:**
 ```javascript
 // En sw.js
-const CACHE_VERSION = 10;  // ← Incrementa aquí
+const CACHE_VERSION = 12;  // ← Incrementa aquí
 ```
 
 ```html
 <!-- En index.html -->
-<script src="js/app.js?v=20250519-15"></script>  <!-- ← Y/o aquí -->
+<script src="js/app.js?v=20250520-3"></script>  <!-- ← Y/o aquí -->
 ```
 
 ## 📱 PWA Manifest
