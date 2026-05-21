@@ -428,49 +428,6 @@ function getFrequentMeals() {
         .map(([name, count]) => mealHistory.find(m => m.name === name));
 }
 
-function getRecentMeals() {
-    return mealHistory.slice(0, 10); // Últimas 10 comidas
-}
-
-function renderRecentMeals() {
-    const container = document.getElementById('recentMealsList');
-    if (!container) return;
-    
-    const recents = getRecentMeals();
-    if (recents.length === 0) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.6; padding: 15px;">No hay comidas recientes</p>';
-        return;
-    }
-    
-    container.innerHTML = recents.map((meal, idx) => `
-        <div class="recent-meal-item" onclick="reuseRecentMeal(${idx})">
-            <div class="recent-meal-info">
-                <div class="recent-meal-name">${meal.name} (${meal.quantity}${meal.unit})</div>
-                <div class="recent-meal-macros">
-                    <span class="macro-badge">🔥 ${Math.round(meal.kcal)}</span>
-                    <span class="macro-badge">💪 ${meal.protein.toFixed(1)}g</span>
-                    <span class="macro-badge">🥔 ${meal.carbs.toFixed(1)}g</span>
-                    <span class="macro-badge">🥑 ${meal.fats.toFixed(1)}g</span>
-                </div>
-            </div>
-            <span class="recent-meal-badge">+ Agregar</span>
-        </div>
-    `).join('');
-}
-
-function reuseRecentMeal(index) {
-    const recents = getRecentMeals();
-    const meal = recents[index];
-    
-    // Rellenar modal con datos de comida reciente
-    document.getElementById('foodName').value = meal.name;
-    document.getElementById('foodQuantity').value = meal.quantity;
-    document.getElementById('foodUnit').value = meal.unit;
-    document.getElementById('foodCals').value = meal.kcal;
-    document.getElementById('foodProtein').value = meal.protein.toFixed(1);
-    document.getElementById('foodCarbs').value = meal.carbs.toFixed(1);
-    document.getElementById('foodFats').value = meal.fats.toFixed(1);
-}
 
 // PREDICCIÓN DE PESO
 function loadWeightHistory() {
@@ -1002,7 +959,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAllDays();
     initializeToday();
     renderProductsList();
-    renderRecentMeals();
     updateWeightPrediction();
     displayNextDayPrediction();
     setupTabNavigation();
@@ -2213,7 +2169,6 @@ function openModal(mealType) {
     currentMealForModal = mealType;
     document.getElementById('modal').classList.add('show');
     resetModalForm();
-    renderRecentMeals();
     setupTabSearch();
 }
 
@@ -2365,7 +2320,6 @@ function addFood() {
     
     closeModal();
     renderDay();
-    renderRecentMeals();
     updateDaySummary(); // Actualizar resumen
     displayNextDayPrediction(); // Refrescar widget de peso mañana
     renderWeightPredictionChart(); // Refrescar gráfico con predicción actualizada
@@ -3028,7 +2982,6 @@ function importData(event) {
             // Recargar la UI
             loadConfig();
             renderProductsList();
-            renderRecentMeals();
             updateWeightPrediction();
             displayNextDayPrediction();
             initializeToday();
