@@ -2,7 +2,7 @@
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // Versión actual de la app (para polling de updates)
-const CURRENT_APP_VERSION = 6; // Coincide con v20250520-6
+const CURRENT_APP_VERSION = 10; // Coincide con v20250520-10
 
 // Variable global para guardar versión remota encontrada
 let latestRemoteVersion = null;
@@ -341,7 +341,6 @@ function addNewProduct() {
     document.getElementById('newProductCarbs').value = '';
     document.getElementById('newProductFats').value = '';
     
-    renderCustomProducts();
     renderProductsList();
     showNotification(`✅ Producto "${name}" agregado correctamente`);
 }
@@ -354,37 +353,11 @@ function deleteCustomProduct(productId) {
         const dbIndex = PRODUCTS_DB.findIndex(p => p.id === productId);
         if (dbIndex > -1) PRODUCTS_DB.splice(dbIndex, 1);
         saveCustomProducts();
-        renderCustomProducts();
         renderProductsList();
         showNotification(`✅ Producto "${name}" eliminado`);
     }
 }
 
-function renderCustomProducts() {
-    const container = document.getElementById('customProductsList');
-    if (!container) return;
-    
-    if (customProducts.length === 0) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.6;">No hay productos personalizados aún</p>';
-        return;
-    }
-    
-    container.innerHTML = customProducts.map(p => `
-        <div class="custom-product-item">
-            <div class="custom-product-info">
-                <div class="custom-product-name">${p.name}</div>
-                <div class="custom-product-macros">
-                    <span class="macro-badge">🔥 ${p.kcal}kcal</span>
-                    <span class="macro-badge">💪 ${p.protein}g</span>
-                    <span class="macro-badge">🥔 ${p.carbs}g</span>
-                    <span class="macro-badge">🥑 ${p.fats}g</span>
-                </div>
-                <small style="opacity: 0.6;">Por 100${p.unit}</small>
-            </div>
-            <button class="btn-delete" onclick="deleteCustomProduct(${p.id})">🗑️ Eliminar</button>
-        </div>
-    `).join('');
-}
 
 // ==================== HISTORIAL FRECUENTE ====================
 var mealHistory = [];
@@ -1153,9 +1126,7 @@ function showTab(tabId) {
     }
     
     // Renderizar contenido específico por tab
-    if (tabId === 'gestionar') {
-        renderCustomProducts();
-    } else if (tabId === 'hoy') {
+    if (tabId === 'hoy') {
         displayWeeklyProgress();
     } else if (tabId === 'objetivos') {
         displayGoalsTracking();
@@ -2193,17 +2164,39 @@ function resetModalForm() {
     el('foodTime').value = '';
 }
 
+// Conversión de unidades a gramos/ml (unidad base)
+function convertToGrams(quantity, unit) {
+    const conversions = {
+        'g': 1,
+        'ml': 1, // Asumir densidad como agua
+        'kg': 1000,
+        'l': 1000,
+        'oz': 28.3495,
+        'tbsp': 15, // cucharada
+        'tsp': 5,   // cucharadita
+        'cup': 237, // taza
+        'pz': 100   // pieza (peso promedio)
+    };
+    return (quantity * (conversions[unit] || 1));
+}
+
 function calculateMacros() {
     const quantity = parseFloat(document.getElementById('foodQuantity').value) || 0;
+    const selectedUnit = document.getElementById('foodUnit').value || 'g';
     const baseKcal = parseFloat(document.getElementById('foodCals').dataset.base) || 0;
     const baseProtein = parseFloat(document.getElementById('foodProtein').dataset.base) || 0;
     const baseCarbs = parseFloat(document.getElementById('foodCarbs').dataset.base) || 0;
     const baseFats = parseFloat(document.getElementById('foodFats').dataset.base) || 0;
     const basePortion = parseFloat(document.getElementById('foodQuantity').dataset.basePortion) || 1;
+    const baseUnit = document.getElementById('foodQuantity').dataset.baseUnit || 'g';
     
     if (quantity <= 0 || basePortion <= 0) return;
     
-    const multiplier = quantity / basePortion;
+    // Convertir cantidad y base a gramos/ml
+    const quantityInGrams = convertToGrams(quantity, selectedUnit);
+    const basePortionInGrams = convertToGrams(basePortion, baseUnit);
+    
+    const multiplier = quantityInGrams / basePortionInGrams;
     document.getElementById('foodCals').value = (baseKcal * multiplier).toFixed(1);
     document.getElementById('foodProtein').value = (baseProtein * multiplier).toFixed(1);
     document.getElementById('foodCarbs').value = (baseCarbs * multiplier).toFixed(1);
@@ -2213,6 +2206,7 @@ function calculateMacros() {
 function setupTabSearch() {
     const search = document.getElementById('modalSearch');
     const quantity = document.getElementById('foodQuantity');
+    const unit = document.getElementById('foodUnit');
     
     if (search) {
         // Remover event listeners antiguos y agregar uno nuevo
@@ -2249,6 +2243,10 @@ function setupTabSearch() {
     if (quantity) {
         quantity.addEventListener('input', calculateMacros);
     }
+    
+    if (unit) {
+        unit.addEventListener('change', calculateMacros);
+    }
 }
 
 function selectProduct(productId) {
@@ -2258,6 +2256,7 @@ function selectProduct(productId) {
     document.getElementById('foodName').value = product.name;
     document.getElementById('foodQuantity').value = product.portion;
     document.getElementById('foodQuantity').dataset.basePortion = product.portion;
+    document.getElementById('foodQuantity').dataset.baseUnit = product.unit; // Guardar unidad base
     document.getElementById('foodUnit').value = product.unit;
     
     const calsInput = document.getElementById('foodCals');
@@ -2320,7 +2319,7 @@ function addFood() {
     
     closeModal();
     renderDay();
-    updateDaySummary(); // Actualizar resumen
+    updateDaySummary(allDays[dateKey]); // Actualizar resumen
     displayNextDayPrediction(); // Refrescar widget de peso mañana
     renderWeightPredictionChart(); // Refrescar gráfico con predicción actualizada
     showNotification(`✅ ${food.name} agregado correctamente`);
@@ -2344,7 +2343,7 @@ function deleteFood(meal, index) {
     }
     
     renderDay();
-    updateDaySummary();
+    updateDaySummary(allDays[dateKey]);
     displayNextDayPrediction();
     renderWeightPredictionChart(); // Refrescar gráfico
     showNotification('✅ Comida eliminada', 'success');
@@ -2358,27 +2357,52 @@ function renderProductsList() {
     const search = (document.getElementById('searchProduct')?.value || '').toLowerCase();
     const category = document.getElementById('categoryFilter')?.value || '';
     
+    // Mostrar TODOS los productos (base + personalizados)
     let filtered = PRODUCTS_DB.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(search);
         const matchesCategory = !category || p.category === category;
         return matchesSearch && matchesCategory;
     });
     
-    container.innerHTML = filtered.map(p => `
-        <div class="product-item" onclick="openModal('${currentMealForModal || 'breakfast'}'); selectProduct(${p.id})">
-            <div class="product-info">
-                <div class="product-name">${p.name}</div>
-                <div class="product-portion">📏 ${p.portion}${p.unit}</div>
-                <div class="product-macros">
-                    <span class="macro-badge">🔥 ${p.kcal}kcal</span>
-                    <span class="macro-badge">💪 ${p.protein}g</span>
-                    <span class="macro-badge">🥔 ${p.carbs}g</span>
-                    <span class="macro-badge">🥑 ${p.fats}g</span>
+    container.innerHTML = filtered.map(p => {
+        // Verificar si es producto personalizado
+        const isCustom = customProducts.some(cp => cp.id == p.id);
+        
+        if (isCustom) {
+            // Productos personalizados: solo con botón eliminar
+            return `
+                <div class="product-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(59,130,246,0.1); border-left: 3px solid #3B82F6; border-radius: 6px;">
+                    <div class="product-info" style="flex: 1;">
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-portion">📏 ${p.portion}${p.unit}</div>
+                        <div class="product-macros">
+                            <span class="macro-badge">🔥 ${p.kcal}kcal</span>
+                            <span class="macro-badge">💪 ${p.protein}g</span>
+                            <span class="macro-badge">🥔 ${p.carbs}g</span>
+                            <span class="macro-badge">🥑 ${p.fats}g</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteCustomProduct(${p.id})" style="padding: 6px 10px; background: rgba(239,68,68,0.2); color: #EF4444; border: 1px solid #EF4444; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 10px; white-space: nowrap;">🗑️ Eliminar</button>
                 </div>
-            </div>
-            <button class="product-add-btn">Agregar</button>
-        </div>
-    `).join('');
+            `;
+        } else {
+            // Productos base: solo visualización, no clickeables
+            return `
+                <div class="product-item" style="padding: 12px; border-radius: 6px; opacity: 0.8;">
+                    <div class="product-info">
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-portion">📏 ${p.portion}${p.unit}</div>
+                        <div class="product-macros">
+                            <span class="macro-badge">🔥 ${p.kcal}kcal</span>
+                            <span class="macro-badge">💪 ${p.protein}g</span>
+                            <span class="macro-badge">🥔 ${p.carbs}g</span>
+                            <span class="macro-badge">🥑 ${p.fats}g</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }).join('');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
