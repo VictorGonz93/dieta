@@ -1,0 +1,42 @@
+{
+  "config": {
+    "startWeight": 85.4,
+    "currentWeight": 85.4,
+    "targetWeight": 70,
+    "height": 170,
+    "age": 33,
+    "gender": "Hombre",
+    "calsEntrenamiento": 2723,
+    "calsDescanso": 2283,
+    "tdeeType": "ligero",
+    "costInflammation": 0.2,
+    "carbsFactorDay": 0.0037,
+    "fatFactorDay": 0.0001,
+    "dayStart": 1,
+    "startDate": "2025-12-30",
+    "weightHistory": [
+      {
+        "date": "2026-05-18",
+        "weight": 73.1,
+        "day": 141,
+        "predictedWeight": 73.5
+      },
+      {
+        "date": "2026-05-19",
+        "weight": 72.8,
+        "day": 142,
+        "predictedWeight": 73.38
+      },
+      {
+        "date": "2026-05-20",
+        "weight": 72.2,
+        "day": 143,
+        "predictedWeight": 72.87
+      }
+    ]
+  },
+  "days": {},
+  "customProducts": [],
+  "mealHistory": [],
+  "darkModeEnabled": false
+}

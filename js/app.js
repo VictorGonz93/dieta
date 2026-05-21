@@ -2,7 +2,7 @@
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // Versión actual de la app (para polling de updates)
-const CURRENT_APP_VERSION = 10; // Coincide con v20250520-10
+const CURRENT_APP_VERSION = 14; // Coincide con v20250520-14
 
 // Variable global para guardar versión remota encontrada
 let latestRemoteVersion = null;
@@ -606,7 +606,25 @@ function calculateNextDayPredictionForDate(dateKey, nextDayWeight = config.curre
 function calculateNextDayPrediction() {
     // Usar versión genérica para hoy
     const today = getDateKey(currentDate);
-    const pred = calculateNextDayPredictionForDate(today);
+    
+    // Obtener el peso EXACTO del día que se está visualizando
+    // Solo usar peso si existe registro exacto para ese día
+    let todayWeight = null;
+    
+    if (config.weightHistory && config.weightHistory.length > 0) {
+        // Solo usar el peso exacto del día, sin buscar pesos de otros días
+        const exactWeight = config.weightHistory.find(w => w.date === today);
+        if (exactWeight) {
+            todayWeight = exactWeight.weight;
+        }
+    }
+    
+    // Si no hay peso exacto para este día, devolver null (sin predicción)
+    if (todayWeight === null) {
+        return null;
+    }
+    
+    const pred = calculateNextDayPredictionForDate(today, todayWeight);
     
     if (!pred) return null;
     
@@ -691,8 +709,24 @@ function displayNextDayPrediction() {
     
     if (!predictionEl || !nextPred) return;
     
+    // Obtener el peso EXACTO del día que se está visualizando
+    const today = getDateKey(currentDate);
+    let todayWeight = null;
+    
+    if (config.weightHistory && config.weightHistory.length > 0) {
+        const exactWeight = config.weightHistory.find(w => w.date === today);
+        if (exactWeight) {
+            todayWeight = exactWeight.weight;
+        }
+    }
+    
+    // Si no hay peso exacto, no mostrar predicción
+    if (todayWeight === null) {
+        return;
+    }
+    
     const sign = nextPred.deficitVsTDEE < 0 ? '📉' : '📈';
-    const weightChange = nextPred.predictedWeight - config.currentWeight;
+    const weightChange = nextPred.predictedWeight - todayWeight;
     const weightChangeSign = weightChange > 0 ? '+' : '';
     const weightColor = weightChange > 0 ? '#f56565' : '#48bb78';
     const structuralDeficit = nextPred.tdee - nextPred.calorieTarget;
@@ -3007,8 +3041,8 @@ function importData(event) {
             loadConfig();
             renderProductsList();
             updateWeightPrediction();
-            displayNextDayPrediction();
             initializeToday();
+            displayNextDayPrediction();
             showNotification('✅ Todos los datos importados correctamente');
         } catch (err) {
             showNotification('❌ Error al importar: ' + err.message, 'error');
