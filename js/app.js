@@ -2,7 +2,7 @@
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // Versión actual de la app (para polling de updates)
-const CURRENT_APP_VERSION = 5; // Coincide con v20250520-4
+const CURRENT_APP_VERSION = 6; // Coincide con v20250520-6
 
 // Variable global para guardar versión remota encontrada
 let latestRemoteVersion = null;
@@ -2916,7 +2916,7 @@ function exportData() {
         days: allDays,
         customProducts,
         mealHistory,
-        weight_history: weight_history,
+        weight_history: config.weightHistory,
         
         // Resúmenes y estadísticas
         dailySummary,
