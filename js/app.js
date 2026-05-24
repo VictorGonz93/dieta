@@ -2,7 +2,7 @@
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // Versión actual de la app (para polling de updates)
-const CURRENT_APP_VERSION = 20; // Coincide con v20250524-20
+const CURRENT_APP_VERSION = 24; // Coincide con v20250524-24
 
 // Variable global para guardar versión remota encontrada
 let latestRemoteVersion = null;
@@ -455,6 +455,199 @@ function saveProductCustomUnit(productId) {
     document.querySelector('div[style*="position: fixed"]').remove();
     renderProductsList();
     showNotification(`✅ Unidad personalizada actualizada`);
+}
+
+function editProduct(productId) {
+    const product = PRODUCTS_DB.find(p => p.id == productId);
+    if (!product) return;
+    
+    const cleanName = product.name.replace(/^[^\w]+\s/, '').trim();
+    
+    // Crear un modal con todos los campos editables
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 16px;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: #1e293b; border-radius: 12px; padding: 24px; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h3 style="color: #fff; font-size: 1.3rem; margin-bottom: 20px;">Editar Producto</h3>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600;">Nombre del producto</label>
+                <input type="text" id="editProdName" placeholder="Ej: Pollo pechuga" value="${cleanName}" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                <div>
+                    <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600;">Porción estándar</label>
+                    <input type="number" id="editProdPortion" placeholder="Ej: 100" value="${product.portion}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+                </div>
+                <div>
+                    <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600;">Unidad</label>
+                    <select id="editProdUnit" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+                        <option value="g" ${product.unit === 'g' ? 'selected' : ''}>g (gramos)</option>
+                        <option value="ml" ${product.unit === 'ml' ? 'selected' : ''}>ml (mililitros)</option>
+                        <option value="oz" ${product.unit === 'oz' ? 'selected' : ''}>oz (onzas)</option>
+                        <option value="kg" ${product.unit === 'kg' ? 'selected' : ''}>kg (kilogramos)</option>
+                        <option value="l" ${product.unit === 'l' ? 'selected' : ''}>l (litros)</option>
+                        <option value="tbsp" ${product.unit === 'tbsp' ? 'selected' : ''}>tbsp (cucharada)</option>
+                        <option value="tsp" ${product.unit === 'tsp' ? 'selected' : ''}>tsp (cucharadita)</option>
+                        <option value="cup" ${product.unit === 'cup' ? 'selected' : ''}>cup (taza)</option>
+                        <option value="pz" ${product.unit === 'pz' ? 'selected' : ''}>pz (pieza/unidad)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid #475569; padding-top: 16px; margin-bottom: 16px;">
+                <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600;">Macronutrientes por porción</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Kcal</label>
+                        <input type="number" id="editProdKcal" placeholder="Ej: 100" value="${product.kcal}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Proteína (g)</label>
+                        <input type="number" id="editProdProtein" placeholder="Ej: 10" value="${product.protein}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Carbos (g)</label>
+                        <input type="number" id="editProdCarbs" placeholder="Ej: 20" value="${product.carbs}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Grasas (g)</label>
+                        <input type="number" id="editProdFats" placeholder="Ej: 5" value="${product.fats}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid #475569; padding-top: 16px; margin-bottom: 20px;">
+                <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600;">Unidad personalizada (opcional)</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Tipo de unidad</label>
+                        <select id="editProdCustomUnit" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                            <option value="">-- Sin unidad personalizada --</option>
+                            <option value="unidad" ${product.customUnit === 'unidad' ? 'selected' : ''}>unidad</option>
+                            <option value="1/2 unidad" ${product.customUnit === '1/2 unidad' ? 'selected' : ''}>1/2 unidad</option>
+                            <option value="1/3 unidad" ${product.customUnit === '1/3 unidad' ? 'selected' : ''}>1/3 unidad</option>
+                            <option value="1/4 unidad" ${product.customUnit === '1/4 unidad' ? 'selected' : ''}>1/4 unidad</option>
+                            <option value="rebanada" ${product.customUnit === 'rebanada' ? 'selected' : ''}>rebanada</option>
+                            <option value="lata" ${product.customUnit === 'lata' ? 'selected' : ''}>lata</option>
+                            <option value="bote" ${product.customUnit === 'bote' ? 'selected' : ''}>bote</option>
+                            <option value="cucharada" ${product.customUnit === 'cucharada' ? 'selected' : ''}>cucharada</option>
+                            <option value="cucharadita" ${product.customUnit === 'cucharadita' ? 'selected' : ''}>cucharadita</option>
+                            <option value="taza" ${product.customUnit === 'taza' ? 'selected' : ''}>taza</option>
+                            <option value="puñado" ${product.customUnit === 'puñado' ? 'selected' : ''}>puñado</option>
+                            <option value="rodaja" ${product.customUnit === 'rodaja' ? 'selected' : ''}>rodaja</option>
+                            <option value="filete" ${product.customUnit === 'filete' ? 'selected' : ''}>filete</option>
+                            <option value="trozo" ${product.customUnit === 'trozo' ? 'selected' : ''}>trozo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Peso (g)</label>
+                        <input type="number" id="editProdCustomUnitWeight" placeholder="Ej: 30" value="${product.customUnitWeight || ''}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="this.closest('div[style*=\\'position: fixed\\']').remove()" style="flex: 1; padding: 12px; background: #475569; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Cancelar</button>
+                <button onclick="saveProductEdit(${productId})" style="flex: 1; padding: 12px; background: #3B82F6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar Cambios</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.getElementById('editProdName').focus();
+    
+    // Auto-asignar valor 1 a customUnitWeight cuando se selecciona una unidad personalizada
+    const customUnitSelect = document.getElementById('editProdCustomUnit');
+    if (customUnitSelect) {
+        customUnitSelect.addEventListener('change', function() {
+            const customUnitWeightInput = document.getElementById('editProdCustomUnitWeight');
+            if (this.value && this.value !== '') {
+                // Si selecciona una unidad personalizada, auto-asignar 1
+                customUnitWeightInput.value = '1';
+            } else {
+                // Si selecciona "Sin unidad", limpiar el peso
+                customUnitWeightInput.value = '';
+            }
+        });
+    }
+}
+
+function saveProductEdit(productId) {
+    const product = PRODUCTS_DB.find(p => p.id == productId);
+    if (!product) return;
+    
+    const name = document.getElementById('editProdName').value.trim();
+    const portion = parseFloat(document.getElementById('editProdPortion').value);
+    const unit = document.getElementById('editProdUnit').value.trim();
+    const kcal = parseFloat(document.getElementById('editProdKcal').value);
+    const protein = parseFloat(document.getElementById('editProdProtein').value);
+    const carbs = parseFloat(document.getElementById('editProdCarbs').value);
+    const fats = parseFloat(document.getElementById('editProdFats').value);
+    const customUnit = document.getElementById('editProdCustomUnit').value.trim();
+    const customUnitWeight = parseFloat(document.getElementById('editProdCustomUnitWeight').value) || null;
+    
+    // Validación
+    if (!name || !portion || !unit || !kcal || protein === undefined || carbs === undefined || fats === undefined) {
+        showNotification('❌ Por favor completa todos los campos requeridos', 'error');
+        return;
+    }
+    
+    if (customUnit && !customUnitWeight) {
+        showNotification('❌ Si pones unidad personalizada, debe tener peso', 'error');
+        return;
+    }
+    
+    // Actualizar en PRODUCTS_DB
+    product.name = name;
+    product.portion = portion;
+    product.unit = unit;
+    product.kcal = kcal;
+    product.protein = protein;
+    product.carbs = carbs;
+    product.fats = fats;
+    product.customUnit = customUnit;
+    product.customUnitWeight = customUnitWeight;
+    
+    // Actualizar en customProducts si es personalizado
+    const customProd = customProducts.find(p => p.id === productId);
+    if (customProd) {
+        customProd.name = name;
+        customProd.portion = portion;
+        customProd.unit = unit;
+        customProd.kcal = kcal;
+        customProd.protein = protein;
+        customProd.carbs = carbs;
+        customProd.fats = fats;
+        customProd.customUnit = customUnit;
+        customProd.customUnitWeight = customUnitWeight;
+    }
+    
+    saveCustomProducts();
+    
+    // Cerrar modal y actualizar
+    document.querySelector('div[style*="position: fixed"]').remove();
+    renderProductsList();
+    showNotification(`✅ Producto actualizado: ${name}`);
 }
 
 
@@ -1723,8 +1916,9 @@ function renderMealSection(mealName, foods) {
         const foodEl = document.createElement('div');
         foodEl.className = 'food-item';
         const timeDisplay = food.time ? ` <span class="food-time">⏰ ${food.time}</span>` : '';
+        const quantityDisplay = `${food.quantity} ${food.unit}`.replace(/^\s+|\s+$/g, ''); // Asegurar espacios pero sin espacios dobles
         foodEl.innerHTML = `
-            <span class="food-item-name">${food.name} (${food.quantity}${food.unit})${timeDisplay}</span>
+            <span class="food-item-name">${food.name} (${quantityDisplay})${timeDisplay}</span>
             <span class="food-item-macros">
                 <span class="food-macro">🔥${food.kcal.toFixed(0)}</span>
                 <span class="food-macro">💪${food.protein.toFixed(1)}g</span>
@@ -2499,6 +2693,7 @@ function selectProduct(productId) {
     // Actualizar opciones del selector de unidades
     updateFoodUnitSelect(product);
     document.getElementById('foodUnit').value = product.unit;
+    document.getElementById('foodUnit').dataset.previousUnit = product.unit; // Inicializar para conversiones
     
     const calsInput = document.getElementById('foodCals');
     const proteinInput = document.getElementById('foodProtein');
@@ -2516,6 +2711,43 @@ function selectProduct(productId) {
     fatsInput.value = product.fats;
     
     document.getElementById('suggestedProducts').innerHTML = '';
+}
+
+// Conversiones de unidades (usada para convertir entre diferentes medidas en el modal)
+const UNIT_CONVERSIONS = {
+    'g': 1,
+    'ml': 1, // Asumir densidad como agua
+    'kg': 1000,
+    'l': 1000,
+    'oz': 28.3495,
+    'tbsp': 15, // cucharada
+    'tsp': 5,   // cucharadita
+    'cup': 237, // taza
+    'pz': 100   // pieza (peso promedio)
+};
+
+// Función para convertir entre unidades
+function convertQuantity(quantity, fromUnit, toUnit, customUnitWeight = null) {
+    if (fromUnit === toUnit || !quantity || quantity === '') return quantity;
+    
+    const qty = parseFloat(quantity);
+    if (isNaN(qty)) return quantity;
+    
+    // Usar convertToGrams para obtener gramos
+    const grams = convertToGrams(qty, fromUnit, customUnitWeight);
+    
+    // Convertir de gramos a unidad destino
+    if (toUnit in UNIT_CONVERSIONS) {
+        const converted = grams / UNIT_CONVERSIONS[toUnit];
+        return parseFloat(converted.toFixed(2));
+    }
+    
+    // Si es unidad personalizada
+    if (customUnitWeight && toUnit !== fromUnit) {
+        return parseFloat((grams / customUnitWeight).toFixed(2));
+    }
+    
+    return quantity;
 }
 
 function updateFoodUnitSelect(product) {
@@ -2538,6 +2770,42 @@ function updateFoodUnitSelect(product) {
     }
     
     unitSelect.innerHTML = baseOptions.join('');
+    
+    // Agregar event listener para conversión de unidades
+    unitSelect.removeEventListener('change', handleUnitChange); // Remover listener anterior
+    unitSelect.addEventListener('change', handleUnitChange);
+}
+
+function handleUnitChange() {
+    const foodUnit = document.getElementById('foodUnit');
+    const foodQuantity = document.getElementById('foodQuantity');
+    
+    const currentUnit = foodUnit.value;
+    const previousUnit = foodUnit.dataset.previousUnit || foodUnit.dataset.baseUnit || 'g';
+    const currentQuantity = foodQuantity.value;
+    
+    // Si es unidad personalizada, auto-asignar 1
+    if (currentUnit === foodQuantity.dataset.customUnit && currentUnit !== '') {
+        foodQuantity.value = '1';
+        foodUnit.dataset.previousUnit = currentUnit;
+        
+        // Actualizar macros
+        calculateMacros();
+        return;
+    }
+    
+    // Convertir cantidad
+    if (currentQuantity && previousUnit !== currentUnit) {
+        const customUnitWeight = parseFloat(foodQuantity.dataset.customUnitWeight) || null;
+        const converted = convertQuantity(currentQuantity, previousUnit, currentUnit, customUnitWeight);
+        foodQuantity.value = converted;
+    }
+    
+    // Guardar unidad actual como anterior para próximas conversiones
+    foodUnit.dataset.previousUnit = currentUnit;
+    
+    // Actualizar macros automáticamente
+    calculateMacros();
 }
 
 function addFood() {
@@ -2634,9 +2902,9 @@ function renderProductsList() {
         // Verificar si es producto personalizado
         const isCustom = customProducts.some(cp => cp.id == p.id);
         
-        // Mostrar unidad personalizada si existe
-        const customUnitDisplay = p.customUnit && p.customUnitWeight ? 
-            `<div class="product-custom-unit" style="color: #A78BFA; font-size: 0.85rem; margin-top: 4px;">1 ${p.customUnit} = ${p.customUnitWeight}g</div>` 
+        // Mostrar unidad personalizada solo si es producto personalizado por el usuario
+        const customUnitDisplay = isCustom && p.customUnit && p.customUnitWeight ? 
+            `<div class="product-custom-unit" style="color: #A78BFA; font-size: 0.85rem; margin-top: 4px;">📦 1 ${p.customUnit} = ${p.customUnitWeight}g</div>` 
             : '';
         
         // Todos los productos ahora tienen botones de editar y eliminar
@@ -2657,7 +2925,7 @@ function renderProductsList() {
                     </div>
                 </div>
                 <div style="display: flex; gap: 4px; margin-left: 10px;">
-                    <button onclick="editProductCustomUnit(${p.id})" style="padding: 4px 8px; background: rgba(168,85,247,0.2); color: #A855F7; border: 1px solid #A855F7; border-radius: 4px; cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;" title="Editar">✏️</button>
+                    <button onclick="editProduct(${p.id})" style="padding: 4px 8px; background: rgba(168,85,247,0.2); color: #A855F7; border: 1px solid #A855F7; border-radius: 4px; cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;" title="Editar">✏️</button>
                     <button onclick="deleteProduct(${p.id})" style="padding: 4px 8px; background: rgba(239,68,68,0.2); color: #EF4444; border: 1px solid #EF4444; border-radius: 4px; cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;" title="Eliminar">🗑️</button>
                 </div>
             </div>
