@@ -2,7 +2,7 @@
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // Versión actual de la app (para polling de updates)
-const CURRENT_APP_VERSION = 19; // Coincide con v20250524-19
+const CURRENT_APP_VERSION = 20; // Coincide con v20250524-20
 
 // Variable global para guardar versión remota encontrada
 let latestRemoteVersion = null;
