@@ -2,7 +2,7 @@
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // Versión actual de la app (para polling de updates)
-const CURRENT_APP_VERSION = 14; // Coincide con v20250520-14
+const CURRENT_APP_VERSION = 19; // Coincide con v20250524-19
 
 // Variable global para guardar versión remota encontrada
 let latestRemoteVersion = null;
@@ -265,22 +265,22 @@ function startOnboarding() {
 // DATOS INICIALES EXPANDIDA
 const PRODUCTS_DB = [
     // Bebidas/Lácteos
-    { id: 1, name: '🥛 Leche entera', portion: 100, unit: 'ml', category: 'bebidas', kcal: 61, protein: 3.2, carbs: 4.7, fats: 3.6 },
-    { id: 3, name: '🍯 Yogur Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 52, protein: 10, carbs: 1, fats: 0.1 },
-    { id: 4, name: '🍮 Gelatina Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 40, protein: 10, carbs: 1, fats: 0.1 },
-    { id: 5, name: '🍫 Cacao Hacendado', portion: 10, unit: 'g', category: 'bebidas', kcal: 30, protein: 1.5, carbs: 4.5, fats: 0.5 },
+    { id: 1, name: '🥛 Leche entera', portion: 100, unit: 'ml', category: 'bebidas', kcal: 61, protein: 3.2, carbs: 4.7, fats: 3.6, customUnit: '', customUnitWeight: null },
+    { id: 3, name: '🍯 Yogur Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 52, protein: 10, carbs: 1, fats: 0.1, customUnit: '', customUnitWeight: null },
+    { id: 4, name: '🍮 Gelatina Proteínas+', portion: 100, unit: 'g', category: 'bebidas', kcal: 40, protein: 10, carbs: 1, fats: 0.1, customUnit: '', customUnitWeight: null },
+    { id: 5, name: '🍫 Cacao Hacendado', portion: 10, unit: 'g', category: 'bebidas', kcal: 30, protein: 1.5, carbs: 4.5, fats: 0.5, customUnit: '', customUnitWeight: null },
     // Proteínas
-    { id: 6, name: '🥚 Huevo entero', portion: 50, unit: 'g', category: 'proteinas', kcal: 72, protein: 6.3, carbs: 0.6, fats: 5.1 },
-    { id: 7, name: '⚪ Clara de huevo', portion: 30, unit: 'g', category: 'proteinas', kcal: 17, protein: 3.6, carbs: 0.4, fats: 0.1 },
-    { id: 8, name: '🐟 Atún en lata (lata 80g)', portion: 80, unit: 'g', category: 'proteinas', kcal: 78, protein: 16.8, carbs: 0.7, fats: 1 },
-    { id: 9, name: '💪 Proteína Whey', portion: 40, unit: 'g', category: 'proteinas', kcal: 155, protein: 34.4, carbs: 1.2, fats: 1.5 },
-    { id: 10, name: '💊 Creatina monohidrato', portion: 5, unit: 'g', category: 'suplementos', kcal: 0, protein: 0, carbs: 0, fats: 0 },
+    { id: 6, name: '🥚 Huevo entero', portion: 50, unit: 'g', category: 'proteinas', kcal: 72, protein: 6.3, carbs: 0.6, fats: 5.1, customUnit: 'unidad', customUnitWeight: 50 },
+    { id: 7, name: '⚪ Clara de huevo', portion: 30, unit: 'g', category: 'proteinas', kcal: 17, protein: 3.6, carbs: 0.4, fats: 0.1, customUnit: '', customUnitWeight: null },
+    { id: 8, name: '🐟 Atún en lata (lata 80g)', portion: 80, unit: 'g', category: 'proteinas', kcal: 78, protein: 16.8, carbs: 0.7, fats: 1, customUnit: 'lata', customUnitWeight: 80 },
+    { id: 9, name: '💪 Proteína Whey', portion: 40, unit: 'g', category: 'proteinas', kcal: 155, protein: 34.4, carbs: 1.2, fats: 1.5, customUnit: 'cucharada', customUnitWeight: 30 },
+    { id: 10, name: '💊 Creatina monohidrato', portion: 5, unit: 'g', category: 'suplementos', kcal: 0, protein: 0, carbs: 0, fats: 0, customUnit: '', customUnitWeight: null },
     // Carbohidratos
-    { id: 11, name: '🥔 Patata cocida', portion: 100, unit: 'g', category: 'carbos', kcal: 77, protein: 2, carbs: 17, fats: 0.1 },
-    { id: 12, name: '🍌 Plátano', portion: 100, unit: 'g', category: 'carbos', kcal: 89, protein: 1.1, carbs: 23, fats: 0.3 },
-    { id: 13, name: '🍚 Arroz blanco cocido', portion: 100, unit: 'g', category: 'carbos', kcal: 130, protein: 2.7, carbs: 28, fats: 0.3 },
+    { id: 11, name: '🥔 Patata cocida', portion: 100, unit: 'g', category: 'carbos', kcal: 77, protein: 2, carbs: 17, fats: 0.1, customUnit: '', customUnitWeight: null },
+    { id: 12, name: '🍌 Plátano', portion: 100, unit: 'g', category: 'carbos', kcal: 89, protein: 1.1, carbs: 23, fats: 0.3, customUnit: '', customUnitWeight: null },
+    { id: 13, name: '🍚 Arroz blanco cocido', portion: 100, unit: 'g', category: 'carbos', kcal: 130, protein: 2.7, carbs: 28, fats: 0.3, customUnit: '', customUnitWeight: null },
     // Platos completos
-    { id: 14, name: '🍖 Albóndigas cerdo (5) + patatas', portion: 487, unit: 'g', category: 'platos', kcal: 646, protein: 34, carbs: 54, fats: 33 },
+    { id: 14, name: '🍖 Albóndigas cerdo (5) + patatas', portion: 487, unit: 'g', category: 'platos', kcal: 646, protein: 34, carbs: 54, fats: 33, customUnit: '', customUnitWeight: null },
 ];
 
 // PRODUCTOS PERSONALIZADOS
@@ -312,6 +312,8 @@ function addNewProduct() {
     const protein = parseFloat(document.getElementById('newProductProtein').value);
     const carbs = parseFloat(document.getElementById('newProductCarbs').value);
     const fats = parseFloat(document.getElementById('newProductFats').value);
+    const customUnit = document.getElementById('newProductCustomUnit').value.trim();
+    const customUnitWeight = parseFloat(document.getElementById('newProductCustomUnitWeight').value) || null;
     
     if (!name || isNaN(kcal) || isNaN(protein) || isNaN(carbs) || isNaN(fats)) {
         showNotification('❌ Completa todos los campos', 'error');
@@ -327,7 +329,9 @@ function addNewProduct() {
         kcal: kcal,
         protein: protein,
         carbs: carbs,
-        fats: fats
+        fats: fats,
+        customUnit: customUnit,
+        customUnitWeight: customUnitWeight
     };
     
     customProducts.push(newProduct);
@@ -340,22 +344,117 @@ function addNewProduct() {
     document.getElementById('newProductProtein').value = '';
     document.getElementById('newProductCarbs').value = '';
     document.getElementById('newProductFats').value = '';
+    document.getElementById('newProductCustomUnit').value = '';
+    document.getElementById('newProductCustomUnitWeight').value = '';
     
     renderProductsList();
     showNotification(`✅ Producto "${name}" agregado correctamente`);
 }
 
-function deleteCustomProduct(productId) {
-    const index = customProducts.findIndex(p => p.id === productId);
-    if (index > -1) {
-        const name = customProducts[index].name;
-        customProducts.splice(index, 1);
-        const dbIndex = PRODUCTS_DB.findIndex(p => p.id === productId);
-        if (dbIndex > -1) PRODUCTS_DB.splice(dbIndex, 1);
+function deleteProduct(productId) {
+    const product = PRODUCTS_DB.find(p => p.id === productId);
+    if (!product) return;
+    
+    if (!confirm(`¿Eliminar "${product.name.replace(/^[^\w]+\s/, '').trim()}"?`)) return;
+    
+    // Eliminar de customProducts si es personalizado
+    const customIndex = customProducts.findIndex(p => p.id === productId);
+    if (customIndex > -1) {
+        customProducts.splice(customIndex, 1);
         saveCustomProducts();
-        renderProductsList();
-        showNotification(`✅ Producto "${name}" eliminado`);
     }
+    
+    // Eliminar de PRODUCTS_DB
+    const dbIndex = PRODUCTS_DB.findIndex(p => p.id === productId);
+    if (dbIndex > -1) PRODUCTS_DB.splice(dbIndex, 1);
+    
+    renderProductsList();
+    showNotification(`✅ Producto eliminado`);
+}
+
+// Función legada para compatibilidad
+function deleteCustomProduct(productId) {
+    deleteProduct(productId);
+}
+
+function editProductCustomUnit(productId) {
+    const product = PRODUCTS_DB.find(p => p.id == productId);
+    if (!product) return;
+    
+    const cleanName = product.name.replace(/^[^\w]+\s/, '').trim();
+    const currentUnit = product.customUnit || '';
+    const currentWeight = product.customUnitWeight || '';
+    
+    // Crear un modal simple con inputs
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: #1e293b; border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h3 style="color: #fff; font-size: 1.2rem; margin-bottom: 16px;">Editar Unidad Personalizada</h3>
+            <p style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 12px;">${cleanName}</p>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="color: #cbd5e1; display: block; margin-bottom: 8px; font-size: 0.9rem;">Nombre de la unidad (ej: rebanada, unidad)</label>
+                <input type="text" id="editCustomUnitName" placeholder="Ej: rebanada" value="${currentUnit}" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="color: #cbd5e1; display: block; margin-bottom: 8px; font-size: 0.9rem;">Peso en gramos (ej: 11.2)</label>
+                <input type="number" id="editCustomUnitWeight" placeholder="Ej: 11.2" value="${currentWeight}" step="0.1" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="flex: 1; padding: 10px; background: #475569; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Cancelar</button>
+                <button onclick="saveProductCustomUnit(${productId})" style="flex: 1; padding: 10px; background: #3B82F6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.getElementById('editCustomUnitName').focus();
+}
+
+function saveProductCustomUnit(productId) {
+    const product = PRODUCTS_DB.find(p => p.id == productId);
+    if (!product) return;
+    
+    const customUnit = document.getElementById('editCustomUnitName').value.trim();
+    const customUnitWeight = parseFloat(document.getElementById('editCustomUnitWeight').value) || null;
+    
+    if (customUnit && !customUnitWeight) {
+        showNotification('❌ Si pones nombre de unidad, debe tener peso en gramos', 'error');
+        return;
+    }
+    
+    // Actualizar en PRODUCTS_DB
+    product.customUnit = customUnit;
+    product.customUnitWeight = customUnitWeight;
+    
+    // Actualizar en customProducts si es personalizado
+    const customProd = customProducts.find(p => p.id === productId);
+    if (customProd) {
+        customProd.customUnit = customUnit;
+        customProd.customUnitWeight = customUnitWeight;
+    }
+    
+    saveCustomProducts();
+    
+    // Cerrar modal y actualizar
+    document.querySelector('div[style*="position: fixed"]').remove();
+    renderProductsList();
+    showNotification(`✅ Unidad personalizada actualizada`);
 }
 
 
@@ -815,6 +914,8 @@ var config = {
     carbsMax: null,
     fatsMin: null,
     fatsMax: null,
+    // Plan de entrenamientos personalizado
+    customGymRoutine: null,
 };
 
 // RUTINA DE GIMNASIO
@@ -832,7 +933,10 @@ const GYM_ROUTINE = {
 function getDayType(date) {
     const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const dayName = daysOfWeek[date.getDay()];
-    return GYM_ROUTINE[dayName];
+    
+    // Usar plan personalizado si existe, sino usar GYM_ROUTINE por defecto
+    const routine = config.customGymRoutine || GYM_ROUTINE;
+    return routine[dayName];
 }
 
 // Función para obtener calorías objetivo según tipo de día (META DE INGESTA)
@@ -1164,6 +1268,8 @@ function showTab(tabId) {
         displayWeeklyProgress();
     } else if (tabId === 'objetivos') {
         displayGoalsTracking();
+    } else if (tabId === 'planteamiento') {
+        initWorkoutPlan();
     } else if (tabId === 'historial' || tabId === 'graficos') {
         renderWeightPredictionChart();
     } else if (tabId === 'estadisticas') {
@@ -1340,6 +1446,95 @@ function updateCalculatedValues() {
     if (el('tmrValue')) el('tmrValue').textContent = `${Math.round(tmr)} kcal/día`;
     if (el('tdeeEntrenoValue')) el('tdeeEntrenoValue').textContent = `${tdeeEntreno} kcal/día`;
     if (el('tdeeDescansoValue')) el('tdeeDescansoValue').textContent = `${tdeeDescanso} kcal/día`;
+}
+
+// ==================== PLAN DE ENTRENAMIENTOS ====================
+function initWorkoutPlan() {
+    const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    const routine = config.customGymRoutine || GYM_ROUTINE;
+    const dayNames = {
+        'lunes': 'Lunes',
+        'martes': 'Martes',
+        'miercoles': 'Miércoles',
+        'jueves': 'Jueves',
+        'viernes': 'Viernes',
+        'sabado': 'Sábado',
+        'domingo': 'Domingo'
+    };
+    
+    days.forEach(day => {
+        const dayName = dayNames[day];
+        const dayInfo = routine[dayName] || { type: 'descanso', label: '' };
+        
+        const typeSelect = document.getElementById(`${day}-type`);
+        const labelInput = document.getElementById(`${day}-label`);
+        
+        if (typeSelect) typeSelect.value = dayInfo.type || 'descanso';
+        if (labelInput) labelInput.value = dayInfo.label || '';
+    });
+}
+
+function updateWorkoutPlan() {
+    // Esta función se llama cuando cambian los campos
+    // Se puede usar para validación en tiempo real si es necesario
+}
+
+function saveWorkoutPlan() {
+    const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    const dayNames = {
+        'lunes': 'Lunes',
+        'martes': 'Martes',
+        'miercoles': 'Miércoles',
+        'jueves': 'Jueves',
+        'viernes': 'Viernes',
+        'sabado': 'Sábado',
+        'domingo': 'Domingo'
+    };
+    
+    const customRoutine = {};
+    
+    days.forEach(day => {
+        const dayName = dayNames[day];
+        const typeSelect = document.getElementById(`${day}-type`);
+        const labelInput = document.getElementById(`${day}-label`);
+        
+        const type = typeSelect?.value || 'descanso';
+        const label = labelInput?.value?.trim() || '';
+        
+        if (!label && type === 'entreno') {
+            showNotification(`⚠️ Por favor completa la descripción para ${dayName}`, 'warning');
+            return;
+        }
+        
+        customRoutine[dayName] = {
+            type: type,
+            label: label || (type === 'descanso' ? 'Descanso' : '')
+        };
+    });
+    
+    config.customGymRoutine = customRoutine;
+    localStorage.setItem('nutrition_config', JSON.stringify(config));
+    
+    showNotification('✅ Plan de entrenamientos guardado correctamente', 'success');
+    
+    // Actualizar pantalla
+    renderDay();
+    updateHeaderInfo();
+    displayNextDayPrediction();
+}
+
+function resetWorkoutPlan() {
+    if (confirm('¿Seguro que deseas restaurar el plan por defecto?')) {
+        config.customGymRoutine = null;
+        localStorage.setItem('nutrition_config', JSON.stringify(config));
+        initWorkoutPlan();
+        showNotification('✅ Plan restaurado al valor por defecto', 'success');
+        
+        // Actualizar pantalla
+        renderDay();
+        updateHeaderInfo();
+        displayNextDayPrediction();
+    }
 }
 
 function updateHeaderInfo() {
@@ -2199,7 +2394,7 @@ function resetModalForm() {
 }
 
 // Conversión de unidades a gramos/ml (unidad base)
-function convertToGrams(quantity, unit) {
+function convertToGrams(quantity, unit, customUnitWeight = null) {
     const conversions = {
         'g': 1,
         'ml': 1, // Asumir densidad como agua
@@ -2211,6 +2406,12 @@ function convertToGrams(quantity, unit) {
         'cup': 237, // taza
         'pz': 100   // pieza (peso promedio)
     };
+    
+    // Si la unidad es personalizada y tiene peso configurado
+    if (customUnitWeight && conversions[unit] === undefined) {
+        return quantity * customUnitWeight;
+    }
+    
     return (quantity * (conversions[unit] || 1));
 }
 
@@ -2223,11 +2424,12 @@ function calculateMacros() {
     const baseFats = parseFloat(document.getElementById('foodFats').dataset.base) || 0;
     const basePortion = parseFloat(document.getElementById('foodQuantity').dataset.basePortion) || 1;
     const baseUnit = document.getElementById('foodQuantity').dataset.baseUnit || 'g';
+    const customUnitWeight = parseFloat(document.getElementById('foodQuantity').dataset.customUnitWeight) || null;
     
     if (quantity <= 0 || basePortion <= 0) return;
     
-    // Convertir cantidad y base a gramos/ml
-    const quantityInGrams = convertToGrams(quantity, selectedUnit);
+    // Convertir cantidad y base a gramos/ml (incluyendo unidades personalizadas)
+    const quantityInGrams = convertToGrams(quantity, selectedUnit, customUnitWeight);
     const basePortionInGrams = convertToGrams(basePortion, baseUnit);
     
     const multiplier = quantityInGrams / basePortionInGrams;
@@ -2291,6 +2493,11 @@ function selectProduct(productId) {
     document.getElementById('foodQuantity').value = product.portion;
     document.getElementById('foodQuantity').dataset.basePortion = product.portion;
     document.getElementById('foodQuantity').dataset.baseUnit = product.unit; // Guardar unidad base
+    document.getElementById('foodQuantity').dataset.customUnit = product.customUnit || ''; // Guardar unidad personalizada
+    document.getElementById('foodQuantity').dataset.customUnitWeight = product.customUnitWeight || ''; // Guardar peso de unidad personalizada
+    
+    // Actualizar opciones del selector de unidades
+    updateFoodUnitSelect(product);
     document.getElementById('foodUnit').value = product.unit;
     
     const calsInput = document.getElementById('foodCals');
@@ -2309,6 +2516,28 @@ function selectProduct(productId) {
     fatsInput.value = product.fats;
     
     document.getElementById('suggestedProducts').innerHTML = '';
+}
+
+function updateFoodUnitSelect(product) {
+    const unitSelect = document.getElementById('foodUnit');
+    const baseOptions = [
+        '<option value="g">g (gramos)</option>',
+        '<option value="ml">ml (mililitros)</option>',
+        '<option value="kg">kg (kilogramos)</option>',
+        '<option value="l">l (litros)</option>',
+        '<option value="oz">oz (onzas)</option>',
+        '<option value="tbsp">tbsp (cucharada)</option>',
+        '<option value="tsp">tsp (cucharadita)</option>',
+        '<option value="cup">cup (taza)</option>',
+        '<option value="pz">pz (pieza)</option>'
+    ];
+    
+    // Si el producto tiene unidad personalizada, agregarla
+    if (product.customUnit && product.customUnitWeight) {
+        baseOptions.push(`<option value="${product.customUnit}">${product.customUnit} (${product.customUnitWeight}g)</option>`);
+    }
+    
+    unitSelect.innerHTML = baseOptions.join('');
 }
 
 function addFood() {
@@ -2399,43 +2628,40 @@ function renderProductsList() {
     });
     
     container.innerHTML = filtered.map(p => {
+        // Remover emoji del nombre si existe
+        const cleanName = p.name.replace(/^[^\w]+\s/, '').trim();
+        
         // Verificar si es producto personalizado
         const isCustom = customProducts.some(cp => cp.id == p.id);
         
-        if (isCustom) {
-            // Productos personalizados: solo con botón eliminar
-            return `
-                <div class="product-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(59,130,246,0.1); border-left: 3px solid #3B82F6; border-radius: 6px;">
-                    <div class="product-info" style="flex: 1;">
-                        <div class="product-name">${p.name}</div>
-                        <div class="product-portion">📏 ${p.portion}${p.unit}</div>
-                        <div class="product-macros">
-                            <span class="macro-badge">🔥 ${p.kcal}kcal</span>
-                            <span class="macro-badge">💪 ${p.protein}g</span>
-                            <span class="macro-badge">🥔 ${p.carbs}g</span>
-                            <span class="macro-badge">🥑 ${p.fats}g</span>
-                        </div>
-                    </div>
-                    <button onclick="deleteCustomProduct(${p.id})" style="padding: 6px 10px; background: rgba(239,68,68,0.2); color: #EF4444; border: 1px solid #EF4444; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 10px; white-space: nowrap;">🗑️ Eliminar</button>
-                </div>
-            `;
-        } else {
-            // Productos base: solo visualización, no clickeables
-            return `
-                <div class="product-item" style="padding: 12px; border-radius: 6px; opacity: 0.8;">
-                    <div class="product-info">
-                        <div class="product-name">${p.name}</div>
-                        <div class="product-portion">📏 ${p.portion}${p.unit}</div>
-                        <div class="product-macros">
-                            <span class="macro-badge">🔥 ${p.kcal}kcal</span>
-                            <span class="macro-badge">💪 ${p.protein}g</span>
-                            <span class="macro-badge">🥔 ${p.carbs}g</span>
-                            <span class="macro-badge">🥑 ${p.fats}g</span>
-                        </div>
+        // Mostrar unidad personalizada si existe
+        const customUnitDisplay = p.customUnit && p.customUnitWeight ? 
+            `<div class="product-custom-unit" style="color: #A78BFA; font-size: 0.85rem; margin-top: 4px;">1 ${p.customUnit} = ${p.customUnitWeight}g</div>` 
+            : '';
+        
+        // Todos los productos ahora tienen botones de editar y eliminar
+        const bgColor = isCustom ? 'rgba(59,130,246,0.1)' : 'rgba(107,114,128,0.1)';
+        const borderColor = isCustom ? '#3B82F6' : '#6B7280';
+        
+        return `
+            <div class="product-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: ${bgColor}; border-left: 3px solid ${borderColor}; border-radius: 6px;">
+                <div class="product-info" style="flex: 1;">
+                    <div class="product-name">${cleanName}</div>
+                    <div class="product-portion">${p.portion}${p.unit}</div>
+                    ${customUnitDisplay}
+                    <div class="product-macros">
+                        <span class="macro-badge">🔥 ${p.kcal}kcal</span>
+                        <span class="macro-badge">💪 ${p.protein}g</span>
+                        <span class="macro-badge">🥔 ${p.carbs}g</span>
+                        <span class="macro-badge">🥑 ${p.fats}g</span>
                     </div>
                 </div>
-            `;
-        }
+                <div style="display: flex; gap: 4px; margin-left: 10px;">
+                    <button onclick="editProductCustomUnit(${p.id})" style="padding: 4px 8px; background: rgba(168,85,247,0.2); color: #A855F7; border: 1px solid #A855F7; border-radius: 4px; cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;" title="Editar">✏️</button>
+                    <button onclick="deleteProduct(${p.id})" style="padding: 4px 8px; background: rgba(239,68,68,0.2); color: #EF4444; border: 1px solid #EF4444; border-radius: 4px; cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;" title="Eliminar">🗑️</button>
+                </div>
+            </div>
+        `;
     }).join('');
 }
 
@@ -3012,7 +3238,22 @@ function importData(event) {
             // Restaurar productos personalizados
             if (data.customProducts) {
                 customProducts = data.customProducts;
+                // Asegurar que cada producto tiene los campos de unidad personalizada
+                customProducts = customProducts.map(p => ({
+                    ...p,
+                    customUnit: p.customUnit || '',
+                    customUnitWeight: p.customUnitWeight || null
+                }));
                 localStorage.setItem('custom_products', JSON.stringify(customProducts));
+                // Actualizar PRODUCTS_DB con los productos personalizados importados
+                customProducts.forEach(cp => {
+                    const existingIndex = PRODUCTS_DB.findIndex(p => p.id === cp.id);
+                    if (existingIndex > -1) {
+                        PRODUCTS_DB[existingIndex] = { ...PRODUCTS_DB[existingIndex], ...cp };
+                    } else {
+                        PRODUCTS_DB.push(cp);
+                    }
+                });
             }
             
             // Restaurar historial de comidas
