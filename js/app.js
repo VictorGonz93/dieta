@@ -2,7 +2,7 @@
 // Sistema profesional con gráficos, estadísticas y funcionalidades avanzadas
 
 // Versión actual de la app (para polling de updates)
-const CURRENT_APP_VERSION = 24; // Coincide con v20250524-24
+const CURRENT_APP_VERSION = 27; // Coincide con v20250524-27
 
 // Variable global para guardar versión remota encontrada
 let latestRemoteVersion = null;
@@ -2656,7 +2656,7 @@ function setupTabSearch() {
             suggested.innerHTML = matches.map(p => `
                 <div class="suggested-product-item" onclick="selectProduct(${p.id})">
                     <div class="suggested-product-info">
-                        <div class="suggested-product-name">${p.name}</div>
+                        <div class="suggested-product-name">${getDisplayProductName(p.name)}</div>
                         <div class="suggested-product-macros">
                             <span class="macro-badge">🔥 ${p.kcal}kcal</span>
                             <span class="macro-badge">💪 ${p.protein}g</span>
@@ -2664,7 +2664,6 @@ function setupTabSearch() {
                             <span class="macro-badge">🥑 ${p.fats}g</span>
                         </div>
                     </div>
-                    <span class="suggested-product-badge">+ Select</span>
                 </div>
             `).join('');
         });
@@ -2678,12 +2677,15 @@ function setupTabSearch() {
         unit.addEventListener('change', calculateMacros);
     }
 }
+function getDisplayProductName(name) {
+    return String(name || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+}
 
 function selectProduct(productId) {
     const product = PRODUCTS_DB.find(p => p.id == productId);
     if (!product) return;
     
-    document.getElementById('foodName').value = product.name;
+    document.getElementById('foodName').value = getDisplayProductName(product.name);
     document.getElementById('foodQuantity').value = product.portion;
     document.getElementById('foodQuantity').dataset.basePortion = product.portion;
     document.getElementById('foodQuantity').dataset.baseUnit = product.unit; // Guardar unidad base
