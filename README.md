@@ -1,14 +1,8 @@
-# 📊 Nutrition Tracker Pro
+# Apex Nutrition
 
 > ⚠️ **IMPORTANTE:** Esta aplicación ha sido desarrollada **para uso personal y pruebas** utilizando **Inteligencia Artificial (Claude)** en todo el proceso de desarrollo. Es un proyecto experimental sin garantía de soporte oficial.
 
 **Una aplicación web avanzada de código abierto para rastreo nutricional personalizado con análisis predictivo, estadísticas detalladas y gestión completa de datos offline.**
-
----
-
-## 🎯 Descripción General
-
-Nutrition Tracker Pro es una solución integral para monitoreo nutricional diario que combina:
 - **Registro de comidas** con búsqueda inteligente en base de datos
 - **Cálculo automático** de macronutrientes
 - **Análisis predictivo** de pérdida de peso
@@ -20,53 +14,61 @@ Diseñada para maximizar privacidad con almacenamiento 100% local y sin conexió
 
 ---
 
-## ✨ Características Principales
+## Características Principales
 
-### 📋 Registro Diario
-- ✅ **4 momentos de comida** - Desayuno, Comida, Snack, Cena
-- ✅ **Búsqueda inteligente** - Base de datos de alimentos con filtros
-- ✅ **Productos personalizados** - Crea y guarda tus propios productos
-- ✅ **Cálculo en tiempo real** - Macros calculadas automáticamente
-- ✅ **Edición flexible** - Modifica cantidades y comidas fácilmente
+### Registro Diario
+- **4 momentos de comida** - Desayuno, Comida, Snack, Cena
+- **Búsqueda inteligente** - Base de datos de alimentos con filtros
+- **Productos personalizados** - Crea y guarda tus propios productos
+- **Cálculo en tiempo real** - Macros calculadas automáticamente
+- **Copiar comidas** - Botón para copiar las comidas del día anterior
+- **Edición flexible** - Modifica cantidades y comidas fácilmente
 
-### 📊 Análisis & Estadísticas
-- ✅ **Resumen semanal** - Promedio de calorías, proteína y pérdida de peso
-- ✅ **Estadísticas generales** - Análisis de todos tus datos históricos
-- ✅ **Mejor día** - Día con mayor ingesta de proteína
-- ✅ **4 gráficos interactivos** - Peso, Calorías, Proteína, Macros
-- ✅ **Historial detallado** - Vista completa de todos los días registrados
+### Análisis & Estadísticas
+- **Resumen semanal** - Promedio de calorías, proteína y pérdida de peso
+- **Estadísticas generales** - Análisis de todos tus datos históricos
+- **Mejor día** - Día con mayor ingesta de proteína
+- **5 gráficos interactivos** - Peso, Tendencia, Calorías, Proteína, Macros
+- **Historial detallado** - Vista completa de todos los días registrados
 
-### 🎯 Gestión de Objetivos
-- ✅ **Progreso de peso** - Visualización con barra de progreso
-- ✅ **Estimación de tiempo** - Cálculo automático según ritmo actual
-- ✅ **Objetivos nutricionales** - Configuración de macros personalizados
-- ✅ **Rangos flexibles** - Carbohidratos y grasas con rango min/max
-- ✅ **Motivación dinámica** - Mensajes personalizados según progreso
+### Gráficos Mejorados
+- **Progresión de peso** - Eje Y dinámico + línea de tendencia por regresión lineal
+- **Calorías diarias** - Líneas de referencia para objetivo entreno / descanso
+- **Distribución de macros** - Doughnut con % + g/día + kcal/día
+- **Peso predicho vs real** - Comparativa histórica
+- **Filtro de datos aislados** - Las entradas sin continuidad (ej. peso inicial muy anterior) no distorsionan los gráficos
 
-### 🔮 Predicción Avanzada
-- ✅ **Predicción de peso** - Algoritmo que estima tu peso futuro
-- ✅ **Factors considerados** - Retención de agua, cambio de grasa, inflamación
-- ✅ **Precisión mejorada** - Análisis histórico para mejor estimación
-- ✅ **Proyección visual** - Gráfico con valores reales vs predichos
+### Gestión de Objetivos
+- **Progreso de peso** - Visualización con barra de progreso
+- **Estimación de tiempo** - Cálculo automático según ritmo actual
+- **Objetivos nutricionales** - Configuración de macros personalizados
+- **Rangos flexibles** - Carbohidratos y grasas con rango min/max
 
-### 💾 Gestión de Datos
-- ✅ **Export JSON** - Descarga completa con config + estadísticas + predicciones
-- ✅ **Export CSV** - Formato tabular para análisis en Excel
-- ✅ **Import automático** - Restaura todos tus datos desde backup
-- ✅ **Productos incluidos** - Tus productos personalizados se exportan/importan
+### Predicción Avanzada
+- **Predicción de peso** - Algoritmo que estima tu peso futuro
+- **Factores considerados** - Retención de agua, cambio de grasa, inflamación
+- **Precisión mejorada** - Análisis histórico para mejor estimación
+- **Proyección visual** - Gráfico con valores reales vs predichos
 
-### 🌐 Experiencia de Usuario
-- ✅ **PWA Offline** - Funciona sin internet (Service Worker)
-- ✅ **Responsive Design** - Móvil, tablet, desktop
-- ✅ **Dark Mode** - Interfaz oscura por defecto
-- ✅ **Onboarding inteligente** - Modal de bienvenida para nuevos usuarios
-- ✅ **Instalación nativa** - Agregar a pantalla de inicio (iOS/Android)
+### Gestión de Datos
+- **Export JSON** - Descarga completa con config + estadísticas + predicciones
+- **Export CSV** - Formato tabular para análisis en Excel
+- **Import automático** - Restaura todos tus datos desde backup
+- **Productos incluidos** - Tus productos personalizados se exportan/importan
 
-### 🔐 Privacidad
-- ✅ **100% Local** - Todos los datos se guardan en tu dispositivo
-- ✅ **Cero servidores** - No hay transmisión de datos
-- ✅ **Sin tracking** - Privacidad garantizada
-- ✅ **Backup manual** - Controlas cuándo descargar tus datos
+### Experiencia de Usuario
+- **PWA Offline** - Funciona sin internet (Service Worker)
+- **Actualizaciones automáticas** - Modal de aviso cuando hay nueva versión disponible
+- **Responsive Design** - Móvil, tablet, desktop
+- **Dark Mode** - Tema oscuro navy/esmeralda por defecto
+- **Onboarding inteligente** - Modal de bienvenida para nuevos usuarios
+- **Plan de entrenamientos** - Configura qué entrenas cada día de la semana
+
+### Privacidad
+- **100% Local** - Todos los datos se guardan en tu dispositivo
+- **Cero servidores** - No hay transmisión de datos
+- **Sin tracking** - Privacidad garantizada
+- **Backup manual** - Controlas cuándo descargar tus datos
 
 ---
 
@@ -103,44 +105,46 @@ python -m http.server 8000
 
 ---
 
-## 📱 Interfaz - 6 Tabs Principales
+## Interfaz - 7 Tabs Principales
 
-| Tab | Icono | Descripción |
-|-----|-------|-------------|
-| **Hoy** | 🏠 | Registro diario de comidas + resumen en tiempo real |
-| **Productos** | 🍽️ | Base de datos de alimentos con búsqueda + productos personalizados |
-| **Gráficos** | 📊 | 4 visualizaciones interactivas (peso, calorías, proteína, macros) |
-| **Objetivos** | 🎯 | Progreso de peso, metas nutricionales, histórico y motivación |
-| **Estadísticas** | 📈 | Análisis semanales, promedio general, mejor día + historial |
-| **Configuración** | ⚙️ | Datos personales, objetivos, export/import, dark mode |
+| Tab | Descripción |
+|-----|-------------|
+| **Hoy** | Registro diario de comidas + resumen en tiempo real |
+| **Objetivos** | Progreso de peso, metas nutricionales, histórico |
+| **Productos** | Base de datos de alimentos con búsqueda + productos personalizados |
+| **Planteamiento** | Plan semanal de entrenamientos (tipo por día) |
+| **Gráficos** | 5 visualizaciones interactivas (peso, tendencia, calorías, proteína, macros) |
+| **Estadísticas** | Análisis semanales, promedio general, mejor día + historial |
+| **Config** | Datos personales, objetivos, export/import |
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 ```
 Frontend:
-  • Vanilla JavaScript ES6+
-  • Tailwind CSS 3 (utilidades personalizadas)
+  • Vanilla JavaScript ES6+ (módulos ES)
+  • Tailwind CSS 3 (CDN)
   • Material Icons (Google Fonts)
 
 Visualización:
   • Chart.js 3.9.1 (gráficos interactivos)
 
 PWA & Storage:
-  • Service Worker (offline-first)
+  • Service Worker (offline-first, cache-first)
   • localStorage API
   • Manifest.json
 
 Algoritmos:
-  • Predicción de peso (regresión lineal + factores)
+  • Predicción de peso (retención de agua + grasa corporal)
+  • Regresión lineal (tendencia de peso)
   • Cálculo de macros (automatizado)
   • Análisis estadístico (promedio, máximo, mínimo)
 ```
 
 ---
 
-## 💾 Estructura de Datos
+## Estructura de Datos
 
 ### localStorage Keys
 ```javascript
@@ -172,14 +176,13 @@ Algoritmos:
 
 ---
 
-## 🎨 Diseño & UX
+## Diseño & UX
 
-- **Tema:** Dark Mode + Gradientes modernos
-- **Colores:** Paleta primaria (Morado) + Acentos (Rosa)
-- **Tipografía:** Inter (body) + Poppins (headings)
-- **Animaciones:** Transiciones suaves con cubic-bezier
-- **Iconografía:** Material Icons de Google (24 px)
-- **Responsive:** Mobile-first, breakpoints en md (768px)
+- **Tema:** Dark navy + esmeralda (`#06090F` base, `#10B981` primario)
+- **Colores:** Sistema de variables CSS custom (bg-base, bg-surface, bg-card, primary, etc.)
+- **Tipografía:** Inter (cuerpo) + Plus Jakarta Sans (headings)
+- **Iconografía:** Material Icons de Google (sin emojis)
+- **Responsive:** Mobile-first, breakpoints en sm (640px) y md (768px)
 
 ---
 
@@ -211,12 +214,17 @@ Confianza: Alta (6+ datos)
 
 ---
 
-## 🔄 Actualización de Caché
+## Actualización de Caché
 
-Para obtener la última versión en tu móvil:
-1. **Cierra completamente** la app (no solo minimizar)
-2. **Recarga con Ctrl+Shift+R** (Windows) o **Cmd+Shift+R** (Mac)
-3. **En móvil:** Cierra el navegador completamente y reabre
+La app detecta automáticamente nuevas versiones y muestra un modal de aviso con botón **Actualizar**. Al pulsarlo:
+1. Se limpian los cachés del Service Worker
+2. La página se recarga con los archivos más recientes
+3. Tus datos no se ven afectados
+
+Si necesitas forzar la actualización manualmente:
+- **Windows/Linux:** Ctrl+Shift+R
+- **Mac:** Cmd+Shift+R
+- **Móvil:** Cierra completamente el navegador y reabre
 
 Usamos cache busting con versiones (CSS v20250519-4, JS v20250519-10) para forzar actualizaciones.
 

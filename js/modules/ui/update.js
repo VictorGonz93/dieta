@@ -19,6 +19,18 @@ export function stopUpdateChecker() {
 }
 
 export async function checkForUpdates() {
+    // Si acabamos de actualizar (flag en sessionStorage), sincronizar versión y no mostrar modal
+    if (sessionStorage.getItem('justUpdated')) {
+        sessionStorage.removeItem('justUpdated');
+        try {
+            const r = await fetch('sw.js?_t=' + Date.now(), { cache: 'no-store' });
+            const txt = await r.text();
+            const m = txt.match(/const\s+CACHE_VERSION\s*=\s*(\d+)/);
+            if (m) localStorage.setItem('appInstalledVersion', m[1]);
+        } catch (e) { /* sin conexión, no importa */ }
+        return;
+    }
+
     try {
         const response = await fetch('sw.js?_t=' + Date.now(), { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch sw.js');
@@ -88,6 +100,9 @@ export function showUpdateAvailableModal(remoteVersion = null) {
 
 export function performUpdate(version) {
     console.log('🔄 Iniciando actualización...');
+
+    // Marcar en sessionStorage para que el próximo checkForUpdates no muestre modal
+    sessionStorage.setItem('justUpdated', '1');
 
     // Cerrar el modal antes de recargar
     const modal = document.getElementById('updateModal');
