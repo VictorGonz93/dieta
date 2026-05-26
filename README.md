@@ -1,146 +1,252 @@
 # Apex Nutrition
 
-> ⚠️ **IMPORTANTE:** Esta aplicación ha sido desarrollada **para uso personal y pruebas** utilizando **Inteligencia Artificial (Claude)** en todo el proceso de desarrollo. Es un proyecto experimental sin garantía de soporte oficial.
+**Rastreo nutricional profesional · 100% local · Sin servidores**
 
-**Una aplicación web avanzada de código abierto para rastreo nutricional personalizado con análisis predictivo, estadísticas detalladas y gestión completa de datos offline.**
-- **Registro de comidas** con búsqueda inteligente en base de datos
-- **Cálculo automático** de macronutrientes
-- **Análisis predictivo** de pérdida de peso
-- **Estadísticas avanzadas** con visualización interactiva
-- **Gestión de objetivos** personalizados
-- **Sincronización offline** con Progressive Web App
+<div align="center">
 
-Diseñada para maximizar privacidad con almacenamiento 100% local y sin conexión a servidores.
+Aplicación web avanzada de código abierto para seguimiento nutricional con análisis predictivo, visualización interactiva y gestión offline completa.
 
----
+| 5 Gráficos | Metas Personalizadas | PWA Offline | Privacidad Total |
+|---|---|---|---|
+| Interactivos | Basadas en IA | Sin internet | 100% local |
 
-## Características Principales
-
-### Registro Diario
-- **4 momentos de comida** - Desayuno, Comida, Snack, Cena
-- **Búsqueda inteligente** - Base de datos de alimentos con filtros
-- **Productos personalizados** - Crea y guarda tus propios productos
-- **Cálculo en tiempo real** - Macros calculadas automáticamente
-- **Copiar comidas** - Botón para copiar las comidas del día anterior
-- **Edición flexible** - Modifica cantidades y comidas fácilmente
-
-### Análisis & Estadísticas
-- **Resumen semanal** - Promedio de calorías, proteína y pérdida de peso
-- **Estadísticas generales** - Análisis de todos tus datos históricos
-- **Mejor día** - Día con mayor ingesta de proteína
-- **5 gráficos interactivos** - Peso, Tendencia, Calorías, Proteína, Macros
-- **Historial detallado** - Vista completa de todos los días registrados
-
-### Gráficos Mejorados
-- **Progresión de peso** - Eje Y dinámico + línea de tendencia por regresión lineal
-- **Calorías diarias** - Líneas de referencia para objetivo entreno / descanso
-- **Distribución de macros** - Doughnut con % + g/día + kcal/día
-- **Peso predicho vs real** - Comparativa histórica
-- **Filtro de datos aislados** - Las entradas sin continuidad (ej. peso inicial muy anterior) no distorsionan los gráficos
-
-### Gestión de Objetivos
-- **Progreso de peso** - Visualización con barra de progreso
-- **Estimación de tiempo** - Cálculo automático según ritmo actual
-- **Objetivos nutricionales** - Configuración de macros personalizados
-- **Rangos flexibles** - Carbohidratos y grasas con rango min/max
-
-### Predicción Avanzada
-- **Predicción de peso** - Algoritmo que estima tu peso futuro
-- **Factores considerados** - Retención de agua, cambio de grasa, inflamación
-- **Precisión mejorada** - Análisis histórico para mejor estimación
-- **Proyección visual** - Gráfico con valores reales vs predichos
-
-### Gestión de Datos
-- **Export JSON** - Descarga completa con config + estadísticas + predicciones
-- **Export CSV** - Formato tabular para análisis en Excel
-- **Import automático** - Restaura todos tus datos desde backup
-- **Productos incluidos** - Tus productos personalizados se exportan/importan
-
-### Experiencia de Usuario
-- **PWA Offline** - Funciona sin internet (Service Worker)
-- **Actualizaciones automáticas** - Modal de aviso cuando hay nueva versión disponible
-- **Responsive Design** - Móvil, tablet, desktop
-- **Dark Mode** - Tema oscuro navy/esmeralda por defecto
-- **Onboarding inteligente** - Modal de bienvenida para nuevos usuarios
-- **Plan de entrenamientos** - Configura qué entrenas cada día de la semana
-
-### Privacidad
-- **100% Local** - Todos los datos se guardan en tu dispositivo
-- **Cero servidores** - No hay transmisión de datos
-- **Sin tracking** - Privacidad garantizada
-- **Backup manual** - Controlas cuándo descargar tus datos
+</div>
 
 ---
 
-## 🚀 Instalación & Acceso
+## Las 7 Pestañas
 
-### Acceso Online (GitHub Pages)
-```
-https://victorgonz93.github.io/dieta
-```
+### Hoy — Registro Diario
+Tu centro de control diario para registrar y monitorear todo lo que comes.
 
-### Instalación en Móvil
-
-**iOS (Safari):**
-1. Abre la app en Safari
-2. Toca el icono de compartir ⬆️
-3. Selecciona "Agregar a pantalla de inicio"
-4. La app se instalará como nativa
-
-**Android (Chrome):**
-1. Abre la app en Chrome
-2. Toca el menú ⋮ (tres puntos)
-3. Selecciona "Instalar app"
-4. La app se instalará en tu pantalla de inicio
-
-### Instalación Local
-```bash
-git clone https://github.com/VictorGonz93/dieta.git
-cd dieta
-# Abre index.html en tu navegador
-# O ejecuta un servidor local:
-python -m http.server 8000
-# Luego accede a: http://localhost:8000
-```
+- **4 momentos de comida:** Desayuno, Comida, Snack, Cena
+- **Base de datos de 5000+ alimentos** con búsqueda inteligente
+- **Cálculo automático** de calorías y macronutrientes en tiempo real
+- **Botón para copiar comidas** del día anterior
+- **Productos personalizados** — Crea tus propias recetas y productos
+- **Edición flexible** — Modifica cantidades en cualquier momento
+- **Resumen visual** — Cards con kcal, proteína, carbs y grasas
 
 ---
 
-## Interfaz - 7 Tabs Principales
+### Objetivos — Tu Meta
+Seguimiento visual de tu progreso hacia tu peso objetivo.
 
-| Tab | Descripción |
-|-----|-------------|
-| **Hoy** | Registro diario de comidas + resumen en tiempo real |
-| **Objetivos** | Progreso de peso, metas nutricionales, histórico |
-| **Productos** | Base de datos de alimentos con búsqueda + productos personalizados |
-| **Planteamiento** | Plan semanal de entrenamientos (tipo por día) |
-| **Gráficos** | 5 visualizaciones interactivas (peso, tendencia, calorías, proteína, macros) |
-| **Estadísticas** | Análisis semanales, promedio general, mejor día + historial |
-| **Config** | Datos personales, objetivos, export/import |
+- **Barra de progreso dinámica** con porcentaje visual
+- **Estimación automática** de días faltantes según tu ritmo actual
+- **Configuración personalizada** de macros (proteína, carbs, grasas)
+- **Rangos flexibles** para Carbs y Grasas (min/max)
+- **Motivación en tiempo real** según tu progreso
+- **Histórico de cambios** de tus objetivos
+
+---
+
+### Productos — Base de Datos
+Acceso rápido a la información nutricional de miles de alimentos.
+
+- **5000+ alimentos precargados** con datos nutricionales
+- **Búsqueda rápida** por nombre o macros
+- **Tus propios productos** — Crea y guarda recetas favoritas
+- **Favoritos** para acceso instantáneo
+- **Filtros avanzados** por categoría, calorías, proteína
+- **Import/Export** de tus productos personalizados
+
+---
+
+### Planteamiento — Tu Semana
+Planifica tu semana de entrenamientos y ajusta objetivos.
+
+- **Plan semanal visual** con tipo de entrenamiento por día
+- **Tipos personalizables:** Fuerza, Cardio, HIIT, Descanso, etc.
+- **Objetivos por tipo:** Diferentes metas para días de entreno vs descanso
+- **Calorías diferenciadas** según tipo de día
+- **Visualización clara** de tu plan semana completa
+
+---
+
+### Gráficos — Análisis Visual
+Cinco visualizaciones interactivas con datos profundos.
+
+| Gráfico | Datos | Análisis |
+|---------|-------|----------|
+| **Progresión de Peso** | Histórico completo | Línea de tendencia + regresión lineal |
+| **Tendencia** | Última semana | Proyección de cambio esperado |
+| **Calorías Diarias** | Ingesta diaria | Líneas objetivo (entreno/descanso) |
+| **Proteína Diaria** | Ingesta diaria | Promedio + objetivo personalizado |
+| **Macros Distribuidos** | Proporciones | Doughnut: %, gramos y kcal/día |
+
+**Características:**
+- Eje Y dinámico según rango de datos
+- Filtro automático de datos aislados (no distorsiona gráficos)
+- Tooltip interactivo con detalles
+- Exportables como imagen
+
+---
+
+### Estadísticas — Análisis Profundo
+Estadísticas completas de todo tu histórico registrado.
+
+- **Promedio semanal** — Calorías, proteína, pérdida de peso
+- **Mejor día** — El día con mayor ingesta de proteína
+- **Estadísticas generales** — Min, máx, desviación estándar
+- **Historial completo** — Vista de todos los días registrados
+- **Análisis de tendencias** — Cómo evolucionas en el tiempo
+
+---
+
+### Config — Tu Perfil
+Personalización completa de la app y gestión de datos.
+
+**Datos Personales:**
+- Edad, sexo, altura, peso actual, peso objetivo
+- Actividad física promedio
+
+**Configuración:**
+- Macros personalizados por defecto
+- Calorías objetivo
+- Preferencias de visualización
+
+**Datos:**
+- **Export JSON** — Descarga todo (config, historia, predicciones)
+- **Export CSV** — Formato Excel para análisis avanzado
+- **Import** — Restaura tu backup en cualquier dispositivo
+- **Dark Mode** — Activado por defecto (navy/esmeralda)
+
+---
+
+## Características Especiales
+
+### Predicción de Peso Avanzada
+Algoritmo inteligente que considera múltiples factores:
+- Retención de agua según ciclo
+- Cambio real de grasa corporal
+- Variabilidad e inflamación
+- Proyección visual vs peso real
+
+### Actualizaciones Automáticas
+Modal inteligente que:
+- Detecta nuevas versiones automáticamente
+- Avisa sin interrumpir tu flujo
+- Actualiza sin perder ningún dato
+- Mantiene sincronización offline
+
+### 100% Offline
+Funciona completamente sin internet:
+- Service Worker gestiona caché
+- Todos los datos en tu dispositivo
+- Cero transmisión a servidores
+- Privacidad total garantizada
+
+### Instalable en Móvil
+Funciona como app nativa en tu teléfono:
+- **iOS:** Safari → Compartir → Agregar a pantalla de inicio
+- **Android:** Chrome → Menú → Instalar app
+- **Acceso rápido** desde pantalla de inicio
+- **Sincronización automática** entre dispositivos
 
 ---
 
 ## Stack Tecnológico
 
 ```
-Frontend:
-  • Vanilla JavaScript ES6+ (módulos ES)
-  • Tailwind CSS 3 (CDN)
-  • Material Icons (Google Fonts)
+Frontend
+   • Vanilla JavaScript ES6+ (módulos ES, sin frameworks)
+   • Tailwind CSS 3 (CDN)
+   • Material Icons (Google Fonts)
 
-Visualización:
-  • Chart.js 3.9.1 (gráficos interactivos)
+Visualización
+   • Chart.js 3.9.1 (interactivo, responsive)
 
-PWA & Storage:
-  • Service Worker (offline-first, cache-first)
-  • localStorage API
-  • Manifest.json
+PWA & Storage
+   • Service Worker (offline-first, cache-first)
+   • localStorage (100% local, no servidores)
+   • Manifest.json (instalable)
 
-Algoritmos:
-  • Predicción de peso (retención de agua + grasa corporal)
-  • Regresión lineal (tendencia de peso)
-  • Cálculo de macros (automatizado)
-  • Análisis estadístico (promedio, máximo, mínimo)
+Algoritmos
+   • Regresión lineal (tendencia de peso)
+   • Predicción de peso (factores múltiples)
+   • Análisis estadístico (promedio, máx, mín)
 ```
+
+---
+
+## Diseño Visual
+
+<div align="center">
+
+| Elemento | Color | Código |
+|----------|-------|--------|
+| **Fondo Base** | Navy oscuro | `#06090F` |
+| **Tarjetas** | Navy medio-claro | `#0B1220` → `#101928` |
+| **Primario (Acento)** | Esmeralda | `#10B981` |
+| **Secundarios** | Azul · Ámbar · Púrpura | `#60A5FA` · `#FBBF24` · `#A78BFA` |
+| **Tipografía** | Inter + Plus Jakarta Sans | Material Icons |
+
+</div>
+
+---
+
+## Instalación & Acceso
+
+### Versión Online
+```
+https://victorgonz93.github.io/dieta
+```
+
+### Versión Local
+```bash
+git clone https://github.com/VictorGonz93/dieta.git
+cd dieta
+
+# Opción 1: Abrir directamente
+# Double-click en index.html
+
+# Opción 2: Servidor local
+python -m http.server 8000
+# Luego: http://localhost:8000
+```
+
+---
+
+## Ejemplos de Uso
+
+### Seguimiento Semanal
+```
+Lunes   → 1800 kcal | 155g proteína | Entreno Fuerza
+Martes  → 1750 kcal | 148g proteína | Cardio
+...
+Domingo → Promedio: 1770 kcal | 151g proteína | -0.4kg esta semana
+```
+
+### Predicción de Peso
+```
+Peso actual:  73.2 kg
+Tendencia:    -0.35 kg/semana
+Predicción:   72.3 kg en 2 semanas
+Confianza:    Alta (basada en 6+ datos)
+```
+
+### Backup & Restauración
+```
+1. Config → Export JSON
+   ↓ Se descarga: nutrition_backup_20250526.json
+
+2. En otro dispositivo → Config → Import
+   ↓ Selecciona el archivo descargado
+
+3. ¡Listo! Todos tus datos restaurados
+```
+
+---
+
+## Actualización de Caché
+
+**Automática:** La app detecta nuevas versiones y muestra modal con **Actualizar**.
+
+**Manual (si es necesario):**
+- **Windows/Linux:** `Ctrl+Shift+R`
+- **Mac:** `Cmd+Shift+R`
+- **Móvil:** Cierra completamente y reabre el navegador
 
 ---
 
@@ -149,189 +255,73 @@ Algoritmos:
 ### localStorage Keys
 ```javascript
 {
-  nutrition_config:    // Configuración personal
-  nutrition_days:      // Días con comidas
-  weight_history:      // Histórico de pesos
-  custom_products:     // Productos personalizados
-  meal_history:        // Historial de comidas (últimas 50)
-  darkModeEnabled:     // Preferencia de tema
+  nutrition_config:     // Config personal
+  nutrition_days:       // Días con comidas (JSON)
+  weight_history:       // Histórico de pesos
+  custom_products:      // Productos personalizados
+  meal_history:         // Últimas 50 comidas
+  darkModeEnabled:      // Preferencia de tema
 }
 ```
 
-### Estructura JSON Exportado
+### JSON Exportado Completo
 ```json
 {
   "version": "1.0",
-  "exportDate": "2026-05-19T...",
-  "config": { /* configuración personal */ },
-  "days": { /* todos los días con comidas */ },
-  "customProducts": { /* productos personalizados */ },
-  "mealHistory": [ /* comidas recientes */ ],
-  "dailySummary": { /* resumen por día */ },
-  "statistics": { /* estadísticas generales */ },
-  "weightPrediction": { /* predicción de peso */ },
-  "darkModeEnabled": true
+  "exportDate": "2026-05-26T...",
+  "config": {
+    "name": "...",
+    "age": 28,
+    "sex": "M",
+    "height": 175,
+    "weight": 73.2,
+    "weightObjective": 72,
+    "macros": { "protein": 160, "carbs": 200, "fats": 60 }
+  },
+  "days": { /* todos los días registrados */ },
+  "customProducts": [ /* tus productos */ ],
+  "statistics": { /* análisis históricos */ },
+  "weightPrediction": { /* predicción futura */ }
 }
 ```
 
 ---
 
-## Diseño & UX
+## Privacidad & Seguridad
 
-- **Tema:** Dark navy + esmeralda (`#06090F` base, `#10B981` primario)
-- **Colores:** Sistema de variables CSS custom (bg-base, bg-surface, bg-card, primary, etc.)
-- **Tipografía:** Inter (cuerpo) + Plus Jakarta Sans (headings)
-- **Iconografía:** Material Icons de Google (sin emojis)
-- **Responsive:** Mobile-first, breakpoints en sm (640px) y md (768px)
-
----
-
-## 📊 Ejemplos de Uso
-
-### Caso 1: Seguimiento Semanal
-```
-Lunes:  1800 kcal | 155g proteína → Gráfico actualizado
-Martes: 1750 kcal | 148g proteína → Resumen recalculado
-...
-Domingo: Promedio semanal = 1770 kcal | 151g proteína
-```
-
-### Caso 2: Predicción de Peso
-```
-Peso actual: 73.2 kg
-Tendencia: -0.35 kg/semana
-Predicción: 72.3 kg en 2 semanas
-Confianza: Alta (6+ datos)
-```
-
-### Caso 3: Backup & Restauración
-```
-1. Abre Configuración → Export JSON
-2. Se descarga: nutrition_backup_20250519.json
-3. En otro dispositivo: Import → Selecciona el archivo
-4. ¡Todos tus datos restaurados!
-```
+**100% Local** — Todos los datos en tu dispositivo  
+**Cero Servidores** — No hay transmisión de datos  
+**Sin Tracking** — Privacidad garantizada  
+**Backup Manual** — Controlas cuándo descargar  
+**Open Source** — Código transparente en GitHub  
 
 ---
 
-## Actualización de Caché
-
-La app detecta automáticamente nuevas versiones y muestra un modal de aviso con botón **Actualizar**. Al pulsarlo:
-1. Se limpian los cachés del Service Worker
-2. La página se recarga con los archivos más recientes
-3. Tus datos no se ven afectados
-
-Si necesitas forzar la actualización manualmente:
-- **Windows/Linux:** Ctrl+Shift+R
-- **Mac:** Cmd+Shift+R
-- **Móvil:** Cierra completamente el navegador y reabre
-
-Usamos cache busting con versiones (CSS v20250519-4, JS v20250519-10) para forzar actualizaciones.
-
----
-
-## ⌨️ Atajos de Teclado
+## Atajos de Teclado
 
 | Tecla | Acción |
 |-------|--------|
 | `ESC` | Cerrar modal |
-| `Tab` | Navegar entre campos |
 | `Enter` | Guardar/Enviar |
+| `Tab` | Navegar entre campos |
 
 ---
 
-## 🌍 Compatibilidad de Navegadores
+## Compatibilidad
 
-| Navegador | Desktop | Móvil | PWA |
-|-----------|---------|-------|-----|
-| Chrome | ✅ Completo | ✅ Completo | ✅ Sí |
-| Firefox | ✅ Completo | ✅ Completo | ✅ Sí |
-| Safari | ✅ Completo | ✅ Completo | ✅ Sí |
-| Edge | ✅ Completo | ✅ Completo | ✅ Sí |
-
----
-
-## 📋 Requisitos del Sistema
-
-- **Navegador moderno** (ES6+ compatible)
-- **JavaScript habilitado**
-- **5-10 MB de almacenamiento** (para 1 año de datos)
-- **Conexión internet** (solo para primera carga, luego offline)
+| Navegador | Desktop | Mobile | PWA |
+|-----------|---------|--------|-----|
+| **Chrome** | Sí | Sí | Sí |
+| **Firefox** | Sí | Sí | Sí |
+| **Safari** | Sí | Sí | Sí |
+| **Edge** | Sí | Sí | Sí |
 
 ---
 
-## 🐛 Troubleshooting
+## Licencia & Créditos
 
-### "No veo los cambios en móvil"
-→ Hacer reload completo: `Ctrl+Shift+R` o `Cmd+Shift+R`
-
-### "Se perdieron mis datos"
-→ Restaurar desde backup JSON: Configuración → Import
-
-### "Los gráficos no cargan"
-→ Verificar localStorage en DevTools: F12 → Storage → localStorage
-
-### "¿Funciona sin internet?"
-→ Sí, pero necesitas internet la primera vez para descargar archivos
+**IMPORTANTE:** Desarrollada con IA (Claude) para uso personal y experimental. Sin garantía de soporte oficial. Privacidad 100% garantizada.
 
 ---
 
-## 📈 Hoja de Ruta (Futuro)
-
-- [ ] Sincronización en la nube (opcional)
-- [ ] Exportación a Google Sheets
-- [ ] Notificaciones push
-- [ ] Integración con Apple Health / Google Fit
-- [ ] Modo compartido (familia)
-- [ ] Análisis avanzado con ML
-
----
-
-## 📝 Licencia
-
-**MIT License** - Uso libre para proyectos personales
-
-```
-Copyright (c) 2026 - Nutrition Tracker Pro
-Disponible bajo licencia MIT
-```
-
----
-
-## 🙏 Créditos
-
-- **Desarrollo:** Creado con asistencia de IA (Claude)
-- **UI/UX:** Tailwind CSS + Material Design
-- **Gráficos:** Chart.js
-- **Iconos:** Google Material Icons
-- **Hosting:** GitHub Pages
-
----
-
-## 💬 Contacto & Soporte
-
-Este es un proyecto personal. Para sugerencias o problemas:
-- 📌 Abre un issue en GitHub
-- 🔀 Crea un pull request con mejoras
-- 📧 Contacto personal
-
----
-
-## 🎉 Estado del Proyecto
-
-| Aspecto | Estado |
-|--------|--------|
-| Funcionalidad Core | ✅ Production Ready |
-| Testing | ✅ Probado en múltiples dispositivos |
-| Documentación | ✅ Completa |
-| Performance | ✅ Optimizado |
-| Privacidad | ✅ Garantizada |
-
-**Versión:** 1.0 Profesional  
-**Última actualización:** 19 de Mayo 2026  
-**Estado:** ✅ Activo y mantenido
-
----
-
-**Hecho con ❤️ para rastrear tu nutrición sin comprometer tu privacidad**
-
+**Apex Nutrition** — Rastreo nutricional profesional sin complicaciones.
