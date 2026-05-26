@@ -83,15 +83,21 @@ export function showUpdateAvailableModal(remoteVersion = null) {
     document.body.appendChild(modal);
 
     document.getElementById('updateModalCancel').addEventListener('click', () => modal.remove());
-    document.getElementById('updateModalConfirm').addEventListener('click', () => performUpdate());
+    document.getElementById('updateModalConfirm').addEventListener('click', () => performUpdate(remoteVersion));
 }
 
-export function performUpdate() {
+export function performUpdate(version) {
     console.log('🔄 Iniciando actualización...');
 
-    if (AppState.latestRemoteVersion) {
-        localStorage.setItem('appInstalledVersion', AppState.latestRemoteVersion);
-        console.log(`Guardada versión ${AppState.latestRemoteVersion} en localStorage`);
+    // Cerrar el modal antes de recargar
+    const modal = document.getElementById('updateModal');
+    if (modal) modal.remove();
+
+    // Guardar la versión usando el argumento, con AppState como fallback
+    const versionToSave = version || AppState.latestRemoteVersion;
+    if (versionToSave) {
+        localStorage.setItem('appInstalledVersion', String(versionToSave));
+        console.log(`Guardada versión ${versionToSave} en localStorage`);
     }
 
     if ('caches' in window) {
@@ -108,5 +114,5 @@ export function performUpdate() {
 
     setTimeout(() => {
         window.location.reload();
-    }, 500);
+    }, 800);
 }
