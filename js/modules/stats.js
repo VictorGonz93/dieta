@@ -95,7 +95,7 @@ export function getWeeklyProgress() {
     const stats = calculateWeeklyStats();
     const expectedWeeklyLoss = 0.5;
     const diff = parseFloat(stats.weeklyLoss) - expectedWeeklyLoss;
-    const status = diff > -0.05 ? '✅ En camino' : diff > -0.2 ? '⚠️ Algo lento' : '❌ Muy lento';
+    const status = diff > -0.05 ? 'En camino' : diff > -0.2 ? 'Algo lento' : 'Muy lento';
 
     const daysToGoal = AppState.config.currentWeight > AppState.config.targetWeight
         ? Math.round((AppState.config.currentWeight - AppState.config.targetWeight) / (expectedWeeklyLoss / 7))
@@ -156,27 +156,27 @@ export function displayMacroSuggestions() {
 
     container.innerHTML = `
         <div class="suggestions-card">
-            <div class="suggestions-title">⚡ Sugerencias de Macros</div>
+            <div class="suggestions-title">Sugerencias de Macros</div>
             <div class="suggestions-content">
                 <div class="progress-item">
-                    <span>🔥 Calorías: ${consumido.sumKcal}/${getCalorieTarget()}</span>
+                    <span>Calorías: ${consumido.sumKcal}/${getCalorieTarget()}</span>
                     <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(porcentajeCals, 100)}%"></div></div>
-                    ${falta.kcal > 0 ? `<small>Te faltan ${falta.kcal} kcal</small>` : '<small>✅ Alcanzada</small>'}
+                    ${falta.kcal > 0 ? `<small>Te faltan ${falta.kcal} kcal</small>` : '<small>Alcanzada</small>'}
                 </div>
                 <div class="progress-item">
-                    <span>💪 Proteína: ${consumido.sumProtein.toFixed(0)}g / ${AppState.config.proteinGoal}g</span>
+                    <span>Proteína: ${consumido.sumProtein.toFixed(0)}g / ${AppState.config.proteinGoal}g</span>
                     <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min((consumido.sumProtein / AppState.config.proteinGoal) * 100, 100)}%"></div></div>
-                    ${falta.protein > 0 ? `<small>Te faltan ${falta.protein.toFixed(0)}g</small>` : '<small>✅ Alcanzada</small>'}
+                    ${falta.protein > 0 ? `<small>Te faltan ${falta.protein.toFixed(0)}g</small>` : '<small>Alcanzada</small>'}
                 </div>
                 <div class="progress-item">
-                    <span>🥔 Carbos: ${consumido.sumCarbs.toFixed(0)}g / ${targetCarbs}g</span>
+                    <span>Carbos: ${consumido.sumCarbs.toFixed(0)}g / ${targetCarbs}g</span>
                     <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(porcentajeCarbos, 100)}%"></div></div>
-                    ${falta.carbs > 0 ? `<small>Te faltan ${falta.carbs.toFixed(0)}g</small>` : '<small>✅ Alcanzada</small>'}
+                    ${falta.carbs > 0 ? `<small>Te faltan ${falta.carbs.toFixed(0)}g</small>` : '<small>Alcanzada</small>'}
                 </div>
                 <div class="progress-item">
-                    <span>🥑 Grasas: ${consumido.sumFats.toFixed(0)}g / ${AppState.config.fatsMax}g</span>
+                    <span>Grasas: ${consumido.sumFats.toFixed(0)}g / ${AppState.config.fatsMax}g</span>
                     <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min((consumido.sumFats / AppState.config.fatsMax) * 100, 100)}%"></div></div>
-                    ${falta.fats > 0 ? `<small>Te faltan ${falta.fats.toFixed(0)}g</small>` : '<small>✅ Alcanzada</small>'}
+                    ${falta.fats > 0 ? `<small>Te faltan ${falta.fats.toFixed(0)}g</small>` : '<small>Alcanzada</small>'}
                 </div>
             </div>
         </div>
@@ -190,7 +190,7 @@ export function displayWeeklyProgress() {
 
     container.innerHTML = `
         <div class="progress-card">
-            <div class="progress-title">🎯 Progreso Semanal</div>
+            <div class="progress-title">Progreso Semanal</div>
             <div class="progress-content">
                 <div class="progress-indicator">
                     <div class="indicator-status">${progress.status}</div>
@@ -200,8 +200,8 @@ export function displayWeeklyProgress() {
                     </div>
                 </div>
                 <div class="goal-info">
-                    <div class="info-item"><span>📅 Días hasta meta:</span><strong>${progress.daysToGoal} días</strong></div>
-                    <div class="info-item"><span>🎯 Fecha estimada:</span><strong>${progress.estimatedDate}</strong></div>
+                    <div class="info-item"><span>Días hasta meta:</span><strong>${progress.daysToGoal} días</strong></div>
+                    <div class="info-item"><span>Fecha estimada:</span><strong>${progress.estimatedDate}</strong></div>
                 </div>
             </div>
         </div>
@@ -214,19 +214,19 @@ export function displayWeeklyStats() {
     if (!container) return;
 
     if (!stats || stats.daysRecorded === 0) {
-        container.innerHTML = `<div class="stats-card"><div class="stats-title">📈 Resumen Semanal</div><div class="stats-content"><p class="text-slate-400 text-sm">Registra pesos esta semana para ver estadísticas</p></div></div>`;
+        container.innerHTML = `<div class="stats-card"><div class="stats-title">Resumen Semanal</div><div class="stats-content"><p class="text-slate-400 text-sm">Registra pesos esta semana para ver estadísticas</p></div></div>`;
         return;
     }
 
     container.innerHTML = `
         <div class="stats-card">
-            <div class="stats-title">📈 Resumen Semanal</div>
+            <div class="stats-title">Resumen Semanal</div>
             <div class="stats-content">
-                <div class="stat-item"><span>📊 Días registrados:</span><strong>${stats.daysRecorded} / 7</strong></div>
-                <div class="stat-item"><span>⚖️ Peso promedio:</span><strong>${(stats.avgWeight || 0).toFixed(1)} kg</strong></div>
-                <div class="stat-item"><span>📉 Pérdida semanal:</span><strong>${stats.weeklyLoss} kg</strong></div>
-                <div class="stat-item"><span>🍽️ Calorías promedio:</span><strong>${stats.avgKcal} kcal/día</strong></div>
-                <div class="stat-item"><span>❌ Déficit promedio:</span><strong>${stats.avgDeficit} kcal/día</strong></div>
+                <div class="stat-item"><span>Días registrados:</span><strong>${stats.daysRecorded} / 7</strong></div>
+                <div class="stat-item"><span>Peso promedio:</span><strong>${(stats.avgWeight || 0).toFixed(1)} kg</strong></div>
+                <div class="stat-item"><span>Pérdida semanal:</span><strong>${stats.weeklyLoss} kg</strong></div>
+                <div class="stat-item"><span>Calorías promedio:</span><strong>${stats.avgKcal} kcal/día</strong></div>
+                <div class="stat-item"><span>Déficit promedio:</span><strong>${stats.avgDeficit} kcal/día</strong></div>
             </div>
         </div>
     `;
@@ -244,7 +244,7 @@ export function displayPredictionAccuracy() {
 
     container.innerHTML = `
         <div class="accuracy-card">
-            <div class="accuracy-title">🎯 Precisión de Predicciones</div>
+            <div class="accuracy-title">Precisión de Predicciones</div>
             <div class="accuracy-content">
                 <div class="accuracy-stats">
                     <div class="stat"><span>Error promedio:</span><strong>${accuracy.avgError} kg</strong></div>
@@ -298,7 +298,7 @@ export function updateGoalsDisplay() {
     let timeEstimate = '-', timeExplain = '';
     if (stillToLose > 0) {
         if (weeksRemaining === 0) {
-            timeEstimate = '¡Ya casi! 🎉';
+            timeEstimate = '¡Ya casi!';
             timeExplain = 'Estás muy cerca de tu objetivo';
         } else if (weeksRemaining < 4) {
             timeEstimate = `${weeksRemaining} semana${weeksRemaining > 1 ? 's' : ''}`;
@@ -309,7 +309,7 @@ export function updateGoalsDisplay() {
             timeExplain = `Aproximadamente ${weeksRemaining} semanas`;
         }
     } else {
-        timeEstimate = '✅ ¡Objetivo alcanzado!';
+        timeEstimate = 'Objetivo alcanzado';
         timeExplain = 'Has llegado a tu peso objetivo';
     }
 
@@ -328,12 +328,12 @@ export function updateMotivationMessage(progressPercent, stillToLose) {
     if (!container) return;
 
     let message = '';
-    if (progressPercent === 0) message = '🚀 ¡Comienza tu viaje! Cada paso te acerca a tu objetivo.';
-    else if (progressPercent < 25) message = '💪 ¡Buen comienzo! Llevas el impulso inicial. Sigue así.';
-    else if (progressPercent < 50) message = '🔥 ¡Vas muy bien! Ya llevas avance visible. ¡Continúa!';
-    else if (progressPercent < 75) message = '⚡ ¡Más de la mitad! Ya falta menos. La meta está a la vista.';
-    else if (progressPercent < 100) message = '🎯 ¡Estás muy cerca! Sigue con el ritmo, ya casi lo logras.';
-    else message = '🏆 ¡FELICIDADES! 🎉 ¡Has alcanzado tu objetivo!';
+    if (progressPercent === 0) message = '¡Comienza tu viaje! Cada paso te acerca a tu objetivo.';
+    else if (progressPercent < 25) message = '¡Buen comienzo! Llevas el impulso inicial. Sigue así.';
+    else if (progressPercent < 50) message = '¡Vas muy bien! Ya llevas avance visible. ¡Continúa!';
+    else if (progressPercent < 75) message = '¡Más de la mitad! Ya falta menos. La meta está a la vista.';
+    else if (progressPercent < 100) message = '¡Estás muy cerca! Sigue con el ritmo, ya casi lo logras.';
+    else message = '¡FELICIDADES! ¡Has alcanzado tu objetivo!';
 
     container.innerHTML = `<p class="text-lg text-slate-100 leading-relaxed">${message}</p>`;
 }
@@ -428,8 +428,13 @@ export function updateHistoryList() {
     if (!container) return;
 
     const dates = Object.keys(AppState.allDays).sort().reverse();
+    // Solo mostrar días que tengan al menos una comida registrada
+    const datesWithData = dates.filter(date => {
+        const day = AppState.allDays[date];
+        return Object.values(day.meals).some(meal => meal.length > 0);
+    });
 
-    container.innerHTML = dates.slice(0, 10).map(date => {
+    container.innerHTML = datesWithData.slice(0, 10).map(date => {
         const day = AppState.allDays[date];
         let dayKcal = 0, dayProtein = 0, dayCarbs = 0, dayFats = 0;
         Object.values(day.meals).forEach(meal => {

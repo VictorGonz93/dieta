@@ -1,4 +1,4 @@
-// ==================== PLAN DE ENTRENAMIENTOS ====================
+﻿// ==================== PLAN DE ENTRENAMIENTOS ====================
 
 import AppState from './state.js';
 import { GYM_ROUTINE } from './constants.js';
@@ -44,7 +44,7 @@ export function saveWorkoutPlan() {
         const label = labelInput?.value?.trim() || '';
 
         if (!label && type === 'entreno') {
-            showNotification(`⚠️ Por favor completa la descripción para ${dayName}`, 'warning');
+            showNotification(`Por favor completa la descripción para ${dayName}`, 'warning');
             hasError = true;
             return;
         }
@@ -59,7 +59,7 @@ export function saveWorkoutPlan() {
 
     AppState.config.customGymRoutine = customRoutine;
     localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
-    showNotification('✅ Plan de entrenamientos guardado correctamente', 'success');
+    showNotification('Plan de entrenamientos guardado correctamente', 'success');
 
     import('./meals.js').then(m => m.renderDay());
     import('./config-settings.js').then(m => m.updateHeaderInfo());
@@ -71,7 +71,7 @@ export function resetWorkoutPlan() {
         AppState.config.customGymRoutine = null;
         localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
         initWorkoutPlan();
-        showNotification('✅ Plan restaurado al valor por defecto', 'success');
+        showNotification('Plan restaurado al valor por defecto', 'success');
 
         import('./meals.js').then(m => m.renderDay());
         import('./config-settings.js').then(m => m.updateHeaderInfo());

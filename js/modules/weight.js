@@ -1,4 +1,4 @@
-// ==================== PREDICCIÓN Y GESTIÓN DE PESO ====================
+﻿// ==================== PREDICCIÓN Y GESTIÓN DE PESO ====================
 
 import AppState from './state.js';
 import { getDayType, calculateTDEE } from './nutrition.js';
@@ -244,7 +244,7 @@ export function updateWeightPrediction() {
     if (pred.estimatedDays && pred.weeklyLoss > 0) {
         predictionEl.innerHTML = `
             <div class="prediction-card">
-                <div class="prediction-title">📊 Proyección</div>
+                <div class="prediction-title">Proyección de Peso</div>
                 <div class="prediction-content">
                     <div class="prediction-stat"><span>Pérdida semanal:</span><strong>${pred.weeklyLoss} kg</strong></div>
                     <div class="prediction-stat"><span>Días para meta:</span><strong>${pred.estimatedDays}</strong></div>
@@ -256,7 +256,7 @@ export function updateWeightPrediction() {
     } else {
         predictionEl.innerHTML = `
             <div class="prediction-card">
-                <div class="prediction-title">📊 Proyección</div>
+                <div class="prediction-title">Proyección de Peso</div>
                 <div class="prediction-content">
                     <small>Registra tu peso regularmente para ver la predicción</small>
                 </div>
@@ -278,37 +278,37 @@ export function displayNextDayPrediction() {
     }
     if (todayWeight === null) return;
 
-    const sign = nextPred.deficitVsTDEE < 0 ? '📉' : '📈';
+    const sign = nextPred.deficitVsTDEE < 0 ? '&#8600;' : '&#8599;';
     const weightChange = nextPred.predictedWeight - todayWeight;
     const weightChangeSign = weightChange > 0 ? '+' : '';
-    const weightColor = weightChange > 0 ? '#f56565' : '#48bb78';
+    const weightColor = weightChange > 0 ? 'var(--color-red)' : 'var(--primary)';
     const structuralDeficit = nextPred.tdee - nextPred.calorieTarget;
 
     predictionEl.innerHTML = `
         <div class="next-day-card">
-            <div class="prediction-title">🔮 Peso Mañana (10:00 AM)</div>
+            <div class="prediction-title">Peso estimado mañana &mdash; 10:00 AM</div>
             <div class="next-day-content">
                 <div class="next-day-main">
                     <div class="next-day-weight">
-                        <div class="weight-label">Peso estimado mañana:</div>
-                        <div class="weight-value">${nextPred.predictedWeight} kg</div>
+                        <div class="weight-label">Estimación</div>
+                        <div class="weight-value">${nextPred.predictedWeight} <span style="font-size:1rem;font-weight:500;color:var(--text-2)">kg</span></div>
                         <div class="weight-change" style="color: ${weightColor};">
-                            ${sign} ${weightChangeSign}${weightChange.toFixed(2)} kg
+                            ${sign} ${weightChangeSign}${weightChange.toFixed(2)} kg vs hoy
                         </div>
                     </div>
                 </div>
                 <div class="next-day-factors">
-                    <div class="factor"><span class="factor-label">💪 Consumidas:</span><span class="factor-value">${nextPred.caloriesConsumed} kcal</span></div>
-                    <div class="factor"><span class="factor-label">🎯 Meta ingesta:</span><span class="factor-value">${nextPred.calorieTarget || '-'} kcal</span></div>
-                    <div class="factor"><span class="factor-label">💨 TDEE (gasto):</span><span class="factor-value">${nextPred.tdee || '-'} kcal</span></div>
-                    <div class="factor"><span class="factor-label">❌ Déficit vs META:</span><span class="factor-value">${nextPred.deficitVsMeta} kcal</span></div>
-                    <div class="factor"><span class="factor-label">✅ Déficit REAL vs TDEE:</span><span class="factor-value">${nextPred.deficitVsTDEE} kcal</span></div>
-                    <div class="factor"><span class="factor-label">📊 Déficit diario:</span><span class="factor-value">${structuralDeficit} kcal/día</span></div>
-                    <div class="factor"><span class="factor-label">🥔 Carbos:</span><span class="factor-value">${nextPred.carbsConsumed}g</span></div>
-                    <div class="factor"><span class="factor-label">${nextPred.fatChange < 0 ? '🔥 Pérdida grasa:' : '📈 Ganancia grasa:'}</span><span class="factor-value">${Math.abs(nextPred.fatChange).toFixed(2)}kg</span></div>
-                    <div class="factor"><span class="factor-label">💧 Retención agua:</span><span class="factor-value">+${nextPred.waterRetention.toFixed(2)}kg</span></div>
+                    <div class="factor"><span class="factor-label">Calorías consumidas</span><span class="factor-value">${nextPred.caloriesConsumed} kcal</span></div>
+                    <div class="factor"><span class="factor-label">Meta calorías</span><span class="factor-value">${nextPred.calorieTarget || '-'} kcal</span></div>
+                    <div class="factor"><span class="factor-label">TDEE (gasto)</span><span class="factor-value">${nextPred.tdee || '-'} kcal</span></div>
+                    <div class="factor"><span class="factor-label">Déficit vs meta</span><span class="factor-value">${nextPred.deficitVsMeta} kcal</span></div>
+                    <div class="factor"><span class="factor-label">Déficit real vs TDEE</span><span class="factor-value">${nextPred.deficitVsTDEE} kcal</span></div>
+                    <div class="factor"><span class="factor-label">Déficit diario estructural</span><span class="factor-value">${structuralDeficit} kcal/día</span></div>
+                    <div class="factor"><span class="factor-label">Carbohidratos</span><span class="factor-value">${nextPred.carbsConsumed}g</span></div>
+                    <div class="factor"><span class="factor-label">${nextPred.fatChange < 0 ? 'Pérdida de grasa' : 'Ganancia de grasa'}</span><span class="factor-value">${Math.abs(nextPred.fatChange).toFixed(2)} kg</span></div>
+                    <div class="factor"><span class="factor-label">Retención de agua</span><span class="factor-value">+${nextPred.waterRetention.toFixed(2)} kg</span></div>
                 </div>
-                <div class="next-day-explanation"><small>⚠️ ${nextPred.explanation}</small></div>
+                <div class="next-day-explanation"><small>${nextPred.explanation}</small></div>
             </div>
         </div>
     `;
@@ -320,14 +320,14 @@ export function saveDailyWeight() {
 
     const weight = parseFloat(input.value);
     if (isNaN(weight) || weight <= 0) {
-        showNotification('⚠️ Ingresa un peso válido', 'warning');
+        showNotification('Ingresa un peso válido', 'warning');
         return;
     }
 
     recordWeight(AppState.currentDate, weight);
     AppState.config.currentWeight = weight;
     localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
-    showNotification(`✅ Peso registrado: ${weight}kg`, 'success');
+    showNotification(`Peso registrado: ${weight}kg`, 'success');
 
     import('./config-settings.js').then(m => m.updateHeaderInfo());
     updateWeightPrediction();
@@ -382,7 +382,7 @@ export function updateWeightEntry(date, newWeight) {
         AppState.config.weightHistory[index].predictedWeight = prediction?.predictedWeight || null;
         saveWeightHistory();
         renderWeightHistory();
-        showNotification(`✅ Peso actualizado: ${weight}kg`, 'success');
+        showNotification(`Peso actualizado: ${weight}kg`, 'success');
         import('./config-settings.js').then(m => m.updateHeaderInfo());
         updateWeightPrediction();
         displayNextDayPrediction();
@@ -395,7 +395,7 @@ export function deleteWeightEntry(date) {
     AppState.config.weightHistory = AppState.config.weightHistory.filter(w => w.date !== date);
     saveWeightHistory();
     renderWeightHistory();
-    showNotification('✅ Registro eliminado', 'success');
+    showNotification('Registro eliminado', 'success');
     import('./config-settings.js').then(m => m.updateHeaderInfo());
     updateWeightPrediction();
     displayNextDayPrediction();

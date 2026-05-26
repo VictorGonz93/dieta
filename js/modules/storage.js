@@ -1,4 +1,4 @@
-// ==================== GESTIÓN DE ALMACENAMIENTO ====================
+﻿// ==================== GESTIÓN DE ALMACENAMIENTO ====================
 
 import AppState from './state.js';
 import { showNotification } from './ui/notifications.js';
@@ -19,13 +19,13 @@ export function loadAllDays() {
     if (saved) {
         try {
             AppState.allDays = JSON.parse(saved);
-            console.log('✅ loadAllDays: Cargados', Object.keys(AppState.allDays).length, 'días desde localStorage');
+            console.log('loadAllDays: Cargados', Object.keys(AppState.allDays).length, 'días desde localStorage');
         } catch (e) {
-            console.error('❌ Error parsing nutrition_days:', e);
+            console.error('Error parsing nutrition_days:', e);
             AppState.allDays = {};
         }
     } else {
-        console.log('⚠️ loadAllDays: No se encontraron datos en localStorage');
+        console.log('loadAllDays: No se encontraron datos en localStorage');
         AppState.allDays = {};
     }
 }
@@ -111,7 +111,7 @@ export function exportData() {
         a.download = `nutrition_backup_${getDateKey(new Date())}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        showNotification('✅ Datos exportados correctamente (con estadísticas)');
+        showNotification('Datos exportados correctamente (con estadísticas)');
     });
 }
 
@@ -141,7 +141,7 @@ export function exportCSV() {
     a.download = `nutrition_data_${getDateKey(new Date())}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('✅ CSV exportado correctamente');
+    showNotification('CSV exportado correctamente');
 }
 
 export function importData(event) {
@@ -157,6 +157,13 @@ export function importData(event) {
                 Object.assign(AppState.config, data.config);
                 if (data.config.startDate) AppState.config.startDate = new Date(data.config.startDate);
                 localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+            }
+
+            // weight_history se guarda en su propia clave (loadWeightHistory la lee por separado)
+            const weightHist = (data.config && data.config.weightHistory) || data.weight_history;
+            if (weightHist && weightHist.length > 0) {
+                AppState.config.weightHistory = weightHist;
+                localStorage.setItem('weight_history', JSON.stringify(weightHist));
             }
 
             if (data.days) {
@@ -202,24 +209,27 @@ export function importData(event) {
             const { renderProductsList } = await import('./ui/products-list.js');
             const { updateWeightPrediction, displayNextDayPrediction } = await import('./weight.js');
             const { initializeToday } = await import('./meals.js');
+            const { initializeCharts, renderWeightPredictionChart } = await import('./charts.js');
 
             loadConfig();
             renderProductsList();
             updateWeightPrediction();
             initializeToday();
             displayNextDayPrediction();
-            showNotification('✅ Todos los datos importados correctamente');
+            initializeCharts();
+            renderWeightPredictionChart();
+            showNotification('Todos los datos importados correctamente');
         } catch (err) {
-            showNotification('❌ Error al importar: ' + err.message, 'error');
+            showNotification('Error al importar: ' + err.message, 'error');
         }
     };
     reader.readAsText(file);
 }
 
 export function clearAllData() {
-    if (!confirm('⚠️ ¿Estás seguro? Esto eliminará TODOS los datos.')) return;
+    if (!confirm('¿Estás seguro? Esto eliminará TODOS los datos.')) return;
     localStorage.clear();
     AppState.allDays = {};
-    showNotification('✅ Todos los datos fueron eliminados');
+    showNotification('Todos los datos fueron eliminados');
     location.reload();
 }

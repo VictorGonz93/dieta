@@ -5,13 +5,17 @@ import { UNIT_CONVERSIONS } from '../constants.js';
 
 export function openModal(mealType) {
     AppState.currentMealForModal = mealType;
-    document.getElementById('modal').classList.add('show');
+    const modal = document.getElementById('modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('show');
     resetModalForm();
     setupTabSearch();
 }
 
 export function closeModal() {
-    document.getElementById('modal').classList.remove('show');
+    const modal = document.getElementById('modal');
+    modal.classList.remove('show');
+    modal.classList.add('hidden');
 }
 
 export function resetModalForm() {

@@ -1,4 +1,4 @@
-// ==================== GESTIÓN DE COMIDAS Y DÍAS ====================
+﻿// ==================== GESTIÓN DE COMIDAS Y DÍAS ====================
 
 import AppState from './state.js';
 import { getDateKey, saveDays } from './storage.js';
@@ -79,11 +79,13 @@ export function renderDay() {
     });
 
     const dayInfo = getDayType(AppState.currentDate);
-    const emoji = dayInfo.type === 'entreno' ? '💪' : '😴';
+    const dayTypeClass = dayInfo.type === 'entreno' ? 'entreno' : 'descanso';
+    const dayTypeIcon = dayInfo.type === 'entreno' ? 'fitness_center' : 'self_improvement';
     const dayName = dayInfo.label;
 
     if (document.getElementById('dayTitle')) {
-        document.getElementById('dayTitle').textContent = `Día ${dayNumber} • ${emoji} ${dayName}`;
+        document.getElementById('dayTitle').innerHTML =
+            `Día ${dayNumber} <span class="day-type-badge ${dayTypeClass} ml-2"><span class="material-icons">${dayTypeIcon}</span>${dayName}</span>`;
     }
     if (document.getElementById('dayDate')) {
         document.getElementById('dayDate').textContent = formattedDate;
@@ -117,15 +119,15 @@ export function renderMealSection(mealName, foods) {
     foods.forEach((food, index) => {
         const foodEl = document.createElement('div');
         foodEl.className = 'food-item';
-        const timeDisplay = food.time ? ` <span class="food-time">⏰ ${food.time}</span>` : '';
+        const timeDisplay = food.time ? ` <span class="food-time"><span class="material-icons" style="font-size:11px;vertical-align:middle">schedule</span> ${food.time}</span>` : '';
         const quantityDisplay = `${food.quantity} ${food.unit}`.replace(/^\s+|\s+$/g, '');
         foodEl.innerHTML = `
             <span class="food-item-name">${food.name} (${quantityDisplay})${timeDisplay}</span>
             <span class="food-item-macros">
-                <span class="food-macro">🔥${food.kcal.toFixed(0)}</span>
-                <span class="food-macro">💪${food.protein.toFixed(1)}g</span>
+                <span class="food-macro kcal">${food.kcal.toFixed(0)} kcal</span>
+                <span class="food-macro protein">${food.protein.toFixed(1)}g P</span>
             </span>
-            <button class="food-item-delete" onclick="window.deleteFood('${mealName}', ${index})">✕</button>
+            <button class="food-item-delete" onclick="window.deleteFood('${mealName}', ${index})">×</button>
         `;
         container.appendChild(foodEl);
 
@@ -181,15 +183,15 @@ export function updateQuickMacros(kcal, protein, carbs, fats, targetCals) {
 export function getStatusTarget(value, target) {
     const diff = value - target;
     const absDiff = Math.abs(diff);
-    if (absDiff <= 50) return '✅';
-    if (absDiff <= 150) return `⚠️ ${diff > 0 ? '+' : ''}${diff.toFixed(0)}`;
-    return `❌ ${diff > 0 ? '+' : ''}${diff.toFixed(0)}`;
+    if (absDiff <= 50) return '✓';
+    if (absDiff <= 150) return `${diff > 0 ? '+' : ''}${diff.toFixed(0)}`;
+    return `${diff > 0 ? '+' : ''}${diff.toFixed(0)}`;
 }
 
 export function getStatusRange(value, min, max) {
-    if (value >= min && value <= max) return '✅';
-    if (value > max) return `⚠️ +${(value - max).toFixed(0)}`;
-    return `❌ -${(min - value).toFixed(0)}`;
+    if (value >= min && value <= max) return '✓';
+    if (value > max) return `+${(value - max).toFixed(0)}`;
+    return `-${(min - value).toFixed(0)}`;
 }
 
 // ==================== AGREGAR / ELIMINAR COMIDA ====================
@@ -209,7 +211,7 @@ export function addFood() {
     };
 
     if (!food.name || !food.quantity || !food.kcal) {
-        showNotification('❌ Completa todos los campos', 'error');
+        showNotification('Completa todos los campos', 'error');
         return;
     }
 
@@ -234,7 +236,7 @@ export function addFood() {
     updateDaySummary(AppState.allDays[dateKey]);
     displayNextDayPrediction();
     import('./charts.js').then(m => m.renderWeightPredictionChart());
-    showNotification(`✅ ${food.name} agregado correctamente`);
+    showNotification(`${food.name} agregado correctamente`);
 }
 
 export function deleteFood(meal, index) {
@@ -257,7 +259,7 @@ export function deleteFood(meal, index) {
     updateDaySummary(AppState.allDays[dateKey]);
     displayNextDayPrediction();
     import('./charts.js').then(m => m.renderWeightPredictionChart());
-    showNotification('✅ Comida eliminada', 'success');
+    showNotification('Comida eliminada', 'success');
 }
 
 // ==================== NAVEGACIÓN DE DÍAS ====================
@@ -277,4 +279,27 @@ export function nextDay() {
 export function todayDay() {
     AppState.currentDate = new Date();
     initializeToday();
+}
+
+export function copyYesterdayMeals() {
+    const currentKey = getDateKey(AppState.currentDate);
+    const yesterday = new Date(AppState.currentDate);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = getDateKey(yesterday);
+
+    const yesterdayData = AppState.allDays[yesterdayKey];
+    if (!yesterdayData || !Object.values(yesterdayData.meals).some(m => m.length > 0)) {
+        showNotification('No hay comidas registradas ayer', 'error');
+        return;
+    }
+
+    const currentData = AppState.allDays[currentKey];
+    const hasMeals = Object.values(currentData.meals).some(m => m.length > 0);
+    if (hasMeals && !confirm('Este día ya tiene comidas. ¿Sobrescribir con las de ayer?')) return;
+
+    // Copia profunda de las comidas de ayer
+    currentData.meals = JSON.parse(JSON.stringify(yesterdayData.meals));
+    saveDays();
+    renderDay();
+    showNotification('Comidas copiadas del día anterior');
 }

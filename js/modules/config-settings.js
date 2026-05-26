@@ -1,4 +1,4 @@
-// ==================== CONFIGURACIÓN ====================
+﻿// ==================== CONFIGURACIÓN ====================
 
 import AppState from './state.js';
 import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget } from './nutrition.js';
@@ -42,7 +42,7 @@ export function saveConfig() {
     }
 
     localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
-    showNotification('✅ Configuración guardada correctamente', 'success');
+    showNotification('Configuración guardada correctamente', 'success');
     updateHeaderInfo();
     updateCalculatedValues();
     updateWeightPrediction();
@@ -123,11 +123,11 @@ export function updateHeaderInfo() {
     const dayTypeEl = document.getElementById('dayType');
     if (dayTypeEl && dayInfo) {
         if (dayInfo.type === 'entreno') {
-            dayTypeEl.textContent = `💪 ${dayInfo.label}`;
-            dayTypeEl.style.color = '#4299e1';
+            dayTypeEl.textContent = dayInfo.label;
+            dayTypeEl.style.color = 'var(--primary)';
         } else {
-            dayTypeEl.textContent = `😴 ${dayInfo.label}`;
-            dayTypeEl.style.color = '#48bb78';
+            dayTypeEl.textContent = dayInfo.label;
+            dayTypeEl.style.color = 'var(--color-blue)';
         }
     }
 }

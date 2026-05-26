@@ -7,7 +7,7 @@ import { CURRENT_APP_VERSION } from './modules/constants.js';
 // Módulos de lógica
 import { loadCustomProducts, addNewProduct, deleteProduct, editProductCustomUnit, saveProductCustomUnit, editProduct, saveProductEdit } from './modules/products.js';
 import { loadConfig, saveConfig, updateHeaderInfo } from './modules/config-settings.js';
-import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previousDay, nextDay, todayDay } from './modules/meals.js';
+import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previousDay, nextDay, todayDay, copyYesterdayMeals } from './modules/meals.js';
 import { loadWeightHistory, saveDailyWeight, updateWeightPrediction, displayNextDayPrediction, renderWeightHistory, updateWeightEntry, deleteWeightEntry } from './modules/weight.js';
 import { loadAllDays, exportData, exportCSV, importData, clearAllData } from './modules/storage.js';
 import { initializeCharts } from './modules/charts.js';
@@ -82,6 +82,7 @@ window.renderProductsList = renderProductsList;
 window.previousDay = previousDay;
 window.nextDay = nextDay;
 window.todayDay = todayDay;
+window.copyYesterdayMeals = copyYesterdayMeals;
 window.saveDailyWeight = saveDailyWeight;
 window.saveConfig = saveConfig;
 window.exportData = exportData;

@@ -1,4 +1,4 @@
-// ==================== BASE DE PRODUCTOS ====================
+﻿// ==================== BASE DE PRODUCTOS ====================
 
 import AppState from './state.js';
 import { showNotification } from './ui/notifications.js';
@@ -52,7 +52,7 @@ export function addNewProduct() {
     const customUnitWeight = parseFloat(document.getElementById('newProductCustomUnitWeight').value) || null;
 
     if (!name || isNaN(kcal) || isNaN(protein) || isNaN(carbs) || isNaN(fats)) {
-        showNotification('❌ Completa todos los campos', 'error');
+        showNotification('Completa todos los campos', 'error');
         return;
     }
 
@@ -84,7 +84,7 @@ export function addNewProduct() {
 
     // Importación dinámica para evitar circular dependency en carga
     import('./ui/products-list.js').then(m => m.renderProductsList());
-    showNotification(`✅ Producto "${name}" agregado correctamente`);
+    showNotification(`Producto "${name}" agregado correctamente`);
 }
 
 export function deleteProduct(productId) {
@@ -103,7 +103,7 @@ export function deleteProduct(productId) {
     if (dbIndex > -1) PRODUCTS_DB.splice(dbIndex, 1);
 
     import('./ui/products-list.js').then(m => m.renderProductsList());
-    showNotification(`✅ Producto eliminado`);
+    showNotification(`Producto eliminado`);
 }
 
 // Alias por compatibilidad
@@ -157,7 +157,7 @@ export function saveProductCustomUnit(productId) {
     const customUnitWeight = parseFloat(document.getElementById('editCustomUnitWeight').value) || null;
 
     if (customUnit && !customUnitWeight) {
-        showNotification('❌ Si pones nombre de unidad, debe tener peso en gramos', 'error');
+        showNotification('Si pones nombre de unidad, debe tener peso en gramos', 'error');
         return;
     }
 
@@ -173,7 +173,7 @@ export function saveProductCustomUnit(productId) {
     saveCustomProducts();
     document.querySelector('div[style*="position: fixed"]').remove();
     import('./ui/products-list.js').then(m => m.renderProductsList());
-    showNotification(`✅ Unidad personalizada actualizada`);
+    showNotification(`Unidad personalizada actualizada`);
 }
 
 export function editProduct(productId) {
@@ -306,12 +306,12 @@ export function saveProductEdit(productId) {
     const customUnitWeight = parseFloat(document.getElementById('editProdCustomUnitWeight').value) || null;
 
     if (!name || !portion || !unit || !kcal || protein === undefined || carbs === undefined || fats === undefined) {
-        showNotification('❌ Por favor completa todos los campos requeridos', 'error');
+        showNotification('Por favor completa todos los campos requeridos', 'error');
         return;
     }
 
     if (customUnit && !customUnitWeight) {
-        showNotification('❌ Si pones unidad personalizada, debe tener peso', 'error');
+        showNotification('Si pones unidad personalizada, debe tener peso', 'error');
         return;
     }
 
@@ -341,5 +341,5 @@ export function saveProductEdit(productId) {
     saveCustomProducts();
     document.querySelector('div[style*="position: fixed"]').remove();
     import('./ui/products-list.js').then(m => m.renderProductsList());
-    showNotification(`✅ Producto actualizado: ${name}`);
+    showNotification(`Producto actualizado: ${name}`);
 }
