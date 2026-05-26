@@ -1,10 +1,29 @@
-const CACHE_VERSION = 36; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 37; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
     '/dieta/',
     '/dieta/index.html',
     '/dieta/js/app.js',
+    '/dieta/js/modules/state.js',
+    '/dieta/js/modules/constants.js',
+    '/dieta/js/modules/products.js',
+    '/dieta/js/modules/nutrition.js',
+    '/dieta/js/modules/storage.js',
+    '/dieta/js/modules/weight.js',
+    '/dieta/js/modules/meals.js',
+    '/dieta/js/modules/charts.js',
+    '/dieta/js/modules/stats.js',
+    '/dieta/js/modules/config-settings.js',
+    '/dieta/js/modules/workout.js',
+    '/dieta/js/modules/ui/notifications.js',
+    '/dieta/js/modules/ui/darkmode.js',
+    '/dieta/js/modules/ui/accordion.js',
+    '/dieta/js/modules/ui/tabs.js',
+    '/dieta/js/modules/ui/modal.js',
+    '/dieta/js/modules/ui/onboarding.js',
+    '/dieta/js/modules/ui/products-list.js',
+    '/dieta/js/modules/ui/update.js',
     '/dieta/css/styles.css',
     '/dieta/manifest.json',
     // CDN Resources

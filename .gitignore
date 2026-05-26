@@ -48,6 +48,8 @@ app/README.md
 server.js
 server.py
 serve_app.py
+js/app.js.bak
+test_backup.json
 
 # Netlify (using GitHub Pages now)
 netlify/
