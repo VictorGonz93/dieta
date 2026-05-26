@@ -225,6 +225,9 @@ textarea:focus {
 input[readonly] { background: var(--bg-surface); color: var(--text-2); cursor: default; }
 select option { background: var(--bg-card); color: var(--text-1); }
 
+/* Select dentro de contenedor flex: no ocupar todo el ancho */
+.flex > select, .flex > div > select { width: auto; flex-shrink: 0; }
+
 /* ==================== BUTTONS ==================== */
 button { cursor: pointer; border: none; transition: all var(--t-fast); font-family: inherit; font-size: 14px; font-weight: 500; }
 
