@@ -327,13 +327,55 @@ export function finalizeWorkout(dateKey) {
 }
 
 export function estimateWorkoutKcal(workout) {
-    if (!workout?.exercises.length || !workout.duration) return 0;
-    const weight = AppState.config.currentWeight || 75;
-    const avgMet = workout.exercises.reduce((s, ex) => {
+    if (!workout?.exercises.length) return 0;
+    const bodyWeight = AppState.config.currentWeight || 75;
+
+    // Constantes fisiológicas
+    const REST_MIN = 3;       // minutos de descanso entre series
+    const MET_REST = 1.5;     // MET en reposo activo (de pie/sentado entre series)
+    // Trabajo mecánico → kcal: F × recorrido / eficiencia muscular / (J·kcal⁻¹)
+    // Recorrido medio ejercicios con carga ~0.35 m, eficiencia muscular ~25%
+    const KCAL_PER_KG_REP = (9.8 * 0.35) / 0.25 / 4186; // ≈ 0.00328 kcal/(kg·rep)
+    // Para cuerpo libre: peso corporal como carga, recorrido medio ~0.22 m
+    const KCAL_PER_BW_REP  = (9.8 * 0.22) / 0.25 / 4186; // ≈ 0.00206 kcal/rep
+
+    let strengthKcal = 0;
+    let totalStrengthSets = 0;
+    const cardioExercises = [];
+
+    for (const ex of workout.exercises) {
         const dbEx = EXERCISES_DB.find(e => e.id === ex.exerciseId);
-        return s + (dbEx?.met || 5.0);
-    }, 0) / workout.exercises.length;
-    return Math.round(avgMet * weight * (workout.duration / 60));
+        if (!dbEx) continue;
+
+        if (dbEx.type === 'cardio') {
+            cardioExercises.push(dbEx);
+        } else {
+            for (const set of ex.sets) {
+                const reps = set.reps || 0;
+                const kg   = set.kg   || 0;
+                if (reps === 0) continue;
+                strengthKcal += kg > 0
+                    ? reps * kg * KCAL_PER_KG_REP
+                    : reps * bodyWeight * KCAL_PER_BW_REP;
+                totalStrengthSets++;
+            }
+        }
+    }
+
+    // Calorías de descanso entre series (3 min × MET 1.5 × peso)
+    const restKcal = totalStrengthSets * REST_MIN * MET_REST * bodyWeight / 60;
+
+    // Cardio: tiempo restante del entreno tras descontar el bloque de fuerza
+    let cardioKcal = 0;
+    if (cardioExercises.length > 0) {
+        const totalDuration   = workout.duration || 60;
+        const strengthTimeMins = totalStrengthSets * (1 + REST_MIN); // ~1 min serie + 3 min descanso
+        const cardioTimeMins  = Math.max(totalDuration - strengthTimeMins, cardioExercises.length * 10);
+        const timePerCardioEx = cardioTimeMins / cardioExercises.length;
+        cardioKcal = cardioExercises.reduce((s, e) => s + e.met * bodyWeight * (timePerCardioEx / 60), 0);
+    }
+
+    return Math.round(strengthKcal + restKcal + cardioKcal);
 }
 
 // ─── Persistencia ─────────────────────────────────────────────────────────────

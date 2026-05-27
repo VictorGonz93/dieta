@@ -8,7 +8,7 @@ import {
     setWorkoutDuration, setWorkoutNotes,
     finalizeWorkout, estimateWorkoutKcal,
     getWorkoutSessions, getExercisePRs,
-} from '../workout.js?v=491';
+} from '../workout.js?v=501';
 import { getDateKey } from '../storage.js';
 import AppState from '../state.js';
 
