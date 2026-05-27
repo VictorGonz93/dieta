@@ -20,7 +20,7 @@ import { setupTabNavigation, showTab } from './modules/ui/tabs.js';
 import { openModal, closeModal, setupTabSearch, selectProduct } from './modules/ui/modal.js';
 import { showOnboarding, closeOnboarding, startOnboarding, setupOnboardingListeners } from './modules/ui/onboarding.js';
 import { renderProductsList } from './modules/ui/products-list.js';
-import { startUpdateChecker, showUpdateAvailableModal, performUpdate } from './modules/ui/update.js';
+import { startUpdateChecker } from './modules/ui/update.js';
 import { showNotification } from './modules/ui/notifications.js';
 
 // ==================== SERVICE WORKER ====================
@@ -29,13 +29,6 @@ if ('serviceWorker' in navigator) {
         console.log('✅ Service Worker registrado:', registration);
     }).catch(error => {
         console.log('❌ Error al registrar Service Worker:', error);
-    });
-
-    navigator.serviceWorker.addEventListener('message', event => {
-        if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
-            console.log('📦 Nueva versión disponible (SW):', event.data.version);
-            showUpdateAvailableModal();
-        }
     });
 }
 
