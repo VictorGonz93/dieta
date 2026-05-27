@@ -1,4 +1,4 @@
-const CACHE_VERSION = 53; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 54; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -36,11 +36,18 @@ const urlsToCache = [
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(urlsToCache).catch((err) => {
-                console.log('Some assets failed to cache (this is OK for CDN):', err);
-                return Promise.resolve();
-            });
+        caches.open(CACHE_NAME).then(async (cache) => {
+            // cache:'reload' fuerza fetch desde red, ignorando la caché HTTP del navegador
+            // Esto evita que el SW cachee versiones obsoletas al actualizarse
+            const results = await Promise.allSettled(
+                urlsToCache.map(url => {
+                    const req = new Request(url, { cache: 'reload' });
+                    return fetch(req).then(res => {
+                        if (res && res.status === 200) return cache.put(url, res);
+                    }).catch(() => { /* CDN o sin conexión, se ignora */ });
+                })
+            );
+            return results;
         })
     );
     self.skipWaiting();
@@ -61,32 +68,36 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Estrategia: primero cache, luego network (para offline)
+    const url = new URL(event.request.url);
+    const isJS = url.pathname.endsWith('.js');
+    const isLocal = url.origin === self.location.origin;
+
+    // Archivos JS propios: network-first para servir siempre la versión más reciente
+    if (isJS && isLocal) {
+        event.respondWith(
+            fetch(event.request).then(response => {
+                if (response && response.status === 200) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                }
+                return response;
+            }).catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
+    // Resto de recursos: cache-first (CSS, HTML, imágenes, CDN)
     event.respondWith(
         caches.match(event.request).then((response) => {
-            if (response) {
-                // Si está en cache, devolverlo
-                return response;
-            }
-            
-            // Si no está en cache, intentar fetchear
+            if (response) return response;
             return fetch(event.request).then((response) => {
-                // Si es un request válido, cachearlo para próxima vez
-                if (!response || response.status !== 200 || response.type === 'error') {
-                    return response;
-                }
-                
-                // Clonar para poder usar en cache y en response
+                if (!response || response.status !== 200 || response.type === 'error') return response;
                 const responseToCache = response.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseToCache);
-                });
-                
+                caches.open(CACHE_NAME).then((cache) => { cache.put(event.request, responseToCache); });
                 return response;
             }).catch(() => {
-                // Si no hay conexión y no está en cache, devolver página offline
                 return new Response(
-                    '<html><body><h1>Sin conexión</h1><p>Esta funcionalidad requiere internet. Los datos locales están disponibles en la app.</p></body></html>',
+                    '<html><body><h1>Sin conexión</h1><p>Esta funcionalidad requiere internet.</p></body></html>',
                     { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
                 );
             });

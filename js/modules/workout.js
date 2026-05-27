@@ -328,16 +328,21 @@ export function finalizeWorkout(dateKey) {
 
 export function estimateWorkoutKcal(workout) {
     if (!workout?.exercises.length) return 0;
-    const bodyWeight = AppState.config.currentWeight || 75;
+    // Usar el peso registrado ese día si existe, si no el peso actual del config
+    const dateKey = workout.date;
+    const historyEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
+    const bodyWeight = historyEntry?.weight || AppState.config.currentWeight || 75;
 
     // Constantes fisiológicas
     const REST_MIN = 3;       // minutos de descanso entre series
-    const MET_REST = 1.5;     // MET en reposo activo (de pie/sentado entre series)
-    // Trabajo mecánico → kcal: F × recorrido / eficiencia muscular / (J·kcal⁻¹)
-    // Recorrido medio ejercicios con carga ~0.35 m, eficiencia muscular ~25%
-    const KCAL_PER_KG_REP = (9.8 * 0.35) / 0.25 / 4186; // ≈ 0.00328 kcal/(kg·rep)
-    // Para cuerpo libre: peso corporal como carga, recorrido medio ~0.22 m
-    const KCAL_PER_BW_REP  = (9.8 * 0.22) / 0.25 / 4186; // ≈ 0.00206 kcal/rep
+    // MET entre series: ~6-7 mL O₂/kg/min medido en estudios → MET ≈ 1.6
+    const MET_REST = 1.6;
+    // Trabajo mecánico → kcal: F × recorrido / eficiencia / (J·kcal⁻¹)
+    // ROM medio 0.38 m para ejercicios con carga (máquinas/cables: ROM más corto que peso libre)
+    // Eficiencia 0.20: incluye fase excéntrica (concéntrica pura sería 0.25)
+    const KCAL_PER_KG_REP = (9.8 * 0.38) / 0.20 / 4186; // ≈ 0.00445 kcal/(kg·rep)
+    // Peso corporal libre: ROM medio 0.28 m (sentadillas, fondos, dominadas)
+    const KCAL_PER_BW_REP  = (9.8 * 0.28) / 0.20 / 4186; // ≈ 0.00327 kcal/rep
 
     let strengthKcal = 0;
     let totalStrengthSets = 0;
@@ -362,8 +367,14 @@ export function estimateWorkoutKcal(workout) {
         }
     }
 
-    // Calorías de descanso entre series (3 min × MET 1.5 × peso)
+    // Calorías de descanso entre series
     const restKcal = totalStrengthSets * REST_MIN * MET_REST * bodyWeight / 60;
+
+    // Tiempo no contabilizado: calentamiento, transiciones entre ejercicios, enfriamiento
+    // Se estima como la diferencia entre la duración total y el tiempo de series+descanso
+    const countedMins = totalStrengthSets * (1.2 + REST_MIN); // ~1.2 min por serie activa
+    const extraMins = Math.max(0, (workout.duration || 0) - countedMins);
+    const transitionKcal = extraMins > 0 ? (2.0 * bodyWeight * extraMins / 60) : 0;
 
     // Cardio: tiempo restante del entreno tras descontar el bloque de fuerza
     let cardioKcal = 0;
@@ -375,7 +386,7 @@ export function estimateWorkoutKcal(workout) {
         cardioKcal = cardioExercises.reduce((s, e) => s + e.met * bodyWeight * (timePerCardioEx / 60), 0);
     }
 
-    return Math.round(strengthKcal + restKcal + cardioKcal);
+    return Math.round(strengthKcal + restKcal + transitionKcal + cardioKcal);
 }
 
 // ─── Persistencia ─────────────────────────────────────────────────────────────
