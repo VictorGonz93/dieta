@@ -235,7 +235,7 @@
                     </button>
                     <button class="tab-btn" data-tab="planteamiento" onclick="showTab('planteamiento')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
                         <span class="material-icons text-lg">fitness_center</span>
-                        Planteamiento
+                        Deporte
                     </button>
                     <button class="tab-btn" data-tab="historial" onclick="showTab('historial')" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap">
                         <span class="material-icons text-lg">bar_chart</span>
@@ -559,126 +559,168 @@
 
             <!-- TAB 3: WORKOUT PLANNING -->
             <div class="tab-content" id="planteamiento">
-                <div class="max-w-4xl mx-auto">
-                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                        <span class="material-icons text-primary">fitness_center</span>
-                        Plan de Entrenamientos
-                    </h2>
 
-                    <div class="stat-card mb-6">
-                        <p class="text-slate-300 mb-6">Personaliza qué actividad realizarás cada día de la semana. Estos datos se usan para calcular tus necesidades calóricas automáticamente.</p>
+                <!-- Sub-tab nav -->
+                <div style="display:flex;gap:0;border-bottom:1px solid var(--border-dim);margin-bottom:24px;overflow-x:auto;">
+                    <button class="sport-tab-btn" data-sport-tab="planificacion"
+                        onclick="showSportTab('planificacion')"
+                        style="padding:10px 18px;font-size:0.875rem;font-weight:500;color:var(--text-2);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:.15s;">
+                        <span class="material-icons" style="font-size:18px;">calendar_view_week</span>
+                        Planificación
+                    </button>
+                    <button class="sport-tab-btn" data-sport-tab="entreno-hoy"
+                        onclick="showSportTab('entreno-hoy')"
+                        style="padding:10px 18px;font-size:0.875rem;font-weight:500;color:var(--text-2);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:.15s;">
+                        <span class="material-icons" style="font-size:18px;">fitness_center</span>
+                        Entreno de Hoy
+                    </button>
+                    <button class="sport-tab-btn" data-sport-tab="ejercicios"
+                        onclick="showSportTab('ejercicios')"
+                        style="padding:10px 18px;font-size:0.875rem;font-weight:500;color:var(--text-2);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:.15s;">
+                        <span class="material-icons" style="font-size:18px;">library_books</span>
+                        Ejercicios
+                    </button>
+                    <button class="sport-tab-btn" data-sport-tab="historial-entrenos"
+                        onclick="showSportTab('historial-entrenos')"
+                        style="padding:10px 18px;font-size:0.875rem;font-weight:500;color:var(--text-2);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:.15s;">
+                        <span class="material-icons" style="font-size:18px;">history</span>
+                        Historial
+                    </button>
+                </div>
 
-                        <div class="space-y-4">
-                            <!-- Monday -->
-                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
-                                <div class="sm:w-24 font-semibold text-white text-sm">
-                                    <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
-                                    Lunes
+                <!-- Sub-tab: Planificación (contenido original del tab) -->
+                <div class="sport-tab-content" id="sport-planificacion" style="display:none;">
+                    <div class="max-w-4xl mx-auto">
+                        <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                            <span class="material-icons text-primary">fitness_center</span>
+                            Plan de Entrenamientos
+                        </h2>
+
+                        <div class="stat-card mb-6">
+                            <p class="text-slate-300 mb-6">Personaliza qué actividad realizarás cada día de la semana. Estos datos se usan para calcular tus necesidades calóricas automáticamente.</p>
+
+                            <div class="space-y-4">
+                                <!-- Monday -->
+                                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
+                                    <div class="sm:w-24 font-semibold text-white text-sm">
+                                        <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
+                                        Lunes
+                                    </div>
+                                    <div class="flex-1 flex gap-2 w-full">
+                                        <select id="lunes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="descanso">Descanso</option>
+                                            <option value="entreno">Entrenamiento</option>
+                                        </select>
+                                        <input type="text" id="lunes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                    </div>
                                 </div>
-                                <div class="flex-1 flex gap-2 w-full">
-                                    <select id="lunes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                        <option value="descanso">Descanso</option>
-                                        <option value="entreno">Entrenamiento</option>
-                                    </select>
-                                    <input type="text" id="lunes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                <!-- Tuesday -->
+                                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
+                                    <div class="sm:w-24 font-semibold text-white text-sm">
+                                        <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
+                                        Martes
+                                    </div>
+                                    <div class="flex-1 flex gap-2 w-full">
+                                        <select id="martes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="descanso">Descanso</option>
+                                            <option value="entreno">Entrenamiento</option>
+                                        </select>
+                                        <input type="text" id="martes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                    </div>
+                                </div>
+                                <!-- Wednesday -->
+                                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
+                                    <div class="sm:w-24 font-semibold text-white text-sm">
+                                        <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
+                                        Miércoles
+                                    </div>
+                                    <div class="flex-1 flex gap-2 w-full">
+                                        <select id="miercoles-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="descanso">Descanso</option>
+                                            <option value="entreno">Entrenamiento</option>
+                                        </select>
+                                        <input type="text" id="miercoles-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                    </div>
+                                </div>
+                                <!-- Thursday -->
+                                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
+                                    <div class="sm:w-24 font-semibold text-white text-sm">
+                                        <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
+                                        Jueves
+                                    </div>
+                                    <div class="flex-1 flex gap-2 w-full">
+                                        <select id="jueves-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="descanso">Descanso</option>
+                                            <option value="entreno">Entrenamiento</option>
+                                        </select>
+                                        <input type="text" id="jueves-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                    </div>
+                                </div>
+                                <!-- Friday -->
+                                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
+                                    <div class="sm:w-24 font-semibold text-white text-sm">
+                                        <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
+                                        Viernes
+                                    </div>
+                                    <div class="flex-1 flex gap-2 w-full">
+                                        <select id="viernes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="descanso">Descanso</option>
+                                            <option value="entreno">Entrenamiento</option>
+                                        </select>
+                                        <input type="text" id="viernes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                    </div>
+                                </div>
+                                <!-- Saturday -->
+                                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
+                                    <div class="sm:w-24 font-semibold text-white text-sm">
+                                        <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
+                                        Sábado
+                                    </div>
+                                    <div class="flex-1 flex gap-2 w-full">
+                                        <select id="sabado-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="descanso">Descanso</option>
+                                            <option value="entreno">Entrenamiento</option>
+                                        </select>
+                                        <input type="text" id="sabado-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                    </div>
+                                </div>
+                                <!-- Sunday -->
+                                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
+                                    <div class="sm:w-24 font-semibold text-white text-sm">
+                                        <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
+                                        Domingo
+                                    </div>
+                                    <div class="flex-1 flex gap-2 w-full">
+                                        <select id="domingo-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="descanso">Descanso</option>
+                                            <option value="entreno">Entrenamiento</option>
+                                        </select>
+                                        <input type="text" id="domingo-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Tuesday -->
-                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
-                                <div class="sm:w-24 font-semibold text-white text-sm">
-                                    <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
-                                    Martes
-                                </div>
-                                <div class="flex-1 flex gap-2 w-full">
-                                    <select id="martes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                        <option value="descanso">Descanso</option>
-                                        <option value="entreno">Entrenamiento</option>
-                                    </select>
-                                    <input type="text" id="martes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                </div>
-                            </div>
-
-                            <!-- Wednesday -->
-                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
-                                <div class="sm:w-24 font-semibold text-white text-sm">
-                                    <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
-                                    Miércoles
-                                </div>
-                                <div class="flex-1 flex gap-2 w-full">
-                                    <select id="miercoles-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                        <option value="descanso">Descanso</option>
-                                        <option value="entreno">Entrenamiento</option>
-                                    </select>
-                                    <input type="text" id="miercoles-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                </div>
-                            </div>
-
-                            <!-- Thursday -->
-                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
-                                <div class="sm:w-24 font-semibold text-white text-sm">
-                                    <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
-                                    Jueves
-                                </div>
-                                <div class="flex-1 flex gap-2 w-full">
-                                    <select id="jueves-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                        <option value="descanso">Descanso</option>
-                                        <option value="entreno">Entrenamiento</option>
-                                    </select>
-                                    <input type="text" id="jueves-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                </div>
-                            </div>
-
-                            <!-- Friday -->
-                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
-                                <div class="sm:w-24 font-semibold text-white text-sm">
-                                    <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
-                                    Viernes
-                                </div>
-                                <div class="flex-1 flex gap-2 w-full">
-                                    <select id="viernes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                        <option value="descanso">Descanso</option>
-                                        <option value="entreno">Entrenamiento</option>
-                                    </select>
-                                    <input type="text" id="viernes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                </div>
-                            </div>
-
-                            <!-- Saturday -->
-                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
-                                <div class="sm:w-24 font-semibold text-white text-sm">
-                                    <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
-                                    Sábado
-                                </div>
-                                <div class="flex-1 flex gap-2 w-full">
-                                    <select id="sabado-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                        <option value="descanso">Descanso</option>
-                                        <option value="entreno">Entrenamiento</option>
-                                    </select>
-                                    <input type="text" id="sabado-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                </div>
-                            </div>
-
-                            <!-- Sunday -->
-                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
-                                <div class="sm:w-24 font-semibold text-white text-sm">
-                                    <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
-                                    Domingo
-                                </div>
-                                <div class="flex-1 flex gap-2 w-full">
-                                    <select id="domingo-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                        <option value="descanso">Descanso</option>
-                                        <option value="entreno">Entrenamiento</option>
-                                    </select>
-                                    <input type="text" id="domingo-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
-                                </div>
-                            </div>
+                            <button onclick="resetWorkoutPlan()" class="mt-6 py-2 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-lg smooth-transition mr-2">Restaurar por defecto</button>
+                            <button onclick="saveWorkoutPlan()" class="mt-6 py-2 px-4 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition">Guardar Plan</button>
                         </div>
-
-                        <button onclick="resetWorkoutPlan()" class="mt-6 py-2 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-lg smooth-transition mr-2">Restaurar por defecto</button>
-                        <button onclick="saveWorkoutPlan()" class="mt-6 py-2 px-4 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition">Guardar Plan</button>
                     </div>
                 </div>
+
+                <!-- Sub-tab: Entreno de Hoy -->
+                <div class="sport-tab-content" id="sport-entreno-hoy" style="display:none;">
+                    <!-- Renderizado dinámicamente por workout-ui.js -->
+                </div>
+
+                <!-- Sub-tab: Ejercicios -->
+                <div class="sport-tab-content" id="sport-ejercicios" style="display:none;">
+                    <!-- Renderizado dinámicamente por workout-ui.js -->
+                </div>
+
+                <!-- Sub-tab: Historial -->
+                <div class="sport-tab-content" id="sport-historial-entrenos" style="display:none;">
+                    <!-- Renderizado dinámicamente por workout-ui.js -->
+                </div>
+
             </div>
 
             <!-- TAB 4: CHARTS -->
@@ -978,4 +1020,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250526-37"></script>
+    <script type="module" src="js/app.js?v=20250527-49"></script>

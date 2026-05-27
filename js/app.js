@@ -11,7 +11,7 @@ import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previ
 import { loadWeightHistory, saveDailyWeight, updateWeightPrediction, displayNextDayPrediction, renderWeightHistory, updateWeightEntry, deleteWeightEntry } from './modules/weight.js';
 import { loadAllDays, exportData, exportCSV, importData, clearAllData } from './modules/storage.js';
 import { initializeCharts } from './modules/charts.js';
-import { initWorkoutPlan, updateWorkoutPlan, saveWorkoutPlan, resetWorkoutPlan } from './modules/workout.js';
+import { initWorkoutPlan, updateWorkoutPlan, saveWorkoutPlan, resetWorkoutPlan } from './modules/workout.js?v=491';
 
 // Módulos de UI
 import { loadDarkMode, toggleDarkMode } from './modules/ui/darkmode.js';
@@ -20,8 +20,9 @@ import { setupTabNavigation, showTab } from './modules/ui/tabs.js';
 import { openModal, closeModal, setupTabSearch, selectProduct } from './modules/ui/modal.js';
 import { showOnboarding, closeOnboarding, startOnboarding, setupOnboardingListeners } from './modules/ui/onboarding.js';
 import { renderProductsList } from './modules/ui/products-list.js';
-import { startUpdateChecker } from './modules/ui/update.js';
+import { startUpdateChecker, performUpdate } from './modules/ui/update.js';
 import { showNotification } from './modules/ui/notifications.js';
+import { initSportTabs } from './modules/ui/workout-ui.js?v=491';
 
 // ==================== SERVICE WORKER ====================
 if ('serviceWorker' in navigator) {
@@ -49,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHeaderInfo();
     showOnboarding();
     setupOnboardingListeners();
+    initWorkoutPlan();
+    initSportTabs();
     startUpdateChecker();
 
     // Limpiar el query param de cache-buster (_r) que deja performUpdate en la URL
