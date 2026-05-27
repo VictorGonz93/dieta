@@ -80,12 +80,12 @@ export function renderTodayWorkout() {
 
             <!-- Plantillas -->
             <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${templates.length > 0 ? '12px' : '0'};">
-                    <div style="font-size:0.85rem;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;">Plantillas</div>
-                    ${workout.exercises.length > 0 && !workout.finalized ? `
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:${templates.length > 0 ? '12px' : '8px'};">
+                    <div style="font-size:0.85rem;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;flex:1;min-width:80px;">Plantillas</div>
+                    ${workout.exercises.length > 0 ? `
                     <button onclick="document.getElementById('tmpl-save-form').style.display='flex'"
-                        style="display:flex;align-items:center;gap:4px;padding:5px 12px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;">
-                        <span class="material-icons" style="font-size:15px;">bookmark_add</span> Guardar como plantilla
+                        style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">
+                        <span class="material-icons" style="font-size:15px;">bookmark_add</span> Guardar plantilla
                     </button>` : ''}
                 </div>
                 ${templates.length > 0 ? `
