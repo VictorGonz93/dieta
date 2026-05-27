@@ -54,6 +54,53 @@ export function calculateTDEE(dayType) {
     return Math.round(tmr * factor);
 }
 
+// ─── Targets dinámicos diarios ────────────────────────────────────────────────
+// Calcula calorías y macros del día usando TDEE real (con entreno registrado)
+// y manteniendo el déficit objetivo derivado de la configuración del usuario.
+export function getDynamicDayTargets(dateKey) {
+    const [year, month, day] = dateKey.split('-').map(Number);
+    const dayDate = new Date(year, month - 1, day);
+    const dayInfo = getDayType(dayDate);
+    const tmr = calculateTMR();
+    if (!tmr) return null;
+
+    // Leer entreno del día directamente de localStorage (evita import circular)
+    let workoutKcal = 0;
+    try {
+        const sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}');
+        workoutKcal = sessions[dateKey]?.estimatedKcal || 0;
+    } catch { workoutKcal = 0; }
+
+    // TDEE dinámico: base sedentaria + gasto real del entreno
+    let tdee;
+    if (workoutKcal > 0) {
+        tdee = Math.round(tmr * 1.30 + workoutKcal);
+    } else if (dayInfo.type === 'entreno') {
+        tdee = Math.round(tmr * 1.45); // estimación conservadora sin datos
+    } else {
+        tdee = Math.round(tmr * 1.30);
+    }
+
+    // Déficit objetivo: derivado del día descanso (línea base más estable)
+    const baseTdeeDescanso = Math.round(tmr * 1.30);
+    const configCalsDescanso = AppState.config.calsDescanso || (baseTdeeDescanso - 500);
+    const deficitTarget = Math.max(100, baseTdeeDescanso - configCalsDescanso);
+
+    // Calorías del día (mínimo 1200 kcal por seguridad)
+    const cals = Math.max(1200, tdee - deficitTarget);
+
+    // Macros: proteína fija, grasas mínimo saludable, carbos con el resto
+    const weight = AppState.config.currentWeight || 75;
+    const protein = AppState.config.proteinGoal || Math.round(weight * 2.0);
+    const fats = Math.max(
+        AppState.config.fatsMin || Math.round(weight * 0.8),
+        40
+    );
+    const carbs = Math.max(0, Math.round((cals - protein * 4 - fats * 9) / 4));
+
+    return { cals, protein, carbs, fats, tdee, workoutKcal, deficitTarget, dayType: dayInfo.type };
+}
+
 export function convertToGrams(quantity, unit, customUnitWeight = null) {
     if (customUnitWeight && UNIT_CONVERSIONS[unit] === undefined) {
         return quantity * customUnitWeight;

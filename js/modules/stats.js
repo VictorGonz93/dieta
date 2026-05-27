@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { getDateKey } from './storage.js';
-import { getDayType, calculateTDEE, getCalorieTarget } from './nutrition.js';
+import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 
 const HISTORY_PER_PAGE = 10;
@@ -23,27 +23,28 @@ export function getMacroSuggestions() {
         });
     });
 
-    const targetCals = getCalorieTarget();
-    const dayInfo = getDayType(AppState.currentDate);
-    const targetProtein = AppState.config.proteinGoal;
-    const targetCarbs = dayInfo.type === 'entreno' ? AppState.config.carbsMax : AppState.config.carbsMax - 20;
-    const targetFats = AppState.config.fatsMax;
+    const targets = getDynamicDayTargets(dateKey);
+    const targetCals    = targets?.cals    || getCalorieTarget();
+    const targetProtein = targets?.protein || AppState.config.proteinGoal;
+    const targetCarbs   = targets?.carbs   || AppState.config.carbsMax;
+    const targetFats    = targets?.fats    || AppState.config.fatsMax;
 
     const missing = {
-        kcal: Math.max(0, targetCals - sumKcal),
+        kcal:    Math.max(0, targetCals    - sumKcal),
         protein: Math.max(0, targetProtein - sumProtein),
-        carbs: Math.max(0, targetCarbs - sumCarbs),
-        fats: Math.max(0, targetFats - sumFats),
+        carbs:   Math.max(0, targetCarbs   - sumCarbs),
+        fats:    Math.max(0, targetFats    - sumFats),
     };
 
     return {
         consumido: { sumKcal, sumProtein, sumCarbs, sumFats },
         falta: missing,
         targetCarbs,
-        porcentajeCals: Math.round((sumKcal / targetCals) * 100),
+        porcentajeCals:    Math.round((sumKcal    / targetCals)    * 100),
         porcentajeProtein: Math.round((sumProtein / targetProtein) * 100),
-        porcentajeCarbos: Math.round((sumCarbs / targetCarbs) * 100),
-        porcentajeFats: Math.round((sumFats / targetFats) * 100),
+        porcentajeCarbos:  Math.round((sumCarbs   / targetCarbs)   * 100),
+        porcentajeFats:    Math.round((sumFats    / targetFats)    * 100),
+        targets,
     };
 }
 

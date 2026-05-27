@@ -1,7 +1,8 @@
 ﻿// ==================== PREDICCIÓN Y GESTIÓN DE PESO ====================
 
 import AppState from './state.js';
-import { getDayType, calculateTDEE } from './nutrition.js';
+import { getDayType, calculateTDEE, calculateTMR } from './nutrition.js';
+import { getWorkoutSessions } from './workout.js?v=501';
 import { getDateKey, saveDays } from './storage.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -180,12 +181,29 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
     const dayDate = new Date(year, month - 1, day);
     const dayInfo = getDayType(dayDate);
     const calorieTarget = dayInfo.type === 'entreno' ? AppState.config.calsEntrenamiento : AppState.config.calsDescanso;
-    const tdee = calculateTDEE(dayInfo.type);
+
+    // TDEE dinámico: base actividad cotidiana (NEAT + digestión) + gasto real del entreno
+    const workoutSessions = getWorkoutSessions();
+    const workoutSession = workoutSessions[dateKey];
+    const workoutKcal = workoutSession?.estimatedKcal || 0;
+    const tmr = calculateTMR();
+    let tdee;
+    if (workoutKcal > 0) {
+        // Entreno registrado: base sedentaria + kcal reales del tracker
+        tdee = Math.round(tmr * 1.30 + workoutKcal);
+    } else if (dayInfo.type === 'entreno') {
+        // Día de entreno en el plan pero sin entreno registrado → estimación conservadora
+        tdee = Math.round(tmr * 1.45);
+    } else {
+        // Día de descanso sin datos de entreno
+        tdee = Math.round(tmr * 1.30);
+    }
 
     const deficitVsMeta = totalKcal - calorieTarget;
     const deficitVsTDEE = totalKcal - tdee;
     const fatChange = (deficitVsTDEE / 7700) * 0.75;
-    const trainingInflammation = dayInfo.type === 'entreno' ? 0.2 : 0;
+    // Inflamación muscular proporcional a la intensidad del entreno
+    const trainingInflammation = workoutKcal > 400 ? 0.25 : workoutKcal > 150 ? 0.15 : workoutKcal > 0 ? 0.08 : 0;
     const predictedWeight = parseFloat((nextDayWeight + fatChange + totalWaterRetention + trainingInflammation).toFixed(2));
 
     const daysTracked = AppState.config.weightHistory?.length || 1;
@@ -206,6 +224,7 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
         caloriesConsumed: Math.round(totalKcal),
         calorieTarget,
         tdee,
+        workoutKcal,
         deficitVsMeta: Math.round(deficitVsMeta),
         deficitVsTDEE: Math.round(deficitVsTDEE),
         carbsConsumed: Math.round(totalCarbs),
@@ -300,7 +319,8 @@ export function displayNextDayPrediction() {
                 <div class="next-day-factors">
                     <div class="factor"><span class="factor-label">Calorías consumidas</span><span class="factor-value">${nextPred.caloriesConsumed} kcal</span></div>
                     <div class="factor"><span class="factor-label">Meta calorías</span><span class="factor-value">${nextPred.calorieTarget || '-'} kcal</span></div>
-                    <div class="factor"><span class="factor-label">TDEE (gasto)</span><span class="factor-value">${nextPred.tdee || '-'} kcal</span></div>
+                    <div class="factor"><span class="factor-label">TDEE (gasto total)</span><span class="factor-value">${nextPred.tdee || '-'} kcal</span></div>
+                    ${nextPred.workoutKcal > 0 ? `<div class="factor"><span class="factor-label">↳ Entreno registrado</span><span class="factor-value">+${nextPred.workoutKcal} kcal</span></div>` : ''}
                     <div class="factor"><span class="factor-label">Déficit vs meta</span><span class="factor-value">${nextPred.deficitVsMeta} kcal</span></div>
                     <div class="factor"><span class="factor-label">Déficit real vs TDEE</span><span class="factor-value">${nextPred.deficitVsTDEE} kcal</span></div>
                     <div class="factor"><span class="factor-label">Déficit diario estructural</span><span class="factor-value">${structuralDeficit} kcal/día</span></div>

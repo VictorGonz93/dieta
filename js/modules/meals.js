@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { getDateKey, saveDays } from './storage.js';
-import { getDayNumber, getDayType, getCalorieTarget } from './nutrition.js';
+import { getDayNumber, getDayType, getCalorieTarget, getDynamicDayTargets } from './nutrition.js';
 import {
     calculateNextDayPredictionForDate,
     displayNextDayPrediction,
@@ -140,7 +140,8 @@ export function renderMealSection(mealName, foods) {
     totalEl.textContent = `${totalKcal.toFixed(0)} kcal | ${totalProtein.toFixed(1)}g P`;
 }
 
-export function updateDaySummary(dayData) {
+export function updateDaySummary(dayData, dateKey) {
+    const _dateKey = dateKey || getDateKey(AppState.currentDate);
     const meals = ['breakfast', 'lunch', 'snack', 'dinner'];
     let sumKcal = 0, sumProtein = 0, sumCarbs = 0, sumFats = 0;
 
@@ -153,31 +154,36 @@ export function updateDaySummary(dayData) {
         });
     });
 
-    const targetCals = getCalorieTarget();
-    const targetProtein = AppState.config.proteinGoal;
+    const targets = getDynamicDayTargets(_dateKey);
+    const targetCals    = targets?.cals    || getCalorieTarget();
+    const targetProtein = targets?.protein || AppState.config.proteinGoal;
+    const targetCarbs   = targets?.carbs   || AppState.config.carbsMax;
+    const targetFats    = targets?.fats    || AppState.config.fatsMax;
+    const targetFatsMin = Math.round(targetFats * 0.85); // ±15% rango
+    const targetCarbsMin = Math.round(targetCarbs * 0.85);
 
-    if (document.getElementById('sumCals')) document.getElementById('sumCals').textContent = sumKcal.toFixed(0);
-    if (document.getElementById('calsGoal')) document.getElementById('calsGoal').textContent = `/ ${targetCals}`;
-    if (document.getElementById('sumProtein')) document.getElementById('sumProtein').textContent = sumProtein.toFixed(1) + 'g';
+    if (document.getElementById('sumCals'))     document.getElementById('sumCals').textContent     = sumKcal.toFixed(0);
+    if (document.getElementById('calsGoal'))    document.getElementById('calsGoal').textContent    = `/ ${targetCals}`;
+    if (document.getElementById('sumProtein'))  document.getElementById('sumProtein').textContent  = sumProtein.toFixed(1) + 'g';
     if (document.getElementById('proteinGoal')) document.getElementById('proteinGoal').textContent = `/ ${targetProtein}g`;
-    if (document.getElementById('sumCarbs')) document.getElementById('sumCarbs').textContent = sumCarbs.toFixed(1) + 'g';
-    if (document.getElementById('carbsGoal')) document.getElementById('carbsGoal').textContent = `/ ${AppState.config.carbsMin}-${AppState.config.carbsMax}g`;
-    if (document.getElementById('sumFats')) document.getElementById('sumFats').textContent = sumFats.toFixed(1) + 'g';
-    if (document.getElementById('fatsGoal')) document.getElementById('fatsGoal').textContent = `/ ${AppState.config.fatsMin}-${AppState.config.fatsMax}g`;
+    if (document.getElementById('sumCarbs'))    document.getElementById('sumCarbs').textContent    = sumCarbs.toFixed(1) + 'g';
+    if (document.getElementById('carbsGoal'))   document.getElementById('carbsGoal').textContent   = `/ ${targetCarbsMin}-${targetCarbs}g`;
+    if (document.getElementById('sumFats'))     document.getElementById('sumFats').textContent     = sumFats.toFixed(1) + 'g';
+    if (document.getElementById('fatsGoal'))    document.getElementById('fatsGoal').textContent    = `/ ${targetFatsMin}-${targetFats}g`;
 
-    if (document.getElementById('statusCals')) document.getElementById('statusCals').textContent = getStatusTarget(sumKcal, targetCals);
-    if (document.getElementById('statusProtein')) document.getElementById('statusProtein').textContent = getStatusTarget(sumProtein, targetProtein);
-    if (document.getElementById('statusCarbs')) document.getElementById('statusCarbs').textContent = getStatusRange(sumCarbs, AppState.config.carbsMin, AppState.config.carbsMax);
-    if (document.getElementById('statusFats')) document.getElementById('statusFats').textContent = getStatusRange(sumFats, AppState.config.fatsMin, AppState.config.fatsMax);
+    if (document.getElementById('statusCals'))     document.getElementById('statusCals').textContent     = getStatusTarget(sumKcal, targetCals);
+    if (document.getElementById('statusProtein'))  document.getElementById('statusProtein').textContent  = getStatusTarget(sumProtein, targetProtein);
+    if (document.getElementById('statusCarbs'))    document.getElementById('statusCarbs').textContent    = getStatusRange(sumCarbs, targetCarbsMin, targetCarbs);
+    if (document.getElementById('statusFats'))     document.getElementById('statusFats').textContent     = getStatusRange(sumFats, targetFatsMin, targetFats);
 
-    updateQuickMacros(sumKcal, sumProtein, sumCarbs, sumFats, targetCals);
+    updateQuickMacros(sumKcal, sumProtein, sumCarbs, sumFats, targetCals, targetProtein, targetCarbs, targetFats);
 }
 
-export function updateQuickMacros(kcal, protein, carbs, fats, targetCals) {
-    if (document.getElementById('quickCals')) document.getElementById('quickCals').textContent = `${kcal.toFixed(0)} / ${targetCals || 0}`;
-    if (document.getElementById('quickProtein')) document.getElementById('quickProtein').textContent = `${protein.toFixed(1)} / ${AppState.config.proteinGoal || '-'}g`;
-    if (document.getElementById('quickCarbs')) document.getElementById('quickCarbs').textContent = `${carbs.toFixed(1)} / ${AppState.config.carbsMax || '-'}g`;
-    if (document.getElementById('quickFats')) document.getElementById('quickFats').textContent = `${fats.toFixed(1)} / ${AppState.config.fatsMax || '-'}g`;
+export function updateQuickMacros(kcal, protein, carbs, fats, targetCals, targetProtein, targetCarbs, targetFats) {
+    if (document.getElementById('quickCals'))    document.getElementById('quickCals').textContent    = `${kcal.toFixed(0)} / ${targetCals || 0}`;
+    if (document.getElementById('quickProtein')) document.getElementById('quickProtein').textContent = `${protein.toFixed(1)} / ${targetProtein || AppState.config.proteinGoal || '-'}g`;
+    if (document.getElementById('quickCarbs'))   document.getElementById('quickCarbs').textContent   = `${carbs.toFixed(1)} / ${targetCarbs || AppState.config.carbsMax || '-'}g`;
+    if (document.getElementById('quickFats'))    document.getElementById('quickFats').textContent    = `${fats.toFixed(1)} / ${targetFats || AppState.config.fatsMax || '-'}g`;
 }
 
 export function getStatusTarget(value, target) {
