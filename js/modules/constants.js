@@ -1,6 +1,6 @@
 // ==================== CONSTANTES GLOBALES ====================
 
-export const CURRENT_APP_VERSION = 50;
+export const CURRENT_APP_VERSION = 51;
 
 export const UNIT_CONVERSIONS = {
     'g': 1,

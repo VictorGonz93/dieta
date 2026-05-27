@@ -395,6 +395,51 @@ function _autoSave() {
     localStorage.setItem('workoutSessions', JSON.stringify(sessions));
 }
 
+// ─── Plantillas ───────────────────────────────────────────────────────────────
+export function getWorkoutTemplates() {
+    return JSON.parse(localStorage.getItem('workoutTemplates') || '{}');
+}
+
+export function saveWorkoutTemplate(name) {
+    const workout = getTodayWorkout();
+    if (!workout?.exercises.length || !name.trim()) return null;
+    const templates = getWorkoutTemplates();
+    const id = `tmpl-${Date.now()}`;
+    templates[id] = {
+        id,
+        name: name.trim(),
+        createdAt: workout.date,
+        exercises: workout.exercises.map(ex => ({
+            exerciseId: ex.exerciseId,
+            name: ex.name,
+            muscle: ex.muscle,
+            sets: ex.sets.map(s => ({ reps: s.reps, kg: s.kg })),
+        })),
+    };
+    localStorage.setItem('workoutTemplates', JSON.stringify(templates));
+    return id;
+}
+
+export function deleteWorkoutTemplate(id) {
+    const templates = getWorkoutTemplates();
+    delete templates[id];
+    localStorage.setItem('workoutTemplates', JSON.stringify(templates));
+}
+
+export function loadWorkoutTemplate(id) {
+    const templates = getWorkoutTemplates();
+    const tmpl = templates[id];
+    if (!tmpl || !_todayWorkout) return false;
+    _todayWorkout.exercises = tmpl.exercises.map(ex => ({
+        exerciseId: ex.exerciseId,
+        name: ex.name,
+        muscle: ex.muscle,
+        sets: ex.sets.map(s => ({ reps: s.reps, kg: s.kg })),
+    }));
+    _autoSave();
+    return true;
+}
+
 // ─── PRs ─────────────────────────────────────────────────────────────────────
 export function getExercisePRs() {
     return JSON.parse(localStorage.getItem('exercisePRs') || '{}');

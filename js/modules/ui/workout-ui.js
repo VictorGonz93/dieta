@@ -8,6 +8,7 @@ import {
     setWorkoutDuration, setWorkoutNotes,
     finalizeWorkout, estimateWorkoutKcal,
     getWorkoutSessions, getExercisePRs,
+    getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate, loadWorkoutTemplate,
 } from '../workout.js?v=501';
 import { getDateKey } from '../storage.js';
 import AppState from '../state.js';
@@ -61,6 +62,7 @@ export function renderTodayWorkout() {
     const dayPlan = routine[dayName];
     const planLabel = dayPlan?.label || (dayPlan?.type === 'entreno' ? 'Entrenamiento' : 'Descanso');
     const kcalEst = estimateWorkoutKcal(workout);
+    const templates = Object.values(getWorkoutTemplates());
 
     container.innerHTML = `
         <div class="max-w-2xl mx-auto space-y-5">
@@ -73,6 +75,47 @@ export function renderTodayWorkout() {
                 <div style="text-align:right;">
                     <div style="font-size:0.75rem;color:var(--text-2);">Kcal estimadas</div>
                     <div style="font-size:1.4rem;font-weight:700;color:var(--primary-text);">${kcalEst > 0 ? kcalEst : '—'}</div>
+                </div>
+            </div>
+
+            <!-- Plantillas -->
+            <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${templates.length > 0 ? '12px' : '0'};">
+                    <div style="font-size:0.85rem;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;">Plantillas</div>
+                    ${workout.exercises.length > 0 && !workout.finalized ? `
+                    <button onclick="document.getElementById('tmpl-save-form').style.display='flex'"
+                        style="display:flex;align-items:center;gap:4px;padding:5px 12px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                        <span class="material-icons" style="font-size:15px;">bookmark_add</span> Guardar como plantilla
+                    </button>` : ''}
+                </div>
+                ${templates.length > 0 ? `
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                    ${templates.map(t => `
+                    <div style="display:flex;align-items:stretch;border:1px solid var(--border-base);border-radius:8px;overflow:hidden;background:var(--bg-elevated);">
+                        <button onclick="window._workoutLoadTmpl('${t.id}')"
+                            style="padding:6px 14px;background:transparent;color:var(--text-1);border:none;cursor:pointer;font-size:0.85rem;text-align:left;display:flex;flex-direction:column;gap:1px;">
+                            <span style="font-weight:600;">${t.name}</span>
+                            <span style="font-size:0.72rem;color:var(--text-3);">${t.exercises.length} ejercicio${t.exercises.length !== 1 ? 's' : ''} · ${t.createdAt}</span>
+                        </button>
+                        <button onclick="window._workoutDeleteTmpl('${t.id}')"
+                            title="Eliminar plantilla"
+                            style="padding:6px 10px;background:transparent;color:var(--text-3);border:none;border-left:1px solid var(--border-dim);cursor:pointer;display:flex;align-items:center;">
+                            <span class="material-icons" style="font-size:15px;">close</span>
+                        </button>
+                    </div>`).join('')}
+                </div>` : `<div style="color:var(--text-3);font-size:0.85rem;">Sin plantillas guardadas.</div>`}
+                <!-- Formulario inline guardar plantilla -->
+                <div id="tmpl-save-form" style="display:none;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+                    <input id="tmpl-name-input" type="text" placeholder="Nombre (ej: Pecho / Tríceps)" maxlength="40"
+                        style="flex:1;min-width:160px;padding:7px 12px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.88rem;outline:none;">
+                    <button onclick="window._workoutConfirmSaveTmpl()"
+                        style="padding:7px 14px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;">
+                        <span class="material-icons" style="font-size:14px;vertical-align:middle;">save</span> Guardar
+                    </button>
+                    <button onclick="document.getElementById('tmpl-save-form').style.display='none'"
+                        style="padding:7px 10px;background:transparent;color:var(--text-3);border:1px solid var(--border-dim);border-radius:8px;cursor:pointer;font-size:0.85rem;">
+                        Cancelar
+                    </button>
                 </div>
             </div>
 
@@ -141,6 +184,25 @@ export function renderTodayWorkout() {
         if (finalizeWorkout(dateKey)) {
             renderTodayWorkout();
         }
+    };
+    // Handlers plantillas
+    window._workoutConfirmSaveTmpl = () => {
+        const input = document.getElementById('tmpl-name-input');
+        const name = input?.value?.trim();
+        if (!name) { input?.focus(); return; }
+        saveWorkoutTemplate(name);
+        renderTodayWorkout();
+    };
+    window._workoutLoadTmpl = (id) => {
+        const workout = getTodayWorkout();
+        if (workout?.exercises.length > 0 && !confirm('¿Reemplazar los ejercicios actuales con esta plantilla?')) return;
+        loadWorkoutTemplate(id);
+        renderTodayWorkout();
+    };
+    window._workoutDeleteTmpl = (id) => {
+        if (!confirm('¿Eliminar esta plantilla?')) return;
+        deleteWorkoutTemplate(id);
+        renderTodayWorkout();
     };
 }
 
