@@ -128,6 +128,9 @@ export function performUpdate(version) {
     }
 
     setTimeout(() => {
-        window.location.reload();
+        // Usar una URL con cache-buster para forzar al navegador a NO usar su caché HTTP.
+        // window.location.reload() puede servir recursos cacheados aunque el SW esté desregistrado.
+        const base = window.location.pathname;
+        window.location.replace(base + '?_r=' + Date.now());
     }, 800);
 }

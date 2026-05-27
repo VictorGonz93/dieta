@@ -51,11 +51,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setupOnboardingListeners();
     startUpdateChecker();
 
+    // Limpiar el query param de cache-buster (_r) que deja performUpdate en la URL
+    if (window.location.search.includes('_r=')) {
+        history.replaceState(null, '', window.location.pathname);
+    }
+
     // Búsqueda y filtro de productos
     const searchInput = document.getElementById('searchProduct');
     const categorySelect = document.getElementById('categoryFilter');
-    if (searchInput) searchInput.addEventListener('input', renderProductsList);
-    if (categorySelect) categorySelect.addEventListener('change', renderProductsList);
+    if (searchInput) searchInput.addEventListener('input', () => renderProductsList(true));
+    if (categorySelect) categorySelect.addEventListener('change', () => renderProductsList(true));
 });
 
 // ==================== EXPOSICIÓN A WINDOW (onclick en HTML) ====================

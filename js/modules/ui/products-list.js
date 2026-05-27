@@ -5,9 +5,14 @@ import { PRODUCTS_DB } from '../products.js';
 
 // customProducts se accede desde AppState.customProducts
 
-export function renderProductsList() {
+const PRODUCTS_PER_PAGE = 20;
+let _productsPage = 0;
+
+export function renderProductsList(resetPage = false) {
     const container = document.getElementById('productsList');
     if (!container) return;
+
+    if (resetPage) _productsPage = 0;
 
     const search = (document.getElementById('searchProduct')?.value || '').toLowerCase();
     const category = document.getElementById('categoryFilter')?.value || '';
@@ -20,7 +25,12 @@ export function renderProductsList() {
         return matchesSearch && matchesCategory;
     });
 
-    container.innerHTML = filtered.map(p => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+    if (_productsPage >= totalPages) _productsPage = totalPages - 1;
+
+    const paged = filtered.slice(_productsPage * PRODUCTS_PER_PAGE, (_productsPage + 1) * PRODUCTS_PER_PAGE);
+
+    const itemsHTML = paged.map(p => {
         const cleanName = p.name.replace(/^[^\w]+\s/, '').trim();
         const isCustom = AppState.customProducts.some(cp => cp.id == p.id);
 
@@ -51,4 +61,19 @@ export function renderProductsList() {
             </div>
         `;
     }).join('');
+
+    const paginationHTML = totalPages > 1 ? `
+        <div class="products-pagination" style="grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px 0 4px;">
+            <button onclick="window._productsGoToPage(${_productsPage - 1})" ${_productsPage === 0 ? 'disabled' : ''} style="padding: 6px 14px; border-radius: 8px; border: 1px solid ${_productsPage === 0 ? '#1E2E48' : '#2D4468'}; background: ${_productsPage === 0 ? 'transparent' : 'rgba(16,185,129,0.1)'}; color: ${_productsPage === 0 ? '#344D6A' : '#34D399'}; cursor: ${_productsPage === 0 ? 'not-allowed' : 'pointer'}; font-size: 0.9rem;">‹ Anterior</button>
+            <span style="color: #6B8BAE; font-size: 0.9rem;">Página ${_productsPage + 1} de ${totalPages} <span style="color:#344D6A;">(${filtered.length} productos)</span></span>
+            <button onclick="window._productsGoToPage(${_productsPage + 1})" ${_productsPage >= totalPages - 1 ? 'disabled' : ''} style="padding: 6px 14px; border-radius: 8px; border: 1px solid ${_productsPage >= totalPages - 1 ? '#1E2E48' : '#2D4468'}; background: ${_productsPage >= totalPages - 1 ? 'transparent' : 'rgba(16,185,129,0.1)'}; color: ${_productsPage >= totalPages - 1 ? '#344D6A' : '#34D399'}; cursor: ${_productsPage >= totalPages - 1 ? 'not-allowed' : 'pointer'}; font-size: 0.9rem;">Siguiente ›</button>
+        </div>
+    ` : '';
+
+    container.innerHTML = itemsHTML + paginationHTML;
 }
+
+window._productsGoToPage = function(page) {
+    _productsPage = page;
+    renderProductsList(false);
+};

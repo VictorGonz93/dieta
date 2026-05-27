@@ -5,6 +5,9 @@ import { getDateKey } from './storage.js';
 import { getDayType, calculateTDEE, getCalorieTarget } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 
+const HISTORY_PER_PAGE = 10;
+let _historyPage = 0;
+
 export function getMacroSuggestions() {
     const dateKey = getDateKey(AppState.currentDate);
     const dayData = AppState.allDays[dateKey];
@@ -47,7 +50,8 @@ export function getMacroSuggestions() {
 export function calculateWeeklyStats() {
     const today = new Date();
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
+    // Lunes como inicio de semana (0=Lun, 6=Dom)
+    weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
 
     let totalWeight = 0, totalKcal = 0, totalDeficit = 0, daysRecorded = 0;
     const dailyStats = [];
@@ -242,25 +246,38 @@ export function displayPredictionAccuracy() {
 
     const predictions = accuracy.predictions.slice(-7);
 
+    const getPrecisionLabel = (error) => {
+        const e = parseFloat(error);
+        if (e < 0.15) return { label: 'Excelente', color: '#34D399' };
+        if (e < 0.35) return { label: 'Buena', color: '#60A5FA' };
+        if (e < 0.6)  return { label: 'Aceptable', color: '#FBBF24' };
+        return { label: 'Mejorable', color: '#F87171' };
+    };
+
+    const avgError = parseFloat(accuracy.avgError);
+    const globalPrec = getPrecisionLabel(avgError);
+
     container.innerHTML = `
         <div class="accuracy-card">
             <div class="accuracy-title">Precisión de Predicciones</div>
             <div class="accuracy-content">
                 <div class="accuracy-stats">
-                    <div class="stat"><span>Error promedio:</span><strong>${accuracy.avgError} kg</strong></div>
-                    <div class="stat"><span>Precisión:</span><strong>${accuracy.accuracy}%</strong></div>
+                    <div class="stat"><span>Desviación media:</span><strong>±${avgError} kg</strong></div>
+                    <div class="stat"><span>Valoración:</span><strong style="color:${globalPrec.color};">${globalPrec.label}</strong></div>
                     <div class="stat"><span>Comparaciones:</span><strong>${accuracy.totalComparisons}</strong></div>
                 </div>
                 <div class="predictions-list">
                     <small><strong>Últimas predicciones vs realidad:</strong></small>
-                    ${predictions.map(p => `
+                    ${predictions.map(p => {
+                        const prec = getPrecisionLabel(p.error);
+                        return `
                         <div class="prediction-item">
                             <span>${p.date}</span>
                             <span>Predicho: ${p.predicted} kg</span>
                             <span>Real: ${p.actual} kg</span>
-                            <span style="color: ${Math.abs(parseFloat(p.error)) < 0.15 ? '#48bb78' : '#f56565'};">Error: ${p.error} kg</span>
-                        </div>
-                    `).join('')}
+                            <span style="color:${prec.color};">±${parseFloat(p.error).toFixed(2)} kg · ${prec.label}</span>
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>
         </div>
@@ -319,23 +336,6 @@ export function updateGoalsDisplay() {
     if (el('goalProtein')) el('goalProtein').textContent = Math.round(proteinTarget);
     if (el('goalCarbs')) el('goalCarbs').textContent = Math.round(carbsTarget);
     if (el('goalFats')) el('goalFats').textContent = Math.round(fatsTarget);
-
-    updateMotivationMessage(progressPercent, stillToLose);
-}
-
-export function updateMotivationMessage(progressPercent, stillToLose) {
-    const container = document.getElementById('motivationMessage');
-    if (!container) return;
-
-    let message = '';
-    if (progressPercent === 0) message = '¡Comienza tu viaje! Cada paso te acerca a tu objetivo.';
-    else if (progressPercent < 25) message = '¡Buen comienzo! Llevas el impulso inicial. Sigue así.';
-    else if (progressPercent < 50) message = '¡Vas muy bien! Ya llevas avance visible. ¡Continúa!';
-    else if (progressPercent < 75) message = '¡Más de la mitad! Ya falta menos. La meta está a la vista.';
-    else if (progressPercent < 100) message = '¡Estás muy cerca! Sigue con el ritmo, ya casi lo logras.';
-    else message = '¡FELICIDADES! ¡Has alcanzado tu objetivo!';
-
-    container.innerHTML = `<p class="text-lg text-slate-100 leading-relaxed">${message}</p>`;
 }
 
 export function updateStatistics() {
@@ -350,10 +350,14 @@ export function updateWeekStats() {
     if (!container) return;
 
     const today = new Date();
+    // Semana Lunes-Domingo
+    const dayOfWeek = (today.getDay() + 6) % 7; // 0=Lun, 6=Dom
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - dayOfWeek);
     const weekDays = [];
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
         weekDays.push(getDateKey(d));
     }
 
@@ -423,18 +427,24 @@ export function updateBestDayStats() {
         : '<p>Sin datos registrados</p>';
 }
 
-export function updateHistoryList() {
+export function updateHistoryList(resetPage = false) {
     const container = document.getElementById('historyList');
     if (!container) return;
 
+    if (resetPage) _historyPage = 0;
+
     const dates = Object.keys(AppState.allDays).sort().reverse();
-    // Solo mostrar días que tengan al menos una comida registrada
     const datesWithData = dates.filter(date => {
         const day = AppState.allDays[date];
         return Object.values(day.meals).some(meal => meal.length > 0);
     });
 
-    container.innerHTML = datesWithData.slice(0, 10).map(date => {
+    const totalPages = Math.max(1, Math.ceil(datesWithData.length / HISTORY_PER_PAGE));
+    if (_historyPage >= totalPages) _historyPage = totalPages - 1;
+
+    const paged = datesWithData.slice(_historyPage * HISTORY_PER_PAGE, (_historyPage + 1) * HISTORY_PER_PAGE);
+
+    const itemsHTML = paged.map(date => {
         const day = AppState.allDays[date];
         let dayKcal = 0, dayProtein = 0, dayCarbs = 0, dayFats = 0;
         Object.values(day.meals).forEach(meal => {
@@ -451,12 +461,27 @@ export function updateHistoryList() {
                     <span class="history-item-date">Día ${day.dayNumber} - ${date}</span>
                 </div>
                 <div class="history-item-macros">
-                    <div class="history-macro"><span class="history-macro-label">Kcal</span><span class="history-macro-value">${dayKcal.toFixed(0)}</span></div>
-                    <div class="history-macro"><span class="history-macro-label">Proteína</span><span class="history-macro-value">${dayProtein.toFixed(1)}g</span></div>
-                    <div class="history-macro"><span class="history-macro-label">Carbos</span><span class="history-macro-value">${dayCarbs.toFixed(1)}g</span></div>
-                    <div class="history-macro"><span class="history-macro-label">Grasas</span><span class="history-macro-value">${dayFats.toFixed(1)}g</span></div>
+                    <div class="history-macro"><span class="history-macro-label" style="color:#34D399;">Kcal</span><span class="history-macro-value" style="color:#34D399;">${dayKcal.toFixed(0)}</span></div>
+                    <div class="history-macro"><span class="history-macro-label" style="color:#60A5FA;">Proteína</span><span class="history-macro-value" style="color:#60A5FA;">${dayProtein.toFixed(1)}g</span></div>
+                    <div class="history-macro"><span class="history-macro-label" style="color:#FBBF24;">Carbos</span><span class="history-macro-value" style="color:#FBBF24;">${dayCarbs.toFixed(1)}g</span></div>
+                    <div class="history-macro"><span class="history-macro-label" style="color:#A78BFA;">Grasas</span><span class="history-macro-value" style="color:#A78BFA;">${dayFats.toFixed(1)}g</span></div>
                 </div>
             </div>
         `;
     }).join('');
+
+    const paginationHTML = totalPages > 1 ? `
+        <div class="history-pagination" style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px 0 4px;">
+            <button onclick="window._historyGoToPage(${_historyPage - 1})" ${_historyPage === 0 ? 'disabled' : ''} style="padding: 6px 14px; border-radius: 8px; border: 1px solid ${_historyPage === 0 ? '#1E2E48' : '#2D4468'}; background: ${_historyPage === 0 ? 'transparent' : 'rgba(16,185,129,0.1)'}; color: ${_historyPage === 0 ? '#344D6A' : '#34D399'}; cursor: ${_historyPage === 0 ? 'not-allowed' : 'pointer'}; font-size: 0.9rem;">‹ Anterior</button>
+            <span style="color: #6B8BAE; font-size: 0.9rem;">Página ${_historyPage + 1} de ${totalPages}</span>
+            <button onclick="window._historyGoToPage(${_historyPage + 1})" ${_historyPage >= totalPages - 1 ? 'disabled' : ''} style="padding: 6px 14px; border-radius: 8px; border: 1px solid ${_historyPage >= totalPages - 1 ? '#1E2E48' : '#2D4468'}; background: ${_historyPage >= totalPages - 1 ? 'transparent' : 'rgba(16,185,129,0.1)'}; color: ${_historyPage >= totalPages - 1 ? '#344D6A' : '#34D399'}; cursor: ${_historyPage >= totalPages - 1 ? 'not-allowed' : 'pointer'}; font-size: 0.9rem;">Siguiente ›</button>
+        </div>
+    ` : '';
+
+    container.innerHTML = itemsHTML + paginationHTML;
 }
+
+window._historyGoToPage = function(page) {
+    _historyPage = page;
+    updateHistoryList(false);
+};
