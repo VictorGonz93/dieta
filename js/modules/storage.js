@@ -100,6 +100,9 @@ export function exportData() {
                 confidence: prediction.confidence,
             } : null,
             darkModeEnabled: localStorage.getItem('darkModeEnabled') === 'true',
+            workoutSessions: JSON.parse(localStorage.getItem('workoutSessions') || '{}'),
+            workoutTemplates: JSON.parse(localStorage.getItem('workoutTemplates') || '{}'),
+            exercisePRs: JSON.parse(localStorage.getItem('exercisePRs') || '{}'),
             note: 'Backup completo de todos los datos de la app con resúmenes y estadísticas',
         };
 
@@ -205,11 +208,22 @@ export function importData(event) {
                 }
             }
 
+            if (data.workoutSessions && Object.keys(data.workoutSessions).length > 0) {
+                localStorage.setItem('workoutSessions', JSON.stringify(data.workoutSessions));
+            }
+            if (data.workoutTemplates && Object.keys(data.workoutTemplates).length > 0) {
+                localStorage.setItem('workoutTemplates', JSON.stringify(data.workoutTemplates));
+            }
+            if (data.exercisePRs && Object.keys(data.exercisePRs).length > 0) {
+                localStorage.setItem('exercisePRs', JSON.stringify(data.exercisePRs));
+            }
+
             const { loadConfig } = await import('./config-settings.js');
             const { renderProductsList } = await import('./ui/products-list.js');
             const { updateWeightPrediction, displayNextDayPrediction } = await import('./weight.js');
             const { initializeToday } = await import('./meals.js');
             const { initializeCharts, renderWeightPredictionChart } = await import('./charts.js');
+            const { initSportTabs } = await import('./ui/workout-ui.js?v=501');
 
             loadConfig();
             renderProductsList();
@@ -218,6 +232,7 @@ export function importData(event) {
             displayNextDayPrediction();
             initializeCharts();
             renderWeightPredictionChart();
+            initSportTabs();
             showNotification('Todos los datos importados correctamente');
         } catch (err) {
             showNotification('Error al importar: ' + err.message, 'error');
