@@ -1,3 +1,9 @@
+## Licencia & Créditos
+
+**IMPORTANTE:** Desarrollada con IA (Claude) para uso personal y experimental. Sin garantía de soporte oficial. Privacidad 100% garantizada.
+
+---
+
 # Apex Nutrition
 
 **Rastreo nutricional profesional · 100% local · Sin servidores**
@@ -6,9 +12,9 @@
 
 Aplicación web avanzada de código abierto para seguimiento nutricional con análisis predictivo, visualización interactiva y gestión offline completa.
 
-| 5 Gráficos | Metas Personalizadas | PWA Offline | Privacidad Total |
-|---|---|---|---|
-| Interactivos | Basadas en IA | Sin internet | 100% local |
+| 5 Gráficos | PWA Offline | Privacidad Total |
+|---|---|---|
+| Interactivos | Sin internet | 100% local |
 
 </div>
 
@@ -20,7 +26,6 @@ Aplicación web avanzada de código abierto para seguimiento nutricional con an�
 Tu centro de control diario para registrar y monitorear todo lo que comes.
 
 - **4 momentos de comida:** Desayuno, Comida, Snack, Cena
-- **Base de datos de 5000+ alimentos** con búsqueda inteligente
 - **Cálculo automático** de calorías y macronutrientes en tiempo real
 - **Botón para copiar comidas** del día anterior
 - **Productos personalizados** — Crea tus propias recetas y productos
@@ -315,12 +320,6 @@ Confianza:    Alta (basada en 6+ datos)
 | **Firefox** | Sí | Sí | Sí |
 | **Safari** | Sí | Sí | Sí |
 | **Edge** | Sí | Sí | Sí |
-
----
-
-## Licencia & Créditos
-
-**IMPORTANTE:** Desarrollada con IA (Claude) para uso personal y experimental. Sin garantía de soporte oficial. Privacidad 100% garantizada.
 
 ---
 
