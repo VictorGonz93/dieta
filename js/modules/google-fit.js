@@ -6,6 +6,7 @@ import { getTodayWorkout, estimateWorkoutKcal, getWorkoutSessions, getExercisesD
 import { showNotification } from './ui/notifications.js';
 
 const GOOGLE_FIT_SCOPE = 'https://www.googleapis.com/auth/fitness.activity.read';
+const DEFAULT_CLIENT_ID = '188472915937-i8jb9ericnjehqut53q6j67q6detusk1.apps.googleusercontent.com';
 
 let tokenClient = null;
 let syncInterval = null;
@@ -17,7 +18,7 @@ function getFitCredentials() {
     return {
         accessToken: localStorage.getItem('gfit_access_token'),
         expiresAt: parseInt(localStorage.getItem('gfit_expires_at') || '0', 10),
-        clientId: localStorage.getItem('gfit_client_id') || '',
+        clientId: localStorage.getItem('gfit_client_id') || DEFAULT_CLIENT_ID,
         autoSync: localStorage.getItem('gfit_auto_sync') === 'true'
     };
 }
@@ -58,12 +59,7 @@ export function isGoogleFitConnected() {
  */
 export function connectGoogleFit(customClientId = null) {
     const savedClientId = localStorage.getItem('gfit_client_id');
-    const clientId = customClientId || savedClientId;
-
-    if (!clientId) {
-        showGoogleFitSetupModal();
-        return;
-    }
+    const clientId = customClientId || savedClientId || DEFAULT_CLIENT_ID;
 
     if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
         showNotification('Cargando librería de Google... Reintenta en unos segundos.', 'warning');
@@ -78,7 +74,8 @@ export function connectGoogleFit(customClientId = null) {
                 if (tokenResponse && tokenResponse.access_token) {
                     saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, clientId.trim());
                     showNotification('✅ ¡Conectado con Google Fit! Sincronizando pasos...', 'success');
-                    closeGoogleFitSetupModal();
+                    const setupModal = document.getElementById('googleFitSetupModalOverlay');
+                    if (setupModal) setupModal.remove();
                     renderGoogleFitStatusUI();
                     await syncTodayStepsFromGoogleFit(true);
                 } else if (tokenResponse && tokenResponse.error) {
@@ -257,7 +254,7 @@ export function showGoogleFitSetupModal() {
     const existingModal = document.getElementById('googleFitSetupModalOverlay');
     if (existingModal) existingModal.remove();
 
-    const savedClientId = localStorage.getItem('gfit_client_id') || '';
+    const savedClientId = localStorage.getItem('gfit_client_id') || DEFAULT_CLIENT_ID;
     const currentOrigin = window.location.origin;
 
     const modalHTML = `
