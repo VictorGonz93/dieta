@@ -155,10 +155,13 @@ export function updateDaySummary(dayData, dateKey) {
     });
 
     const targets = getDynamicDayTargets(_dateKey);
-    const targetCals    = targets?.cals    || getCalorieTarget();
-    const targetProtein = targets?.protein || AppState.config.proteinGoal;
-    const targetCarbs   = targets?.carbs   || AppState.config.carbsMax;
-    const targetFats    = targets?.fats    || AppState.config.fatsMax;
+    const w = AppState.config.currentWeight || 75;
+    const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
+
+    const targetCals    = targets?.cals    || 1800;
+    const targetProtein = targets?.protein || Math.round(w * pFactor);
+    const targetCarbs   = targets?.carbs   || 130;
+    const targetFats    = targets?.fats    || Math.round(w * 0.8);
     const targetFatsMin = Math.round(targetFats * 0.85); // ±15% rango
     const targetCarbsMin = Math.round(targetCarbs * 0.85);
 
@@ -181,9 +184,9 @@ export function updateDaySummary(dayData, dateKey) {
 
 export function updateQuickMacros(kcal, protein, carbs, fats, targetCals, targetProtein, targetCarbs, targetFats) {
     if (document.getElementById('quickCals'))    document.getElementById('quickCals').textContent    = `${kcal.toFixed(0)} / ${targetCals || 0}`;
-    if (document.getElementById('quickProtein')) document.getElementById('quickProtein').textContent = `${protein.toFixed(1)} / ${targetProtein || AppState.config.proteinGoal || '-'}g`;
-    if (document.getElementById('quickCarbs'))   document.getElementById('quickCarbs').textContent   = `${carbs.toFixed(1)} / ${targetCarbs || AppState.config.carbsMax || '-'}g`;
-    if (document.getElementById('quickFats'))    document.getElementById('quickFats').textContent    = `${fats.toFixed(1)} / ${targetFats || AppState.config.fatsMax || '-'}g`;
+    if (document.getElementById('quickProtein')) document.getElementById('quickProtein').textContent = `${protein.toFixed(1)} / ${targetProtein || 0}g`;
+    if (document.getElementById('quickCarbs'))   document.getElementById('quickCarbs').textContent   = `${carbs.toFixed(1)} / ${targetCarbs || 0}g`;
+    if (document.getElementById('quickFats'))    document.getElementById('quickFats').textContent    = `${fats.toFixed(1)} / ${targetFats || 0}g`;
 }
 
 export function getStatusTarget(value, target) {

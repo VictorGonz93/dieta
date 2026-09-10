@@ -1,7 +1,7 @@
 ﻿// ==================== PREDICCIÓN Y GESTIÓN DE PESO ====================
 
 import AppState from './state.js';
-import { getDayType, calculateTDEE, calculateTMR } from './nutrition.js';
+import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit } from './nutrition.js';
 import { getWorkoutSessions } from './workout.js?v=501';
 import { getDateKey, saveDays } from './storage.js';
 import { showNotification } from './ui/notifications.js';
@@ -180,24 +180,12 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
     const [year, month, day] = dateKey.split('-').map(Number);
     const dayDate = new Date(year, month - 1, day);
     const dayInfo = getDayType(dayDate);
-    const calorieTarget = dayInfo.type === 'entreno' ? AppState.config.calsEntrenamiento : AppState.config.calsDescanso;
 
-    // TDEE dinámico: base actividad cotidiana (NEAT + digestión) + gasto real del entreno
-    const workoutSessions = getWorkoutSessions();
-    const workoutSession = workoutSessions[dateKey];
-    const workoutKcal = workoutSession?.estimatedKcal || 0;
-    const tmr = calculateTMR();
-    let tdee;
-    if (workoutKcal > 0) {
-        // Entreno registrado: base sedentaria + kcal reales del tracker
-        tdee = Math.round(tmr * 1.30 + workoutKcal);
-    } else if (dayInfo.type === 'entreno') {
-        // Día de entreno en el plan pero sin entreno registrado → estimación conservadora
-        tdee = Math.round(tmr * 1.45);
-    } else {
-        // Día de descanso sin datos de entreno
-        tdee = Math.round(tmr * 1.30);
-    }
+    // Targets dinámicos adaptativos
+    const dynamic = getDynamicDayTargets(dateKey);
+    const calorieTarget = dynamic ? dynamic.cals : 1800;
+    const tdee = dynamic ? dynamic.tdee : calculateTDEE('descanso');
+    const workoutKcal = dynamic ? dynamic.workoutKcal : 0;
 
     const deficitVsMeta = totalKcal - calorieTarget;
     const deficitVsTDEE = totalKcal - tdee;
@@ -346,6 +334,13 @@ export function saveDailyWeight() {
 
     recordWeight(AppState.currentDate, weight);
     AppState.config.currentWeight = weight;
+
+    // Recalcular proteína y déficit automático con el nuevo peso
+    const pace = AppState.config.lossPace || 'moderado';
+    const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
+    AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
+    AppState.config.proteinGoal = Math.round(weight * pFactor);
+
     localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
     showNotification(`Peso registrado: ${weight}kg`, 'success');
 
@@ -353,6 +348,7 @@ export function saveDailyWeight() {
     updateWeightPrediction();
     displayNextDayPrediction();
     import('./meals.js').then(m => m.renderDay());
+    import('./stats.js').then(m => m.updateGoalsDisplay());
 }
 
 export function renderWeightHistory() {

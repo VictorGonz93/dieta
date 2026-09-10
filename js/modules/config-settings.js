@@ -1,7 +1,7 @@
 ﻿// ==================== CONFIGURACIÓN ====================
 
 import AppState from './state.js';
-import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget } from './nutrition.js';
+import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget, calculateAutoDeficit } from './nutrition.js';
 import { recordWeight, updateWeightPrediction, displayNextDayPrediction } from './weight.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -53,9 +53,7 @@ export function saveConfig() {
     if (AppState.config.lossPace === 'manual') {
         AppState.config.deficitTarget = parseNum('deficitTargetInput', AppState.config.deficitTarget || 500, true);
     } else {
-        import('./nutrition.js').then(m => {
-            AppState.config.deficitTarget = m.calculateAutoDeficit(AppState.config.currentWeight, AppState.config.lossPace);
-        });
+        AppState.config.deficitTarget = calculateAutoDeficit(AppState.config.currentWeight, AppState.config.lossPace);
     }
 
     const pFactorEl = document.getElementById('proteinFactorSelect');

@@ -38,11 +38,15 @@ export function getCurrentDeficit() {
 
 export function calculateTMR() {
     const { currentWeight, height, age, gender } = AppState.config;
-    if (!currentWeight || !height || !age || !gender) return 0;
-    if (gender === 'male') {
-        return (10 * currentWeight) + (6.25 * height) - (5 * age) + 5;
+    const w = parseFloat(currentWeight) || 75;
+    const h = parseFloat(height) || 170;
+    const a = parseFloat(age) || 30;
+    const g = gender || 'male';
+
+    if (g === 'male') {
+        return (10 * w) + (6.25 * h) - (5 * a) + 5;
     } else {
-        return (10 * currentWeight) + (6.25 * height) - (5 * age) - 161;
+        return (10 * w) + (6.25 * h) - (5 * a) - 161;
     }
 }
 
@@ -116,17 +120,22 @@ export function getDynamicDayTargets(dateKey) {
     const tdeeBase = Math.round(tmr * 1.25);
     const tdee = tdeeBase + workoutKcal;
 
-    // Déficit objetivo calculado automáticamente según peso actual y ritmo de pérdida
-    const weight = AppState.config.currentWeight || 75;
+    // Peso específico para el día (si existe peso registrado ese día) o peso actual
+    const historyEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
+    const dayWeight = historyEntry?.weight || AppState.config.currentWeight || 75;
+
+    // Déficit objetivo calculado automáticamente según peso del día y ritmo de pérdida
     const lossPace = AppState.config.lossPace || 'moderado';
-    const deficitTarget = calculateAutoDeficit(weight, lossPace);
+    const deficitTarget = calculateAutoDeficit(dayWeight, lossPace);
 
     // Calorías diarias objetivo
     const cals = Math.max(1200, tdee - deficitTarget);
 
-    // Macros: proteína fija según objetivo, grasas mínimo saludable, carbos con el resto
-    const protein = AppState.config.proteinGoal || Math.round(weight * 2.0);
-    const fats = Math.max(AppState.config.fatsMin || Math.round(weight * 0.8), 40);
+    // Macros dinámicos:
+    // Proteína = peso del día * proteinFactor (1.8, 2.0, 2.2 g/kg)
+    const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
+    const protein = Math.round(dayWeight * pFactor);
+    const fats = Math.max(Math.round(dayWeight * 0.8), 40);
     const carbs = Math.max(0, Math.round((cals - protein * 4 - fats * 9) / 4));
 
     return {
