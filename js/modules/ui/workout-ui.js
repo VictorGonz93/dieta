@@ -149,18 +149,6 @@ export function renderTodayWorkout() {
     const kcalEst = estimateWorkoutKcal(workout);
     const templates = Object.values(getWorkoutTemplates());
 
-    // Calcular pasos totales de la sesión
-    let totalSteps = 0;
-    if (workout.exercises) {
-        for (const ex of workout.exercises) {
-            if (ex.trackingType === 'steps' && ex.sets) {
-                for (const set of ex.sets) {
-                    totalSteps += parseFloat(set.steps) || 0;
-                }
-            }
-        }
-    }
-
     container.innerHTML = `
         <div class="max-w-2xl mx-auto space-y-5">
             <!-- Header día -->
@@ -168,7 +156,6 @@ export function renderTodayWorkout() {
                 <div>
                     <div style="font-size:0.8rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">${dayName} · ${dateKey}</div>
                     <div style="font-size:1.1rem;font-weight:600;color:var(--text-1);">${planLabel}</div>
-                    ${totalSteps > 0 ? `<div style="font-size:0.82rem;color:#10B981;margin-top:4px;display:flex;align-items:center;gap:4px;"><span class="material-icons" style="font-size:15px;">directions_walk</span>${totalSteps.toLocaleString('es-ES')} pasos</div>` : ''}
                 </div>
                 <div style="text-align:right;">
                     <div style="font-size:0.75rem;color:var(--text-2);">Kcal estimadas</div>

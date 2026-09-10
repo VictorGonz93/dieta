@@ -32,8 +32,25 @@ export function showTab(tabId) {
     } else if (tabId === 'objetivos') {
         import('../stats.js').then(m => m.displayGoalsTracking());
     } else if (tabId === 'planteamiento') {
-        import('../workout.js').then(m => m.initWorkoutPlan());
-        import('../google-fit.js').then(m => m.renderGoogleFitStatusUI());
+        import('../workout.js').then(w => {
+            w.initWorkoutPlan();
+            import('../google-fit.js').then(gf => {
+                const dateKey = new Date().toISOString().split('T')[0];
+                const sessions = w.getWorkoutSessions();
+                const session = sessions[dateKey];
+                let steps = null;
+                if (session && session.exercises) {
+                    for (const ex of session.exercises) {
+                        if (ex.trackingType === 'steps' && ex.sets) {
+                            for (const set of ex.sets) {
+                                steps = (steps || 0) + (parseFloat(set.steps) || 0);
+                            }
+                        }
+                    }
+                }
+                gf.renderGoogleFitStatusUI(steps);
+            });
+        });
     } else if (tabId === 'historial' || tabId === 'graficos') {
         setTimeout(() => {
             import('../charts.js').then(m => {

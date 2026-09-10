@@ -3,6 +3,7 @@
 import AppState from './state.js';
 import { getDateKey, saveDays } from './storage.js';
 import { getDayNumber, getDayType, getCalorieTarget, getDynamicDayTargets } from './nutrition.js';
+import { getWorkoutSessions } from './workout.js';
 import {
     calculateNextDayPredictionForDate,
     displayNextDayPrediction,
@@ -180,6 +181,7 @@ export function updateDaySummary(dayData, dateKey) {
     if (document.getElementById('statusFats'))     document.getElementById('statusFats').textContent     = getStatusRange(sumFats, targetFatsMin, targetFats);
 
     updateQuickMacros(sumKcal, sumProtein, sumCarbs, sumFats, targetCals, targetProtein, targetCarbs, targetFats);
+    updateStepsDisplay();
 }
 
 export function updateQuickMacros(kcal, protein, carbs, fats, targetCals, targetProtein, targetCarbs, targetFats) {
@@ -187,6 +189,47 @@ export function updateQuickMacros(kcal, protein, carbs, fats, targetCals, target
     if (document.getElementById('quickProtein')) document.getElementById('quickProtein').textContent = `${protein.toFixed(1)} / ${targetProtein || 0}g`;
     if (document.getElementById('quickCarbs'))   document.getElementById('quickCarbs').textContent   = `${carbs.toFixed(1)} / ${targetCarbs || 0}g`;
     if (document.getElementById('quickFats'))    document.getElementById('quickFats').textContent    = `${fats.toFixed(1)} / ${targetFats || 0}g`;
+}
+
+export function updateStepsDisplay() {
+    const container = document.getElementById('stepsContainer');
+    if (!container) return;
+
+    const dateKey = getDateKey(AppState.currentDate);
+    const sessions = getWorkoutSessions();
+    const session = sessions[dateKey];
+
+    let totalSteps = 0;
+    if (session && session.exercises) {
+        for (const ex of session.exercises) {
+            if (ex.trackingType === 'steps' && ex.sets) {
+                for (const set of ex.sets) {
+                    totalSteps += parseFloat(set.steps) || 0;
+                }
+            }
+        }
+    }
+
+    if (totalSteps <= 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+
+    const w = AppState.config.currentWeight || 75;
+    const met = 3.8;
+    const estKcal = Math.round(met * w * (totalSteps / 100 / 60));
+    const goal = 10000;
+    const pct = Math.min((totalSteps / goal) * 100, 100);
+
+    const stepsEl = document.getElementById('stepsValue');
+    const fillEl = document.getElementById('stepsFill');
+    const infoEl = document.getElementById('stepsKcalInfo');
+
+    if (stepsEl) stepsEl.textContent = `${totalSteps.toLocaleString('es-ES')} / ${goal.toLocaleString('es-ES')}`;
+    if (fillEl) fillEl.style.width = `${pct}%`;
+    if (infoEl) infoEl.textContent = `≈ ${estKcal} kcal quemadas (MET ${met} × ${w}kg)`;
 }
 
 export function getStatusTarget(value, target) {

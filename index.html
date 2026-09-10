@@ -221,6 +221,25 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Steps bar (Google Fit) -->
+                <div id="stepsContainer" class="mt-3" style="display:none;">
+                    <div style="display:flex;align-items:center;gap:12px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px 14px;">
+                        <div style="width:36px;height:36px;border-radius:8px;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;color:#10B981;flex-shrink:0;">
+                            <span class="material-icons" style="font-size:20px;">directions_walk</span>
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                <p style="font-size:0.75rem;font-weight:600;color:var(--text-2);margin:0;">Pasos Hoy</p>
+                                <p style="font-size:0.8rem;font-weight:700;color:#10B981;margin:0;" id="stepsValue">0</p>
+                            </div>
+                            <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+                                <div id="stepsFill" style="height:100%;width:0%;background:linear-gradient(90deg,#10B981,#34D399);border-radius:3px;transition:width 0.5s ease;"></div>
+                            </div>
+                            <p style="font-size:0.7rem;color:#64748B;margin:3px 0 0 0;" id="stepsKcalInfo"></p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -934,10 +953,29 @@
                             <div class="p-4 bg-slate-800/50 rounded-lg">
                                 <p class="text-xs text-slate-400 font-medium mb-2">TDEE Descanso (×1.30)</p>
                                 <p class="text-2xl font-bold text-white" id="tdeeDescansoValue">-</p>
+                    </div>
+                </div>
+
+                <!-- Steps bar (Google Fit) -->
+                <div id="stepsContainer" class="mt-3" style="display:none;">
+                    <div style="display:flex;align-items:center;gap:12px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px 14px;">
+                        <div style="width:36px;height:36px;border-radius:8px;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;color:#10B981;flex-shrink:0;">
+                            <span class="material-icons" style="font-size:20px;">directions_walk</span>
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                <p style="font-size:0.75rem;font-weight:600;color:var(--text-2);margin:0;">Pasos Hoy</p>
+                                <p style="font-size:0.8rem;font-weight:700;color:#10B981;margin:0;" id="stepsValue">0</p>
                             </div>
+                            <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+                                <div id="stepsFill" style="height:100%;width:0%;background:linear-gradient(90deg,#10B981,#34D399);border-radius:3px;transition:width 0.5s ease;"></div>
+                            </div>
+                            <p style="font-size:0.7rem;color:#64748B;margin:3px 0 0 0;" id="stepsKcalInfo"></p>
                         </div>
                     </div>
-                    </div>
+                </div>
+            </div>
+        </div>
                 </div>
 
                 <!-- Accordion: Data -->
@@ -1077,4 +1115,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250911-74"></script>
+    <script type="module" src="js/app.js?v=20250911-75"></script>
