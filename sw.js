@@ -1,4 +1,4 @@
-const CACHE_VERSION = 65; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 66; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',

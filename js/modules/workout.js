@@ -211,19 +211,21 @@ export const BASE_EXERCISES_DB = [
     { id: 98, name: 'Elevación de Piernas Colgado',    muscle: 'Core',     type: 'cuerpo',  category: 'compuesto', met: 5.0 },
 
     // ── Cardio & Deportes ──────────────────────────────────────────────────────
-    { id: 103,name: 'Cinta (Caminar Acelerado)',       muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 4.0 },
-    { id: 104,name: 'Cinta (Caminar con Inclinación)', muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 6.0 },
-    { id: 105,name: 'Cinta (Carrera Continua)',        muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 9.0 },
-    { id: 107,name: 'Bicicleta Elíptica',              muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 5.5 },
-    { id: 108,name: 'Bicicleta Estática / Rodillo',    muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 6.0 },
-    { id: 110,name: 'Máquina de Remo (Ergómetro)',     muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 7.5 },
-    { id: 111,name: 'Salto a la Comba',                 muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 10.0 },
-    { id: 113,name: 'Sesión HIIT',                     muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 11.0 },
-    { id: 115,name: 'Escaladora (StairMaster)',        muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 8.5 },
-    { id: 150,name: 'Partido de Pádel / Tenis',        muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 7.0 },
-    { id: 151,name: 'Fútbol / Deportes de Equipo',     muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 8.0 },
-    { id: 152,name: 'Natación (Estilo Libre)',          muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 7.0 },
-    { id: 153,name: 'Saco de Boxeo / Artes Marciales', muscle: 'Cardio',   type: 'cardio',  category: 'cardio', met: 8.5 },
+    { id: 103,name: 'Cinta (Caminar Acelerado)',       muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'steps', met: 4.0 },
+    { id: 104,name: 'Cinta (Caminar con Inclinación)', muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'steps', met: 6.0 },
+    { id: 160,name: 'Caminar / Pasos Diarios',          muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'steps', met: 3.8 },
+    { id: 161,name: 'Senderismo / Caminata Montaña',   muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'steps', met: 6.0 },
+    { id: 105,name: 'Cinta (Carrera Continua)',        muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 9.0 },
+    { id: 107,name: 'Bicicleta Elíptica',              muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 5.5 },
+    { id: 108,name: 'Bicicleta Estática / Rodillo',    muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 6.0 },
+    { id: 110,name: 'Máquina de Remo (Ergómetro)',     muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 7.5 },
+    { id: 111,name: 'Salto a la Comba',                 muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 10.0 },
+    { id: 113,name: 'Sesión HIIT',                     muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 11.0 },
+    { id: 115,name: 'Escaladora (StairMaster)',        muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 8.5 },
+    { id: 150,name: 'Partido de Pádel / Tenis',        muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 7.0 },
+    { id: 151,name: 'Fútbol / Deportes de Equipo',     muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 8.0 },
+    { id: 152,name: 'Natación (Estilo Libre)',          muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 7.0 },
+    { id: 153,name: 'Saco de Boxeo / Artes Marciales', muscle: 'Cardio',   type: 'cardio',  category: 'cardio', trackingType: 'cardio_distance', met: 8.5 },
 ];
 
 /**
@@ -333,6 +335,29 @@ export function initTodayWorkout(dateKey) {
 
 export function getTodayWorkout() { return _todayWorkout; }
 
+export function getExerciseTrackingType(ex) {
+    if (!ex) return 'weight_reps';
+    if (ex.trackingType) return ex.trackingType;
+
+    const name = (ex.name || '').toLowerCase();
+    const type = ex.type || '';
+    const muscle = ex.muscle || '';
+
+    if (name.includes('caminar') || name.includes('paso') || name.includes('walk') || name.includes('senderismo')) {
+        return 'steps';
+    }
+    if (name.includes('plancha') || name.includes('hold') || name.includes('dead hang') || name.includes('l-sit') || name.includes('isométrico')) {
+        return 'time_hold';
+    }
+    if (type === 'cardio' || muscle === 'Cardio' || name.includes('correr') || name.includes('cinta') || name.includes('bici') || name.includes('remo') || name.includes('natación') || name.includes('pádel') || name.includes('fútbol') || name.includes('hiit') || name.includes('boxeo')) {
+        return 'cardio_distance';
+    }
+    if (type === 'cuerpo' || name.includes('flexion') || name.includes('dominada') || name.includes('fondo') || name.includes('crunch')) {
+        return 'calisthenics';
+    }
+    return 'weight_reps';
+}
+
 export function addExerciseToWorkout(exerciseId) {
     if (!_todayWorkout) return false;
     const allEx = getExercisesDB();
@@ -342,12 +367,33 @@ export function addExerciseToWorkout(exerciseId) {
         showNotification(`"${ex.name}" ya está en el entreno de hoy`, 'warning');
         return false;
     }
+
+    const trackingType = getExerciseTrackingType(ex);
+    let initialSets = [];
+
+    if (trackingType === 'steps') {
+        initialSets = [{ steps: 5000, mins: 45, done: false }];
+    } else if (trackingType === 'cardio_distance') {
+        initialSets = [{ mins: 30, km: 5, done: false }];
+    } else if (trackingType === 'time_hold') {
+        initialSets = [{ secs: 45, kg: 0, done: false }];
+    } else if (trackingType === 'calisthenics') {
+        initialSets = [{ reps: 10, kg: 0, done: false }];
+    } else {
+        initialSets = [{ reps: 10, kg: 0, done: false }];
+    }
+
     _todayWorkout.exercises.push({
         exerciseId: ex.id,
         name: ex.name,
         muscle: ex.muscle,
-        sets: [{ reps: 10, kg: 0, done: false }]
+        type: ex.type,
+        category: ex.category,
+        met: ex.met,
+        trackingType: trackingType,
+        sets: initialSets
     });
+
     _autoSave();
     showNotification(`"${ex.name}" añadido al entreno de hoy`, 'success');
     return true;
@@ -363,8 +409,25 @@ export function addSetToExercise(exerciseId) {
     if (!_todayWorkout) return;
     const ex = _todayWorkout.exercises.find(e => e.exerciseId == exerciseId);
     if (!ex) return;
-    const last = ex.sets[ex.sets.length - 1];
-    ex.sets.push({ reps: last?.reps || 10, kg: last?.kg || 0, done: false });
+    const last = ex.sets[ex.sets.length - 1] || {};
+    const trackingType = ex.trackingType || getExerciseTrackingType(ex);
+
+    let newSet = { done: false };
+    if (trackingType === 'steps') {
+        newSet.steps = last.steps || 5000;
+        newSet.mins = last.mins || 45;
+    } else if (trackingType === 'cardio_distance') {
+        newSet.mins = last.mins || 30;
+        newSet.km = last.km || 5;
+    } else if (trackingType === 'time_hold') {
+        newSet.secs = last.secs || 45;
+        newSet.kg = last.kg || 0;
+    } else {
+        newSet.reps = last.reps || 10;
+        newSet.kg = last.kg || 0;
+    }
+
+    ex.sets.push(newSet);
     _autoSave();
 }
 
@@ -457,20 +520,18 @@ export function calculate1RM(weight, reps) {
 
 export function estimateWorkoutKcal(workout) {
     if (!workout?.exercises.length) return 0;
-    // Usar el peso registrado ese día si existe, si no el peso actual del config
     const dateKey = workout.date;
     const historyEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
     const bodyWeight = historyEntry?.weight || AppState.config.currentWeight || 75;
 
-    // Constantes fisiológicas
-    const REST_MIN = 3;       // minutos de descanso medio entre series
-    const MET_REST = 1.6;     // MET durante descansos activos entre series
-    const KCAL_PER_KG_REP = (9.8 * 0.38) / 0.20 / 4186; // ≈ 0.00445 kcal/(kg·rep)
-    const KCAL_PER_BW_REP  = (9.8 * 0.28) / 0.20 / 4186; // ≈ 0.00327 kcal/rep
+    const REST_MIN = 3;
+    const MET_REST = 1.6;
+    const KCAL_PER_KG_REP = (9.8 * 0.38) / 0.20 / 4186; // ≈ 0.00445
+    const KCAL_PER_BW_REP  = (9.8 * 0.28) / 0.20 / 4186; // ≈ 0.00327
 
     let strengthKcal = 0;
     let totalStrengthSets = 0;
-    const cardioExercises = [];
+    let cardioKcal = 0;
 
     const allExercisesDB = getExercisesDB();
 
@@ -478,16 +539,67 @@ export function estimateWorkoutKcal(workout) {
         const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
         if (!dbEx) continue;
 
-        if (dbEx.type === 'cardio') {
-            cardioExercises.push(dbEx);
+        const trackingType = ex.trackingType || dbEx.trackingType || getExerciseTrackingType(dbEx);
+
+        if (trackingType === 'steps') {
+            for (const set of ex.sets) {
+                const steps = parseFloat(set.steps) || 0;
+                const mins = parseFloat(set.mins) || 0;
+                if (steps > 0) {
+                    cardioKcal += steps * 0.04 * (bodyWeight / 75);
+                } else if (mins > 0) {
+                    const met = dbEx.met || 3.8;
+                    cardioKcal += met * bodyWeight * (mins / 60);
+                }
+            }
+        } else if (trackingType === 'cardio_distance') {
+            for (const set of ex.sets) {
+                const mins = parseFloat(set.mins) || 0;
+                const km = parseFloat(set.km) || 0;
+                let met = dbEx.met || 7.0;
+
+                if (km > 0 && mins > 0) {
+                    const speed = km / (mins / 60);
+                    if ((dbEx.name || '').toLowerCase().includes('correr') || (dbEx.name || '').toLowerCase().includes('cinta')) {
+                        if (speed >= 12) met = 12.0;
+                        else if (speed >= 10) met = 10.5;
+                        else if (speed >= 8) met = 8.5;
+                        else met = 6.0;
+                    }
+                }
+                if (mins > 0) {
+                    cardioKcal += met * bodyWeight * (mins / 60);
+                }
+            }
+        } else if (trackingType === 'time_hold') {
+            for (const set of ex.sets) {
+                const secs = parseFloat(set.secs) || 0;
+                const extraKg = parseFloat(set.kg) || 0;
+                if (secs > 0) {
+                    const met = dbEx.met || 4.0;
+                    const totalKg = bodyWeight + extraKg;
+                    strengthKcal += met * totalKg * (secs / 3600);
+                    totalStrengthSets++;
+                }
+            }
+        } else if (trackingType === 'calisthenics') {
+            const categoryFactor = dbEx.category === 'compuesto' ? 1.25 : 1.00;
+            for (const set of ex.sets) {
+                const reps = parseInt(set.reps) || 0;
+                const extraKg = parseFloat(set.kg) || 0;
+                if (reps === 0) continue;
+                const totalKg = bodyWeight + extraKg;
+                strengthKcal += reps * totalKg * KCAL_PER_BW_REP * categoryFactor;
+                totalStrengthSets++;
+            }
         } else {
-            // Factores fisiológicos de ajuste por categoría y equipamiento
+            // Fuerza (weight_reps)
             const categoryFactor = dbEx.category === 'compuesto' ? 1.25 : 1.00;
             const equipFactor = EQUIPMENT_TYPES[dbEx.type]?.factor || 1.00;
 
             for (const set of ex.sets) {
-                const reps = set.reps || 0;
-                const kg   = set.kg   || 0;
+                const reps = parseInt(set.reps) || 0;
+                const kg   = parseFloat(set.kg) || 0;
                 if (reps === 0) continue;
 
                 const baseSetKcal = kg > 0
@@ -500,28 +612,12 @@ export function estimateWorkoutKcal(workout) {
         }
     }
 
-    // Calorías de descanso activo entre series
     const restKcal = totalStrengthSets * REST_MIN * MET_REST * bodyWeight / 60;
-
-    // Tiempo no contabilizado (calentamiento, aprontes, transiciones, estiramientos)
     const countedMins = totalStrengthSets * (1.2 + REST_MIN);
     const extraMins = Math.max(0, (workout.duration || 60) - countedMins);
     const transitionKcal = extraMins > 0 ? (2.0 * bodyWeight * extraMins / 60) : 0;
 
-    // Cardio
-    let cardioKcal = 0;
-    if (cardioExercises.length > 0) {
-        const totalDuration   = workout.duration || 60;
-        const strengthTimeMins = totalStrengthSets * (1 + REST_MIN);
-        const cardioTimeMins  = Math.max(totalDuration - strengthTimeMins, cardioExercises.length * 10);
-        const timePerCardioEx = cardioTimeMins / cardioExercises.length;
-        cardioKcal = cardioExercises.reduce((s, e) => s + (e.met || 5.0) * bodyWeight * (timePerCardioEx / 60), 0);
-    }
-
     const subtotal = strengthKcal + restKcal + transitionKcal + cardioKcal;
-
-    // Efecto EPOC (Excess Post-exercise Oxygen Consumption)
-    // Se añade un 8% si la sesión fue intensa (>12 series o >45 min), o un 5% si fue más corta
     const epocFactor = (totalStrengthSets > 12 || (workout.duration || 60) > 45) ? 1.08 : 1.05;
 
     return Math.round(subtotal * epocFactor);

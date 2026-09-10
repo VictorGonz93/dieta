@@ -1,7 +1,7 @@
 // ==================== UI DE DEPORTE ====================
 
 import {
-    EXERCISES_DB, MUSCLES, EQUIPMENT_TYPES, getExercisesDB, saveCustomExercise, calculate1RM,
+    EXERCISES_DB, MUSCLES, EQUIPMENT_TYPES, getExercisesDB, saveCustomExercise, calculate1RM, getExerciseTrackingType,
     initTodayWorkout, getTodayWorkout,
     addExerciseToWorkout, removeExerciseFromWorkout,
     addSetToExercise, removeSetFromExercise, updateSet, toggleSetDone, getFrequentExercises,
@@ -374,23 +374,86 @@ window._workoutSelectEx = (exerciseId) => {
     }
 };
 
+export function getPreviousExercisePerformance(exerciseId) {
+    const sessions = getWorkoutSessions();
+    const dateKey = getDateKey(AppState.currentDate);
+    const sortedDates = Object.keys(sessions).filter(d => d < dateKey).sort().reverse();
+
+    for (const d of sortedDates) {
+        const sess = sessions[d];
+        if (!sess || !sess.exercises) continue;
+        const ex = sess.exercises.find(e => e.exerciseId == exerciseId);
+        if (ex && ex.sets && ex.sets.length > 0) {
+            const validSets = ex.sets.filter(s => (s.reps || s.steps || s.mins || s.secs || 0) > 0);
+            if (validSets.length > 0) {
+                const trackingType = ex.trackingType || 'weight_reps';
+                let setsText = '';
+                if (trackingType === 'steps') {
+                    setsText = validSets.map(s => `${s.steps || 0} pasos`).join(', ');
+                } else if (trackingType === 'cardio_distance') {
+                    setsText = validSets.map(s => `${s.mins || 0}min${s.km ? ' (' + s.km + 'km)' : ''}`).join(', ');
+                } else if (trackingType === 'time_hold') {
+                    setsText = validSets.map(s => `${s.secs || 0}s`).join(', ');
+                } else {
+                    setsText = validSets.map(s => `${s.kg || 0}kg×${s.reps || 0}`).join(', ');
+                }
+                return { date: d, setsText, sets: validSets };
+            }
+        }
+    }
+    return null;
+}
+
 function _renderExerciseList() {
     const container = document.getElementById('workout-exercises-list');
     if (!container) return;
     const workout = getTodayWorkout();
-    if (!workout || workout.exercises.length === 0) {
+    if (!workout || !workout.exercises || workout.exercises.length === 0) {
         container.innerHTML = `<div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.9rem;">Sin ejercicios. Añade uno arriba.</div>`;
         return;
     }
 
+    const allExercisesDB = getExercisesDB();
+
     container.innerHTML = workout.exercises.map(ex => {
+        const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
+        const trackingType = ex.trackingType || getExerciseTrackingType(dbEx);
         const prevPerf = getPreviousExercisePerformance(ex.exerciseId);
-        const bestSet = ex.sets.reduce((b, s) => {
-            const val = (parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0);
-            const bVal = (parseFloat(b.kg) || 0) * (parseInt(b.reps) || 0);
-            return val > bVal ? s : b;
-        }, { kg: 0, reps: 0 });
-        const est1RM = calculate1RM(bestSet.kg, bestSet.reps);
+
+        let headersHTML = '';
+        let badgesHTML = '';
+
+        if (trackingType === 'steps') {
+            headersHTML = `<span>#</span><span>Pasos</span><span>Minutos</span><span></span>`;
+            const totalSteps = ex.sets.reduce((sum, s) => sum + (parseInt(s.steps) || 0), 0);
+            const approxKm = (totalSteps * 0.00075).toFixed(2);
+            badgesHTML = `<span>Pasos: <strong style="color:#10B981;">${totalSteps.toLocaleString('es-ES')}</strong> (~${approxKm} km)</span>`;
+        } else if (trackingType === 'cardio_distance') {
+            headersHTML = `<span>#</span><span>Minutos</span><span>Distancia (Km)</span><span></span>`;
+            const totalMins = ex.sets.reduce((sum, s) => sum + (parseInt(s.mins) || 0), 0);
+            const totalKm = ex.sets.reduce((sum, s) => sum + (parseFloat(s.km) || 0), 0);
+            badgesHTML = `<span>Tiempo: <strong style="color:#10B981;">${totalMins} min</strong></span>${totalKm > 0 ? ` · <span>Distancia: <strong style="color:#38BDF8;">${totalKm.toFixed(1)} km</strong></span>` : ''}`;
+        } else if (trackingType === 'time_hold') {
+            headersHTML = `<span>#</span><span>Segundos</span><span>Lastre (Kg)</span><span></span>`;
+            const totalSecs = ex.sets.reduce((sum, s) => sum + (parseInt(s.secs) || 0), 0);
+            badgesHTML = `<span>Tiempo total: <strong style="color:#10B981;">${totalSecs}s</strong></span>`;
+        } else if (trackingType === 'calisthenics') {
+            headersHTML = `<span>#</span><span>Reps</span><span>Lastre (Kg)</span><span></span>`;
+            const totalReps = ex.sets.reduce((sum, s) => sum + (parseInt(s.reps) || 0), 0);
+            const maxKg = Math.max(...ex.sets.map(s => parseFloat(s.kg) || 0));
+            badgesHTML = `<span>Reps totales: <strong style="color:#10B981;">${totalReps}</strong></span>${maxKg > 0 ? ` · <span>Lastre máx: <strong style="color:#FBBF24;">${maxKg} kg</strong></span>` : ''}`;
+        } else {
+            // weight_reps
+            headersHTML = `<span>#</span><span>Reps</span><span>Kg</span><span></span>`;
+            const bestSet = ex.sets.reduce((b, s) => {
+                const val = (parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0);
+                const bVal = (parseFloat(b.kg) || 0) * (parseInt(b.reps) || 0);
+                return val > bVal ? s : b;
+            }, { kg: 0, reps: 0 });
+            const est1RM = calculate1RM(bestSet.kg, bestSet.reps);
+            const totalVol = ex.sets.reduce((sum, s) => sum + ((parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0)), 0);
+            badgesHTML = `${est1RM > 0 ? `<span>1RM est: <strong style="color:#10B981;">${est1RM} kg</strong></span> · ` : ''}<span>Volumen: <strong style="color:#60A5FA;">${totalVol.toLocaleString('es-ES')} kg</strong></span>`;
+        }
 
         return `
         <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;margin-bottom:10px;">
@@ -401,7 +464,7 @@ function _renderExerciseList() {
                         <span style="font-size:0.75rem;color:var(--text-2);background:var(--bg-elevated);padding:2px 8px;border-radius:20px;">${ex.muscle}</span>
                     </div>
                     <div style="font-size:0.75rem;color:var(--text-3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
-                        <span id="1rm-badge-${ex.exerciseId}">${est1RM > 0 ? `1RM est: <strong style="color:#10B981;">${est1RM} kg</strong>` : ''}</span>
+                        <span id="badge-info-${ex.exerciseId}">${badgesHTML}</span>
                         ${prevPerf ? `<span>Anterior (${prevPerf.date}): <strong style="color:#60A5FA;">${prevPerf.setsText}</strong></span>` : ''}
                     </div>
                 </div>
@@ -413,19 +476,34 @@ function _renderExerciseList() {
 
             <!-- Cabecera series -->
             <div style="display:grid;grid-template-columns:32px 1fr 1fr auto;gap:6px;margin-bottom:6px;color:var(--text-3);font-size:0.75rem;text-transform:uppercase;letter-spacing:.04em;padding:0 2px;">
-                <span>#</span><span>Reps</span><span>Kg</span><span></span>
+                ${headersHTML}
             </div>
+
             ${ex.sets.map((set, i) => {
                 const isDone = !!set.done;
+                let input1HTML = '';
+                let input2HTML = '';
+
+                if (trackingType === 'steps') {
+                    input1HTML = `<input type="number" value="${set.steps !== undefined ? set.steps : 5000}" step="100" placeholder="Pasos" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'steps',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input2HTML = `<input type="number" value="${set.mins !== undefined ? set.mins : 45}" placeholder="Min" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'mins',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                } else if (trackingType === 'cardio_distance') {
+                    input1HTML = `<input type="number" value="${set.mins !== undefined ? set.mins : 30}" placeholder="Min" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'mins',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input2HTML = `<input type="number" value="${set.km !== undefined ? set.km : ''}" step="0.1" placeholder="Km (opcional)" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'km',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                } else if (trackingType === 'time_hold') {
+                    input1HTML = `<input type="number" value="${set.secs !== undefined ? set.secs : 45}" step="5" placeholder="Seg" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'secs',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input2HTML = `<input type="number" value="${set.kg !== undefined ? set.kg : 0}" step="0.5" placeholder="Lastre kg" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'kg',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                } else {
+                    // weight_reps or calisthenics
+                    input1HTML = `<input type="number" value="${set.reps !== undefined ? set.reps : 10}" min="1" max="100" placeholder="Reps" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'reps',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input2HTML = `<input type="number" value="${set.kg !== undefined ? set.kg : 0}" min="0" step="0.5" placeholder="${trackingType === 'calisthenics' ? 'Lastre kg' : 'Kg'}" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'kg',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                }
+
                 return `
                 <div style="display:grid;grid-template-columns:32px 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px;padding:4px 6px;border-radius:8px;background:${isDone ? 'rgba(16,185,129,0.12)' : 'var(--bg-elevated)'};border:1px solid ${isDone ? 'rgba(16,185,129,0.35)' : 'var(--border-base)'};transition:.2s;">
                     <span style="color:${isDone ? 'var(--primary-text)' : 'var(--text-3)'};font-size:0.85rem;font-weight:700;text-align:center;">${i + 1}</span>
-                    <input type="number" value="${set.reps}" min="1" max="100"
-                        oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'reps',this.value)"
-                        style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">
-                    <input type="number" value="${set.kg}" min="0" step="0.5"
-                        oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'kg',this.value)"
-                        style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">
+                    ${input1HTML}
+                    ${input2HTML}
                     <div style="display:flex;gap:4px;">
                         <button onclick="window._workoutToggleSetDone('${ex.exerciseId}',${i})" title="${isDone ? 'Completado' : 'Marcar completado'}"
                             style="padding:4px 6px;background:${isDone ? 'var(--primary)' : 'var(--bg-card)'};color:${isDone ? '#FFF' : 'var(--text-2)'};border:1px solid ${isDone ? 'var(--primary)' : 'var(--border-base)'};border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
@@ -445,7 +523,7 @@ function _renderExerciseList() {
             }).join('')}
             <button onclick="window._workoutAddSet('${ex.exerciseId}')"
                 style="margin-top:8px;padding:5px 12px;background:transparent;color:var(--text-2);border:1px dashed var(--border-base);border-radius:6px;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:4px;">
-                <span class="material-icons" style="font-size:14px;">add</span> Añadir serie
+                <span class="material-icons" style="font-size:14px;">add</span> Añadir ${trackingType === 'steps' || trackingType === 'cardio_distance' ? 'bloque' : 'serie'}
             </button>
         </div>
         `;
@@ -457,7 +535,7 @@ function _renderExerciseList() {
     window._workoutUpdateSet = (id, i, field, val) => {
         updateSet(id, i, field, val);
         _updateKcalDisplay();
-        _update1RMDisplay(id);
+        _renderExerciseList();
     };
     window._workoutToggleSetDone = (id, i) => {
         const isDone = toggleSetDone(id, i);
