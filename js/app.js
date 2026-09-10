@@ -24,6 +24,7 @@ import { startUpdateChecker, performUpdate } from './modules/ui/update.js';
 import { showNotification } from './modules/ui/notifications.js';
 import { initSportTabs } from './modules/ui/workout-ui.js?v=501';
 import { openBarcodeScanner, closeBarcodeScanner } from './modules/barcode.js';
+import { initGoogleFitAutoSync, renderGoogleFitStatusUI, connectGoogleFit, disconnectGoogleFit } from './modules/google-fit.js';
 
 // ==================== SERVICE WORKER ====================
 if ('serviceWorker' in navigator) {
@@ -54,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupOnboardingListeners();
     initWorkoutPlan();
     initSportTabs();
+    initGoogleFitAutoSync();
+    renderGoogleFitStatusUI();
     startUpdateChecker();
 
     // Limpiar el query param de cache-buster (_r) que deja performUpdate en la URL
@@ -108,3 +111,5 @@ window.renderWeightHistory = renderWeightHistory;
 window.showNotification = showNotification;
 window.openBarcodeScanner = openBarcodeScanner;
 window.closeBarcodeScanner = closeBarcodeScanner;
+window.connectGoogleFit = connectGoogleFit;
+window.disconnectGoogleFit = disconnectGoogleFit;

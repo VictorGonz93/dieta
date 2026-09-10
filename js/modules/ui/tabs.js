@@ -33,6 +33,7 @@ export function showTab(tabId) {
         import('../stats.js').then(m => m.displayGoalsTracking());
     } else if (tabId === 'planteamiento') {
         import('../workout.js').then(m => m.initWorkoutPlan());
+        import('../google-fit.js').then(m => m.renderGoogleFitStatusUI());
     } else if (tabId === 'historial' || tabId === 'graficos') {
         setTimeout(() => {
             import('../charts.js').then(m => {

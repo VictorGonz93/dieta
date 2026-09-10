@@ -53,6 +53,9 @@
     <!-- Html5Qrcode (Barcode Scanner) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
+    <!-- Google Identity Services (Google Fit API) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
     <style>
         /* These base styles are overridden by css/styles.css */
     </style>
@@ -618,6 +621,9 @@
                         <div class="stat-card mb-6">
                             <p class="text-slate-300 mb-6">Personaliza qué actividad realizarás cada día de la semana. Estos datos se usan para calcular tus necesidades calóricas automáticamente.</p>
 
+                            <!-- Widget Google Fit -->
+                            <div id="googleFitConfigContainer" class="mb-6"></div>
+
                             <div class="space-y-4">
                                 <!-- Monday -->
                                 <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-800/50 p-2 sm:p-4 rounded-lg border border-slate-700">
@@ -1069,4 +1075,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250527-66"></script>
+    <script type="module" src="js/app.js?v=20250527-67"></script>
