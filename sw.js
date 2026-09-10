@@ -1,9 +1,10 @@
-const CACHE_VERSION = 71; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 72; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
     '/dieta/',
     '/dieta/index.html',
+    '/dieta/privacy.html',
     '/dieta/js/app.js',
     '/dieta/js/modules/state.js',
     '/dieta/js/modules/constants.js',

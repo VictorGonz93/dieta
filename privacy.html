@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - Apex Nutrition</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: #06090F;
+            color: #DBE8F8;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #0B1220;
+            border: 1px solid #1E293B;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        h1 {
+            color: #10B981;
+            font-size: 2rem;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        h2 {
+            color: #60A5FA;
+            font-size: 1.25rem;
+            margin-top: 28px;
+            border-bottom: 1px solid #1E293B;
+            padding-bottom: 8px;
+        }
+        p, li {
+            color: #94A3B8;
+            font-size: 0.95rem;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        .highlight {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10B981;
+            padding: 12px 16px;
+            border-radius: 4px;
+            color: #E2E8F0;
+            margin: 20px 0;
+        }
+        a {
+            color: #38BDF8;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #64748B;
+            border-top: 1px solid #1E293B;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <img src="icons/icon-192.png" alt="Apex Logo" style="width: 40px; height: 40px; border-radius: 8px;">
+            Política de Privacidad &mdash; Apex Nutrition
+        </h1>
+        <p><strong>Última actualización:</strong> 11 de septiembre de 2026</p>
+
+        <div class="highlight">
+            <strong>Resumen Ejecutivo:</strong> Apex Nutrition es una Progressive Web App (PWA) de uso personal y privado. <strong>Todos tus datos nutricionales, corporales y de ejercicio se almacenan exclusivamente de forma local en tu navegador (localStorage).</strong> Ningún dato personal o de salud es enviado, vendido o compartido con servidores externos de terceros.
+        </div>
+
+        <h2>1. Información que recopilamos</h2>
+        <p>La aplicación recopila los siguientes datos proporcionados voluntariamente por el usuario para efectuar los cálculos metabólicos y de rendimiento:</p>
+        <ul>
+            <li><strong>Datos antropométricos:</strong> Edad, altura, peso inicial, peso actual y peso objetivo.</li>
+            <li><strong>Datos nutricionales:</strong> Alimentos consumidos, macronutrientes (proteínas, carbohidratos, grasas) y calorías diarias.</li>
+            <li><strong>Datos de actividad física:</strong> Ejercicios realizados, series, repeticiones, peso levantado y recuento de pasos.</li>
+        </ul>
+
+        <h2>2. Uso de la API de Google Fit (Google OAuth 2.0)</h2>
+        <p>Si eliges conectar tu cuenta de Google Fit con Apex Nutrition, la aplicación solicitará permiso de solo lectura para el alcance:</p>
+        <p><code style="color: #34D399; background: #06090F; padding: 4px 8px; border-radius: 4px;">https://www.googleapis.com/auth/fitness.activity.read</code></p>
+        <p><strong>Uso exclusivo de los datos de Google Fit:</strong></p>
+        <ul>
+            <li>Consultamos únicamente el número total de pasos acumulados durante el día actual (<code>com.google.step_count.delta</code>).</li>
+            <li>El número de pasos se utiliza de forma inmediata e in situ dentro de la PWA para calcular el gasto calórico estimado del día.</li>
+            <li><strong>No transferimos, no vendemos, no almacenamos en servidores externos y no utilizamos los datos de Google Fit para publicidad, marketing ni investigación de mercado.</strong></li>
+        </ul>
+
+        <h2>3. Almacenamiento y Seguridad de los Datos</h2>
+        <p>El 100% de la información gestionada por la app reside localmente en la memoria de tu dispositivo mediante la tecnología <code>localStorage</code> del navegador web. Tienes el control total sobre tus datos y puedes exportarlos en un archivo JSON o eliminarlos por completo en cualquier momento usando la función "Limpiar Todo" en la sección de Configuración.</p>
+
+        <h2>4. Cookies y Tecnologías de Rastreo</h2>
+        <p>Apex Nutrition no utiliza cookies publicitarias, ni herramientas de rastreo ni analíticas de terceros (como Google Analytics, Facebook Pixel, etc.). Únicamente utilizamos Service Workers para garantizar el funcionamiento offline de la aplicación.</p>
+
+        <h2>5. Cambios en esta Política</h2>
+        <p>Nos reservamos el derecho de actualizar esta política de privacidad en cualquier momento. Cualquier modificación se reflejará en esta misma página web.</p>
+
+        <h2>6. Contacto</h2>
+        <p>Si tienes cualquier duda respecto a esta política de privacidad o al funcionamiento de la aplicación, puedes ponerte en contacto a través de nuestro repositorio oficial de GitHub o vía correo electrónico.</p>
+
+        <div class="footer">
+            &copy; 2026 Apex Nutrition &bull; PWA Local & Offline First &bull; <a href="index.html">Volver a la App</a>
+        </div>
+    </div>
+</body>
+</html>
