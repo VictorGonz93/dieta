@@ -334,31 +334,43 @@ export function initTodayWorkout(dateKey) {
 export function getTodayWorkout() { return _todayWorkout; }
 
 export function addExerciseToWorkout(exerciseId) {
-    if (!_todayWorkout) return;
-    const ex = EXERCISES_DB.find(e => e.id === exerciseId);
-    if (!ex || _todayWorkout.exercises.some(e => e.exerciseId === exerciseId)) return;
-    _todayWorkout.exercises.push({ exerciseId, name: ex.name, muscle: ex.muscle, sets: [{ reps: 10, kg: 0 }] });
+    if (!_todayWorkout) return false;
+    const allEx = getExercisesDB();
+    const ex = allEx.find(e => e.id == exerciseId);
+    if (!ex) return false;
+    if (_todayWorkout.exercises.some(e => e.exerciseId == exerciseId)) {
+        showNotification(`"${ex.name}" ya está en el entreno de hoy`, 'warning');
+        return false;
+    }
+    _todayWorkout.exercises.push({
+        exerciseId: ex.id,
+        name: ex.name,
+        muscle: ex.muscle,
+        sets: [{ reps: 10, kg: 0, done: false }]
+    });
     _autoSave();
+    showNotification(`"${ex.name}" añadido al entreno de hoy`, 'success');
+    return true;
 }
 
 export function removeExerciseFromWorkout(exerciseId) {
     if (!_todayWorkout) return;
-    _todayWorkout.exercises = _todayWorkout.exercises.filter(e => e.exerciseId !== exerciseId);
+    _todayWorkout.exercises = _todayWorkout.exercises.filter(e => e.exerciseId != exerciseId);
     _autoSave();
 }
 
 export function addSetToExercise(exerciseId) {
     if (!_todayWorkout) return;
-    const ex = _todayWorkout.exercises.find(e => e.exerciseId === exerciseId);
+    const ex = _todayWorkout.exercises.find(e => e.exerciseId == exerciseId);
     if (!ex) return;
     const last = ex.sets[ex.sets.length - 1];
-    ex.sets.push({ reps: last?.reps || 10, kg: last?.kg || 0 });
+    ex.sets.push({ reps: last?.reps || 10, kg: last?.kg || 0, done: false });
     _autoSave();
 }
 
 export function removeSetFromExercise(exerciseId, setIndex) {
     if (!_todayWorkout) return;
-    const ex = _todayWorkout.exercises.find(e => e.exerciseId === exerciseId);
+    const ex = _todayWorkout.exercises.find(e => e.exerciseId == exerciseId);
     if (!ex || ex.sets.length <= 1) return;
     ex.sets.splice(setIndex, 1);
     _autoSave();
@@ -366,10 +378,41 @@ export function removeSetFromExercise(exerciseId, setIndex) {
 
 export function updateSet(exerciseId, setIndex, field, value) {
     if (!_todayWorkout) return;
-    const ex = _todayWorkout.exercises.find(e => e.exerciseId === exerciseId);
+    const ex = _todayWorkout.exercises.find(e => e.exerciseId == exerciseId);
     if (!ex || !ex.sets[setIndex]) return;
-    ex.sets[setIndex][field] = parseFloat(value) || 0;
+    if (field === 'done') {
+        ex.sets[setIndex].done = !!value;
+    } else {
+        ex.sets[setIndex][field] = parseFloat(value) || 0;
+    }
     _autoSave();
+}
+
+export function toggleSetDone(exerciseId, setIndex) {
+    if (!_todayWorkout) return false;
+    const ex = _todayWorkout.exercises.find(e => e.exerciseId == exerciseId);
+    if (!ex || !ex.sets[setIndex]) return false;
+    ex.sets[setIndex].done = !ex.sets[setIndex].done;
+    _autoSave();
+    return ex.sets[setIndex].done;
+}
+
+export function getFrequentExercises() {
+    const sessions = getWorkoutSessions();
+    const frequencyMap = {};
+    Object.values(sessions).forEach(sess => {
+        if (sess && sess.exercises) {
+            sess.exercises.forEach(ex => {
+                frequencyMap[ex.exerciseId] = (frequencyMap[ex.exerciseId] || 0) + 1;
+            });
+        }
+    });
+    const allEx = getExercisesDB();
+    return Object.entries(frequencyMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([id]) => allEx.find(e => e.id == id))
+        .filter(Boolean);
 }
 
 export function setWorkoutDuration(minutes) {

@@ -4,7 +4,7 @@ import {
     EXERCISES_DB, MUSCLES, EQUIPMENT_TYPES, getExercisesDB, saveCustomExercise, calculate1RM,
     initTodayWorkout, getTodayWorkout,
     addExerciseToWorkout, removeExerciseFromWorkout,
-    addSetToExercise, removeSetFromExercise, updateSet,
+    addSetToExercise, removeSetFromExercise, updateSet, toggleSetDone, getFrequentExercises,
     setWorkoutDuration, setWorkoutNotes,
     finalizeWorkout, estimateWorkoutKcal,
     getWorkoutSessions, getExercisePRs,
@@ -206,20 +206,51 @@ export function renderTodayWorkout() {
 
             <!-- Añadir ejercicio -->
             <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;">
-                <div style="font-size:0.85rem;font-weight:600;color:var(--text-2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Añadir ejercicio</div>
-                <div style="display:flex;gap:8px;">
-                    <select id="workout-ex-select" style="flex:1;padding:8px 12px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;">
-                        <option value="">Selecciona ejercicio...</option>
-                        ${MUSCLES.filter(m => m !== 'Todos').map(muscle => `
-                            <optgroup label="${muscle}">
-                                ${EXERCISES_DB.filter(e => e.muscle === muscle).map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
-                            </optgroup>
-                        `).join('')}
-                    </select>
-                    <button onclick="window._workoutAddEx()" style="padding:8px 16px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;">
-                        <span class="material-icons" style="font-size:18px;vertical-align:middle;">add</span>
-                    </button>
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text-2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Añadir ejercicio a la sesión</div>
+                
+                <!-- Buscador en tiempo real -->
+                <div style="position:relative;margin-bottom:8px;">
+                    <span class="material-icons" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:18px;">search</span>
+                    <input type="text" id="workout-add-ex-input" placeholder="Buscar por nombre (ej: Press, Sentadilla, Curl)..."
+                        oninput="window._filterTodayAddExercises(this.value)"
+                        style="width:100%;padding:10px 12px 10px 38px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;box-sizing:border-box;">
+                    <div id="workout-add-ex-suggestions" style="position:absolute;top:100%;left:0;right:0;z-index:100;background:var(--bg-card);border:1px solid var(--border-base);border-radius:8px;max-height:220px;overflow-y:auto;display:none;box-shadow:0 10px 30px rgba(0,0,0,0.5);margin-top:4px;"></div>
                 </div>
+
+                ${(() => {
+                    const frequentEx = getFrequentExercises();
+                    if (!frequentEx || frequentEx.length === 0) return '';
+                    return `
+                    <div style="margin-top:8px;">
+                        <div style="font-size:0.75rem;color:var(--text-3);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Acceso rápido (Más realizados):</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                            ${frequentEx.map(fe => `
+                                <button onclick="window._workoutSelectEx('${fe.id}')"
+                                    style="padding:5px 10px;background:var(--bg-elevated);border:1px solid var(--border-base);color:var(--text-1);border-radius:20px;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                    <span style="font-weight:600;color:var(--primary-text);">${fe.name}</span>
+                                    <span style="font-size:0.7rem;color:var(--text-3);">${fe.muscle}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                })()}
+
+                <details style="margin-top:10px;">
+                    <summary style="font-size:0.78rem;color:var(--text-3);cursor:pointer;user-select:none;">Ver desplegable por grupos musculares</summary>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <select id="workout-ex-select" style="flex:1;padding:8px 12px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;">
+                            <option value="">Selecciona ejercicio...</option>
+                            ${MUSCLES.filter(m => m !== 'Todos').map(muscle => `
+                                <optgroup label="${muscle}">
+                                    ${getExercisesDB().filter(e => e.muscle === muscle).map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
+                                </optgroup>
+                            `).join('')}
+                        </select>
+                        <button onclick="window._workoutAddEx()" style="padding:8px 16px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;">
+                            <span class="material-icons" style="font-size:18px;vertical-align:middle;">add</span>
+                        </button>
+                    </div>
+                </details>
             </div>
 
             <!-- Lista de ejercicios -->
@@ -251,13 +282,16 @@ export function renderTodayWorkout() {
 
     // Handlers globales
     window._workoutAddEx = () => {
+        const input = document.getElementById('workout-add-ex-input');
         const sel = document.getElementById('workout-ex-select');
-        const id = parseInt(sel?.value);
+        const id = sel?.value;
         if (!id) return;
-        addExerciseToWorkout(id);
-        sel.value = '';
-        _renderExerciseList();
-        _updateKcalDisplay();
+        if (addExerciseToWorkout(id)) {
+            if (sel) sel.value = '';
+            if (input) input.value = '';
+            _renderExerciseList();
+            _updateKcalDisplay();
+        }
     };
     window._workoutSetDuration = (v) => {
         setWorkoutDuration(v);
@@ -291,6 +325,55 @@ export function renderTodayWorkout() {
     };
 }
 
+window._filterTodayAddExercises = (query) => {
+    const suggestionsEl = document.getElementById('workout-add-ex-suggestions');
+    if (!suggestionsEl) return;
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+        suggestionsEl.innerHTML = '';
+        suggestionsEl.style.display = 'none';
+        return;
+    }
+    const allEx = getExercisesDB();
+    const workout = getTodayWorkout();
+    const matches = allEx.filter(e => e.name.toLowerCase().includes(q)).slice(0, 8);
+
+    if (matches.length === 0) {
+        suggestionsEl.innerHTML = '<div style="padding:10px 14px;color:var(--text-3);font-size:0.85rem;">No hay ejercicios con ese nombre</div>';
+        suggestionsEl.style.display = 'block';
+        return;
+    }
+
+    suggestionsEl.style.display = 'block';
+    suggestionsEl.innerHTML = matches.map(e => {
+        const isAdded = workout?.exercises?.some(ex => ex.exerciseId == e.id);
+        return `
+            <div onclick="${isAdded ? '' : `window._workoutSelectEx('${e.id}')`}"
+                style="padding:10px 14px;border-bottom:1px solid var(--border-dim);display:flex;align-items:center;justify-content:space-between;cursor:${isAdded ? 'default' : 'pointer'};opacity:${isAdded ? 0.5 : 1};background:var(--bg-elevated);">
+                <div>
+                    <span style="font-weight:600;color:var(--text-1);font-size:0.9rem;">${e.name}</span>
+                    <span style="font-size:0.75rem;color:var(--text-3);margin-left:6px;">${e.muscle}</span>
+                </div>
+                ${isAdded 
+                    ? '<span style="font-size:0.75rem;color:var(--text-3);">Añadido</span>'
+                    : '<button style="padding:4px 10px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:6px;font-size:0.8rem;font-weight:600;">+ Añadir</button>'
+                }
+            </div>
+        `;
+    }).join('');
+};
+
+window._workoutSelectEx = (exerciseId) => {
+    if (addExerciseToWorkout(exerciseId)) {
+        const input = document.getElementById('workout-add-ex-input');
+        if (input) input.value = '';
+        const suggestionsEl = document.getElementById('workout-add-ex-suggestions');
+        if (suggestionsEl) { suggestionsEl.innerHTML = ''; suggestionsEl.style.display = 'none'; }
+        _renderExerciseList();
+        _updateKcalDisplay();
+    }
+};
+
 function _renderExerciseList() {
     const container = document.getElementById('workout-exercises-list');
     if (!container) return;
@@ -318,11 +401,11 @@ function _renderExerciseList() {
                         <span style="font-size:0.75rem;color:var(--text-2);background:var(--bg-elevated);padding:2px 8px;border-radius:20px;">${ex.muscle}</span>
                     </div>
                     <div style="font-size:0.75rem;color:var(--text-3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
-                        ${est1RM > 0 ? `<span>1RM est: <strong style="color:#10B981;">${est1RM} kg</strong></span>` : ''}
+                        <span id="1rm-badge-${ex.exerciseId}">${est1RM > 0 ? `1RM est: <strong style="color:#10B981;">${est1RM} kg</strong>` : ''}</span>
                         ${prevPerf ? `<span>Anterior (${prevPerf.date}): <strong style="color:#60A5FA;">${prevPerf.setsText}</strong></span>` : ''}
                     </div>
                 </div>
-                <button onclick="window._workoutRemoveEx(${ex.exerciseId})"
+                <button onclick="window._workoutRemoveEx('${ex.exerciseId}')" title="Eliminar ejercicio"
                     style="padding:4px 8px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.3);border-radius:6px;cursor:pointer;font-size:0.8rem;">
                     <span class="material-icons" style="font-size:14px;vertical-align:middle;">close</span>
                 </button>
@@ -332,28 +415,35 @@ function _renderExerciseList() {
             <div style="display:grid;grid-template-columns:32px 1fr 1fr auto;gap:6px;margin-bottom:6px;color:var(--text-3);font-size:0.75rem;text-transform:uppercase;letter-spacing:.04em;padding:0 2px;">
                 <span>#</span><span>Reps</span><span>Kg</span><span></span>
             </div>
-            ${ex.sets.map((set, i) => `
-                <div style="display:grid;grid-template-columns:32px 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:4px;">
-                    <span style="color:var(--text-3);font-size:0.85rem;text-align:center;">${i + 1}</span>
+            ${ex.sets.map((set, i) => {
+                const isDone = !!set.done;
+                return `
+                <div style="display:grid;grid-template-columns:32px 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px;padding:4px 6px;border-radius:8px;background:${isDone ? 'rgba(16,185,129,0.12)' : 'var(--bg-elevated)'};border:1px solid ${isDone ? 'rgba(16,185,129,0.35)' : 'var(--border-base)'};transition:.2s;">
+                    <span style="color:${isDone ? 'var(--primary-text)' : 'var(--text-3)'};font-size:0.85rem;font-weight:700;text-align:center;">${i + 1}</span>
                     <input type="number" value="${set.reps}" min="1" max="100"
-                        onchange="window._workoutUpdateSet(${ex.exerciseId},${i},'reps',this.value)"
-                        style="padding:5px 8px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">
+                        oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'reps',this.value)"
+                        style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">
                     <input type="number" value="${set.kg}" min="0" step="0.5"
-                        onchange="window._workoutUpdateSet(${ex.exerciseId},${i},'kg',this.value)"
-                        style="padding:5px 8px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">
+                        oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'kg',this.value)"
+                        style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">
                     <div style="display:flex;gap:4px;">
-                        <button onclick="startRestTimer(90)" title="Iniciar descanso 90s"
-                            style="padding:4px 6px;background:var(--bg-elevated);color:var(--primary);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
-                            <span class="material-icons" style="font-size:14px;">timer</span>
+                        <button onclick="window._workoutToggleSetDone('${ex.exerciseId}',${i})" title="${isDone ? 'Completado' : 'Marcar completado'}"
+                            style="padding:4px 6px;background:${isDone ? 'var(--primary)' : 'var(--bg-card)'};color:${isDone ? '#FFF' : 'var(--text-2)'};border:1px solid ${isDone ? 'var(--primary)' : 'var(--border-base)'};border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                            <span class="material-icons" style="font-size:15px;">${isDone ? 'check_circle' : 'check'}</span>
                         </button>
-                        <button onclick="window._workoutRemoveSet(${ex.exerciseId},${i})"
+                        <button onclick="startRestTimer(90)" title="Iniciar descanso 90s"
+                            style="padding:4px 6px;background:var(--bg-card);color:var(--primary);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
+                            <span class="material-icons" style="font-size:15px;">timer</span>
+                        </button>
+                        <button onclick="window._workoutRemoveSet('${ex.exerciseId}',${i})" title="Eliminar serie"
                             style="padding:4px 6px;background:transparent;color:var(--text-3);border:1px solid var(--border-dim);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
-                            <span class="material-icons" style="font-size:14px;">remove</span>
+                            <span class="material-icons" style="font-size:15px;">remove</span>
                         </button>
                     </div>
                 </div>
-            `).join('')}
-            <button onclick="window._workoutAddSet(${ex.exerciseId})"
+                `;
+            }).join('')}
+            <button onclick="window._workoutAddSet('${ex.exerciseId}')"
                 style="margin-top:8px;padding:5px 12px;background:transparent;color:var(--text-2);border:1px dashed var(--border-base);border-radius:6px;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:4px;">
                 <span class="material-icons" style="font-size:14px;">add</span> Añadir serie
             </button>
@@ -364,7 +454,36 @@ function _renderExerciseList() {
     window._workoutRemoveEx = (id) => { removeExerciseFromWorkout(id); _renderExerciseList(); _updateKcalDisplay(); };
     window._workoutAddSet = (id) => { addSetToExercise(id); _renderExerciseList(); _updateKcalDisplay(); };
     window._workoutRemoveSet = (id, i) => { removeSetFromExercise(id, i); _renderExerciseList(); _updateKcalDisplay(); };
-    window._workoutUpdateSet = (id, i, field, val) => { updateSet(id, i, field, val); _updateKcalDisplay(); };
+    window._workoutUpdateSet = (id, i, field, val) => {
+        updateSet(id, i, field, val);
+        _updateKcalDisplay();
+        _update1RMDisplay(id);
+    };
+    window._workoutToggleSetDone = (id, i) => {
+        const isDone = toggleSetDone(id, i);
+        if (isDone) {
+            startRestTimer(90);
+        }
+        _renderExerciseList();
+        _updateKcalDisplay();
+    };
+}
+
+function _update1RMDisplay(exerciseId) {
+    const workout = getTodayWorkout();
+    if (!workout) return;
+    const ex = workout.exercises.find(e => e.exerciseId == exerciseId);
+    if (!ex) return;
+    const bestSet = ex.sets.reduce((b, s) => {
+        const val = (parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0);
+        const bVal = (parseFloat(b.kg) || 0) * (parseInt(b.reps) || 0);
+        return val > bVal ? s : b;
+    }, { kg: 0, reps: 0 });
+    const est1RM = calculate1RM(bestSet.kg, bestSet.reps);
+    const badge = document.getElementById(`1rm-badge-${exerciseId}`);
+    if (badge) {
+        badge.innerHTML = est1RM > 0 ? `1RM est: <strong style="color:#10B981;">${est1RM} kg</strong>` : '';
+    }
 }
 
 function _updateKcalDisplay() {
@@ -373,6 +492,13 @@ function _updateKcalDisplay() {
     if (!el || !workout) return;
     const kcal = estimateWorkoutKcal(workout);
     el.textContent = kcal > 0 ? kcal : '—';
+
+    // Sincronizar en tiempo real los objetivos de la pantalla principal
+    import('../meals.js').then(m => {
+        const dateKey = getDateKey(AppState.currentDate);
+        if (AppState.allDays[dateKey]) m.updateDaySummary(AppState.allDays[dateKey]);
+    });
+    import('../config-settings.js').then(m => m.updateHeaderInfo());
 }
 
 // ─── Base de datos de ejercicios ──────────────────────────────────────────────
