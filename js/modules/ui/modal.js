@@ -2,6 +2,7 @@
 
 import AppState from '../state.js';
 import { UNIT_CONVERSIONS } from '../constants.js';
+import { getDateKey } from '../storage.js';
 
 export function openModal(mealType) {
     AppState.currentMealForModal = mealType;
@@ -90,7 +91,7 @@ export function renderCombosInModal() {
     if (!container) return;
 
     const combos = AppState.mealCombos || [];
-    const dateKey = AppState.currentDate ? AppState.currentDate.toISOString().split('T')[0] : '';
+    const dateKey = AppState.currentDate ? getDateKey(AppState.currentDate) : '';
     const dayData = AppState.allDays[dateKey];
     const currentMealFoods = (dayData && AppState.currentMealForModal && dayData.meals[AppState.currentMealForModal]) || [];
 

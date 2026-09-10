@@ -10,6 +10,7 @@ const DEFAULT_CLIENT_ID = '188472915937-i8jb9ericnjehqut53q6j67q6detusk1.apps.go
 
 let tokenClient = null;
 let syncInterval = null;
+let tokenRefreshTimer = null;
 
 /**
  * Obtiene las credenciales guardadas
@@ -55,9 +56,62 @@ export function isGoogleFitConnected() {
 }
 
 /**
- * Inicia el proceso de autenticación con Google Identity Services
+ * Programa la renovación automática del token ~50 min antes de que expire
  */
-export function connectGoogleFit() {
+function scheduleTokenRefresh() {
+    if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+
+    const creds = getFitCredentials();
+    if (!creds.accessToken || !creds.expiresAt) return;
+
+    const msUntilRefresh = Math.max(creds.expiresAt - Date.now() - 50 * 60 * 1000, 30 * 1000);
+    tokenRefreshTimer = setTimeout(async () => {
+        const freshCreds = getFitCredentials();
+        if (!freshCreds.accessToken) return;
+        try {
+            await silentTokenRefresh();
+        } catch (e) {
+            console.warn('Auto-refresh del token falló:', e);
+        }
+    }, msUntilRefresh);
+}
+
+/**
+ * Renueva el token silenciosamente sin popup (prompt: 'none')
+ */
+function silentTokenRefresh() {
+    return new Promise((resolve, reject) => {
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+            reject(new Error('Google library not loaded'));
+            return;
+        }
+
+        const client = google.accounts.oauth2.initTokenClient({
+            client_id: DEFAULT_CLIENT_ID,
+            scope: GOOGLE_FIT_SCOPE,
+            callback: (tokenResponse) => {
+                if (tokenResponse && tokenResponse.access_token) {
+                    saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, DEFAULT_CLIENT_ID);
+                    scheduleTokenRefresh();
+                    resolve(tokenResponse.access_token);
+                } else {
+                    reject(new Error('No token in silent refresh response'));
+                }
+            },
+            error_callback: (err) => {
+                reject(err);
+            }
+        });
+
+        client.requestAccessToken({ prompt: 'none' });
+    });
+}
+
+/**
+ * Inicia el proceso de autenticación con Google Identity Services
+ * @param {boolean} silent - Si true, intenta renovar sin popup (prompt: 'none')
+ */
+export function connectGoogleFit(silent = false) {
     if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
         showNotification('Cargando librería de Google... Reintenta en unos segundos.', 'warning');
         return;
@@ -70,23 +124,30 @@ export function connectGoogleFit() {
             callback: async (tokenResponse) => {
                 if (tokenResponse && tokenResponse.access_token) {
                     saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, DEFAULT_CLIENT_ID);
-                    showNotification('✅ ¡Conectado con Google Fit! Sincronizando pasos...', 'success');
+                    if (!silent) {
+                        showNotification('✅ ¡Conectado con Google Fit! Sincronizando pasos...', 'success');
+                    }
                     renderGoogleFitStatusUI();
-                    await syncTodayStepsFromGoogleFit(true);
-                } else {
+                    await syncTodayStepsFromGoogleFit(!silent);
+                    scheduleTokenRefresh();
+                } else if (!silent) {
                     showNotification('No se pudo completar la conexión con Google. Revisa tu cuenta.', 'error');
                 }
             },
             error_callback: (err) => {
                 console.error('Error Google OAuth:', err);
-                showNotification('Error de autorización con Google', 'error');
+                if (!silent) {
+                    showNotification('Error de autorización con Google', 'error');
+                }
             }
         });
 
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        tokenClient.requestAccessToken({ prompt: silent ? 'none' : 'consent' });
     } catch (err) {
         console.error('Exception Google Fit:', err);
-        showNotification('Error al iniciar Google Fit: ' + (err.message || err), 'error');
+        if (!silent) {
+            showNotification('Error al iniciar Google Fit: ' + (err.message || err), 'error');
+        }
     }
 }
 
@@ -98,12 +159,20 @@ export async function fetchTodayStepsFromGoogleFit() {
     if (!creds.accessToken) return null;
 
     if (Date.now() >= creds.expiresAt) {
-        console.log('Token de Google Fit expirado. Solicitando renovación silenciosa...');
-        // Si venció el token, re-solicitar token
+        console.log('Token de Google Fit expirado. Intentando refresh silencioso...');
         if (creds.autoSync && window.google?.accounts?.oauth2) {
-            connectGoogleFit();
+            try {
+                await silentTokenRefresh();
+                // Re-leer credenciales tras el refresh
+                const freshCreds = getFitCredentials();
+                if (!freshCreds.accessToken || Date.now() >= freshCreds.expiresAt) return null;
+            } catch {
+                showNotification('La conexión con Google Fit ha expirado. Reconecta desde la pestaña de entrenamiento.', 'warning');
+                return null;
+            }
+        } else {
+            return null;
         }
-        return null;
     }
 
     // Timestamps de inicio del día de hoy a las 00:00:00 y ahora
@@ -137,6 +206,8 @@ export async function fetchTodayStepsFromGoogleFit() {
             if (response.status === 401) {
                 console.warn('Google Fit Token denegado o expirado.');
                 localStorage.removeItem('gfit_access_token');
+                localStorage.removeItem('gfit_expires_at');
+                showNotification('La conexión con Google Fit ha expirado. Reconecta desde la pestaña de entrenamiento.', 'warning');
                 renderGoogleFitStatusUI();
             }
             throw new Error(`Google Fit API error ${response.status}`);
@@ -246,6 +317,10 @@ export function renderGoogleFitStatusUI(lastSyncedSteps = null) {
     const connected = isGoogleFitConnected();
 
     if (connected) {
+        const w = AppState.config.currentWeight || 75;
+        const stepsForCalc = lastSyncedSteps || 0;
+        const estKcal = stepsForCalc > 0 ? Math.round(3.8 * w * (stepsForCalc / 100 / 60)) : 0;
+
         container.innerHTML = `
             <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
@@ -255,8 +330,10 @@ export function renderGoogleFitStatusUI(lastSyncedSteps = null) {
                     <div>
                         <div style="font-size: 0.95rem; font-weight: 700; color: #F8FAFC;">Google Fit Conectado</div>
                         <div style="font-size: 0.8rem; color: #94A3B8;">
-                            ${lastSyncedSteps !== null ? `Pasos de hoy: <strong style="color:#10B981;">${lastSyncedSteps.toLocaleString('es-ES')}</strong> (auto-sincronizados)` : 'Sincronización automática de pasos activa'}
+                            ${lastSyncedSteps !== null ? `Pasos: <strong style="color:#10B981;">${lastSyncedSteps.toLocaleString('es-ES')}</strong>` : 'Sincronización automática activa'}
+                            ${estKcal > 0 ? ` · <span style="color:#FBBF24;">≈${estKcal} kcal</span>` : ''}
                         </div>
+                        ${lastSyncedSteps !== null ? `<div style="font-size:0.72rem;color:#64748B;margin-top:2px;">MET 3.8 × ${w}kg × (${lastSyncedSteps.toLocaleString('es-ES')}/100/60) = ${estKcal} kcal</div>` : ''}
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px;">
@@ -298,6 +375,7 @@ export function initGoogleFitAutoSync() {
     const creds = getFitCredentials();
     if (creds.autoSync && isGoogleFitConnected()) {
         syncTodayStepsFromGoogleFit(false);
+        scheduleTokenRefresh();
 
         // Re-sincronizar cada 10 minutos
         if (syncInterval) clearInterval(syncInterval);
@@ -317,5 +395,4 @@ export function initGoogleFitAutoSync() {
 // Window Exposures
 window.connectGoogleFit = connectGoogleFit;
 window.disconnectGoogleFit = disconnectGoogleFit;
-window._manualSyncGoogleFit = () => syncTodayStepsFromGoogleFit(true);
 window._manualSyncGoogleFit = () => syncTodayStepsFromGoogleFit(true);

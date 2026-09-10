@@ -545,10 +545,11 @@ export function estimateWorkoutKcal(workout) {
             for (const set of ex.sets) {
                 const steps = parseFloat(set.steps) || 0;
                 const mins = parseFloat(set.mins) || 0;
+                const met = dbEx.met || 3.8;
                 if (steps > 0) {
-                    cardioKcal += steps * 0.04 * (bodyWeight / 75);
+                    const estMins = steps / 100;
+                    cardioKcal += met * bodyWeight * (estMins / 60);
                 } else if (mins > 0) {
-                    const met = dbEx.met || 3.8;
                     cardioKcal += met * bodyWeight * (mins / 60);
                 }
             }

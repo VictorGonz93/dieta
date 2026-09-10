@@ -93,41 +93,53 @@ export async function applyComboToCurrentMeal(comboId) {
     }
 
     const combo = AppState.mealCombos.find(c => c.id == comboId);
-    if (!combo) return;
-
-    const dateKey = getDateKey(AppState.currentDate);
-    if (!AppState.allDays[dateKey]) {
-        const { initializeToday } = await import('./meals.js');
-        initializeToday();
+    if (!combo) {
+        showNotification('Combo no encontrado. Intenta de nuevo.', 'error');
+        return;
     }
 
-    const currentMealList = AppState.allDays[dateKey].meals[AppState.currentMealForModal];
+    try {
+        const dateKey = getDateKey(AppState.currentDate);
+        if (!AppState.allDays[dateKey]) {
+            const { initializeToday } = await import('./meals.js');
+            initializeToday();
+        }
 
-    // Añadir cada alimento del combo a la comida
-    combo.items.forEach(item => {
-        currentMealList.push({
-            name: item.name,
-            quantity: item.quantity,
-            unit: item.unit,
-            kcal: item.kcal,
-            protein: item.protein,
-            carbs: item.carbs,
-            fats: item.fats,
-            time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        const currentMealList = AppState.allDays[dateKey].meals[AppState.currentMealForModal];
+        if (!currentMealList) {
+            showNotification('No se pudo acceder a la comida seleccionada', 'error');
+            return;
+        }
+
+        // Añadir cada alimento del combo a la comida
+        combo.items.forEach(item => {
+            currentMealList.push({
+                name: item.name,
+                quantity: item.quantity,
+                unit: item.unit,
+                kcal: item.kcal,
+                protein: item.protein,
+                carbs: item.carbs,
+                fats: item.fats,
+                time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+            });
         });
-    });
 
-    saveDays();
+        saveDays();
 
-    // Actualizar UI
-    const { renderDay, updateDaySummary } = await import('./meals.js');
-    const { closeModal } = await import('./ui/modal.js');
+        // Actualizar UI
+        const { renderDay, updateDaySummary } = await import('./meals.js');
+        const { closeModal } = await import('./ui/modal.js');
 
-    closeModal();
-    renderDay();
-    updateDaySummary(AppState.allDays[dateKey]);
+        closeModal();
+        renderDay();
+        updateDaySummary(AppState.allDays[dateKey]);
 
-    showNotification(`Combo "${combo.name}" (${combo.items.length} alimentos) añadido`);
+        showNotification(`Combo "${combo.name}" (${combo.items.length} alimentos) añadido`);
+    } catch (err) {
+        console.error('Error aplicando combo:', err);
+        showNotification('Error al aplicar el combo. Reintenta.', 'error');
+    }
 }
 
 window.applyComboToCurrentMeal = applyComboToCurrentMeal;
