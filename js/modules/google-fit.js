@@ -123,12 +123,17 @@ export function connectGoogleFit(silent = false) {
             scope: GOOGLE_FIT_SCOPE,
             callback: async (tokenResponse) => {
                 if (tokenResponse && tokenResponse.access_token) {
+                    console.log('[GoogleFit] Token obtenido correctamente, guardando...');
                     saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, DEFAULT_CLIENT_ID);
                     if (!silent) {
                         showNotification('✅ ¡Conectado con Google Fit! Sincronizando pasos...', 'success');
                     }
                     renderGoogleFitStatusUI();
-                    await syncTodayStepsFromGoogleFit(!silent);
+                    const syncResult = await syncTodayStepsFromGoogleFit(!silent);
+                    console.log('[GoogleFit] Sync post-conexión resultado:', syncResult);
+                    if (!syncResult && !silent) {
+                        showNotification('Conectado, pero no se pudieron obtener los pasos. Haz clic en Sincronizar.', 'warning');
+                    }
                     scheduleTokenRefresh();
                 } else if (!silent) {
                     showNotification('No se pudo completar la conexión con Google. Revisa tu cuenta.', 'error');
@@ -156,21 +161,30 @@ export function connectGoogleFit(silent = false) {
  */
 export async function fetchTodayStepsFromGoogleFit() {
     const creds = getFitCredentials();
-    if (!creds.accessToken) return null;
+    console.log('[GoogleFit] fetchSteps: token exists?', !!creds.accessToken, 'expiresAt:', new Date(creds.expiresAt).toISOString(), 'now:', new Date().toISOString());
+    if (!creds.accessToken) {
+        console.warn('[GoogleFit] No hay token de acceso guardado');
+        return null;
+    }
 
     if (Date.now() >= creds.expiresAt) {
-        console.log('Token de Google Fit expirado. Intentando refresh silencioso...');
+        console.log('[GoogleFit] Token expirado. Intentando refresh silencioso...');
         if (creds.autoSync && window.google?.accounts?.oauth2) {
             try {
                 await silentTokenRefresh();
-                // Re-leer credenciales tras el refresh
                 const freshCreds = getFitCredentials();
-                if (!freshCreds.accessToken || Date.now() >= freshCreds.expiresAt) return null;
-            } catch {
+                if (!freshCreds.accessToken || Date.now() >= freshCreds.expiresAt) {
+                    console.warn('[GoogleFit] Refresh falló, token sigue expirado');
+                    return null;
+                }
+                console.log('[GoogleFit] Refresh silencioso exitoso');
+            } catch (e) {
+                console.warn('[GoogleFit] Refresh silencioso falló:', e);
                 showNotification('La conexión con Google Fit ha expirado. Reconecta desde la pestaña de entrenamiento.', 'warning');
                 return null;
             }
         } else {
+            console.warn('[GoogleFit] Token expirado y no se puede refrescar (autoSync:', creds.autoSync, ')');
             return null;
         }
     }
@@ -203,12 +217,16 @@ export async function fetchTodayStepsFromGoogleFit() {
         });
 
         if (!response.ok) {
+            const errorBody = await response.text().catch(() => 'no body');
+            console.error(`[GoogleFit] API error ${response.status}:`, errorBody);
             if (response.status === 401) {
-                console.warn('Google Fit Token denegado o expirado.');
+                console.warn('[GoogleFit] Token denegado o expirado (401)');
                 localStorage.removeItem('gfit_access_token');
                 localStorage.removeItem('gfit_expires_at');
                 showNotification('La conexión con Google Fit ha expirado. Reconecta desde la pestaña de entrenamiento.', 'warning');
                 renderGoogleFitStatusUI();
+            } else if (response.status === 403) {
+                showNotification('Google Fit: permisos insuficientes. Revisa los permisos en tu cuenta de Google.', 'warning');
             }
             throw new Error(`Google Fit API error ${response.status}`);
         }
@@ -234,9 +252,10 @@ export async function fetchTodayStepsFromGoogleFit() {
             });
         }
 
+        console.log('[GoogleFit] API response OK. Total pasos:', totalSteps);
         return Math.round(totalSteps);
     } catch (err) {
-        console.warn('Error obteniendo pasos de Google Fit:', err);
+        console.error('[GoogleFit] Error obteniendo pasos:', err.message || err);
         return null;
     }
 }
@@ -245,8 +264,15 @@ export async function fetchTodayStepsFromGoogleFit() {
  * Sincroniza los pasos obtenidos de Google Fit en la sesión de entreno de hoy
  */
 export async function syncTodayStepsFromGoogleFit(showToast = false) {
+    console.log('[GoogleFit] syncTodaySteps called, showToast:', showToast);
     const steps = await fetchTodayStepsFromGoogleFit();
-    if (steps === null || steps === undefined) return false;
+    console.log('[GoogleFit] steps result:', steps);
+    if (steps === null || steps === undefined) {
+        if (showToast) {
+            showNotification('No se pudieron obtener los pasos de Google Fit. Revisa la consola para más detalles.', 'warning');
+        }
+        return false;
+    }
 
     const dateKey = getDateKey(AppState.currentDate);
     const sessions = getWorkoutSessions();
