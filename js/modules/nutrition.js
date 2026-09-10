@@ -2,6 +2,7 @@
 
 import AppState from './state.js';
 import { GYM_ROUTINE, UNIT_CONVERSIONS } from './constants.js';
+import { estimateWorkoutKcal } from './workout.js?v=501';
 
 export function getDayNumber(date) {
     if (!AppState.config.startDate) return 0;
@@ -14,20 +15,21 @@ export function getDayType(date) {
     const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const dayName = daysOfWeek[date.getDay()];
     const routine = AppState.config.customGymRoutine || GYM_ROUTINE;
-    return routine[dayName];
+    return routine[dayName] || { type: 'descanso', label: 'Descanso', templateId: '' };
 }
 
 export function getCalorieTarget() {
-    const dayInfo = getDayType(AppState.currentDate);
-    if (!AppState.config.calsEntrenamiento && !AppState.config.calsDescanso) return 0;
-    return dayInfo.type === 'entreno'
-        ? (AppState.config.calsEntrenamiento || 0)
-        : (AppState.config.calsDescanso || 0);
+    const dateKey = AppState.currentDate ? AppState.currentDate.toISOString().split('T')[0] : '';
+    const dynamic = getDynamicDayTargets(dateKey);
+    if (dynamic) return dynamic.cals;
+    return AppState.config.calsDescanso || 1800;
 }
 
 export function getTDEE() {
-    const dayInfo = getDayType(AppState.currentDate);
-    return calculateTDEE(dayInfo.type);
+    const dateKey = AppState.currentDate ? AppState.currentDate.toISOString().split('T')[0] : '';
+    const dynamic = getDynamicDayTargets(dateKey);
+    if (dynamic) return dynamic.tdee;
+    return calculateTDEE('descanso');
 }
 
 export function getCurrentDeficit() {
@@ -46,17 +48,14 @@ export function calculateTMR() {
 
 export function calculateTDEE(dayType) {
     const tmr = calculateTMR();
-    const activityFactors = {
-        'entreno': 1.55,
-        'descanso': 1.30,
-    };
-    const factor = activityFactors[dayType] || 1.30;
+    const factor = dayType === 'entreno' ? 1.50 : 1.25;
     return Math.round(tmr * factor);
 }
 
 // ─── Targets dinámicos diarios ────────────────────────────────────────────────
-// Calcula calorías y macros del día usando TDEE real (con entreno registrado)
-// y manteniendo el déficit objetivo derivado de la configuración del usuario.
+// Calcula calorías y macros del día usando el TDEE adaptativo:
+// TDEE = TMB * 1.25 (NEAT diario) + gasto deportivo (real o plantilla asignada)
+// Objetivo Calórico = TDEE - Déficit Objetivo
 export function getDynamicDayTargets(dateKey) {
     const [year, month, day] = dateKey.split('-').map(Number);
     const dayDate = new Date(year, month - 1, day);
@@ -64,41 +63,56 @@ export function getDynamicDayTargets(dateKey) {
     const tmr = calculateTMR();
     if (!tmr) return null;
 
-    // Leer entreno del día directamente de localStorage (evita import circular)
     let workoutKcal = 0;
+    let isRealLoggedSession = false;
+
     try {
         const sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}');
-        workoutKcal = sessions[dateKey]?.estimatedKcal || 0;
+        const session = sessions[dateKey];
+
+        if (session && session.exercises && session.exercises.length > 0) {
+            // A) Sesión realmente iniciada/editada en el día
+            workoutKcal = session.estimatedKcal || estimateWorkoutKcal(session) || 0;
+            isRealLoggedSession = true;
+        } else if (dayInfo.templateId) {
+            // B) Sin sesión iniciada aún, pero con rutina/plantilla asignada a este día
+            const templates = JSON.parse(localStorage.getItem('workoutTemplates') || '{}');
+            const tmpl = templates[dayInfo.templateId];
+            if (tmpl && tmpl.exercises && tmpl.exercises.length > 0) {
+                workoutKcal = estimateWorkoutKcal({ date: dateKey, exercises: tmpl.exercises, duration: 60 });
+            }
+        }
     } catch { workoutKcal = 0; }
 
-    // TDEE dinámico: base sedentaria + gasto real del entreno
-    let tdee;
-    if (workoutKcal > 0) {
-        tdee = Math.round(tmr * 1.30 + workoutKcal);
-    } else if (dayInfo.type === 'entreno') {
-        tdee = Math.round(tmr * 1.45); // estimación conservadora sin datos
-    } else {
-        tdee = Math.round(tmr * 1.30);
-    }
+    // TDEE Base sin deporte (TMB * 1.25 factor NEAT sedentario/diario)
+    const tdeeBase = Math.round(tmr * 1.25);
+    const tdee = tdeeBase + workoutKcal;
 
-    // Déficit objetivo: derivado del día descanso (línea base más estable)
-    const baseTdeeDescanso = Math.round(tmr * 1.30);
-    const configCalsDescanso = AppState.config.calsDescanso || (baseTdeeDescanso - 500);
-    const deficitTarget = Math.max(100, baseTdeeDescanso - configCalsDescanso);
+    // Déficit objetivo configurado por el usuario (ej: 500 kcal)
+    const deficitTarget = AppState.config.deficitTarget || 500;
 
-    // Calorías del día (mínimo 1200 kcal por seguridad)
+    // Calorías diarias objetivo
     const cals = Math.max(1200, tdee - deficitTarget);
 
-    // Macros: proteína fija, grasas mínimo saludable, carbos con el resto
+    // Macros: proteína fija según objetivo, grasas mínimo saludable, carbos con el resto
     const weight = AppState.config.currentWeight || 75;
     const protein = AppState.config.proteinGoal || Math.round(weight * 2.0);
-    const fats = Math.max(
-        AppState.config.fatsMin || Math.round(weight * 0.8),
-        40
-    );
+    const fats = Math.max(AppState.config.fatsMin || Math.round(weight * 0.8), 40);
     const carbs = Math.max(0, Math.round((cals - protein * 4 - fats * 9) / 4));
 
-    return { cals, protein, carbs, fats, tdee, workoutKcal, deficitTarget, dayType: dayInfo.type };
+    return {
+        cals,
+        protein,
+        carbs,
+        fats,
+        tdee,
+        tdeeBase,
+        workoutKcal,
+        deficitTarget,
+        isRealLoggedSession,
+        dayType: dayInfo.type || 'descanso',
+        dayLabel: dayInfo.label || ''
+    };
 }
 
 export function convertToGrams(quantity, unit, customUnitWeight = null) {

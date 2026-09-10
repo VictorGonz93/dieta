@@ -44,6 +44,7 @@ export function saveConfig() {
     if (genderEl?.value) AppState.config.gender = genderEl.value;
 
     AppState.config.proteinGoal = parseNum('proteinGoalInput', AppState.config.proteinGoal, true);
+    AppState.config.deficitTarget = parseNum('deficitTargetInput', AppState.config.deficitTarget || 500, true);
     AppState.config.calsEntrenamiento = parseNum('calsEntrenamiento', AppState.config.calsEntrenamiento, true);
     AppState.config.calsDescanso = parseNum('calsDescanso', AppState.config.calsDescanso, true);
     AppState.config.carbsMin = parseNum('carbsMin', AppState.config.carbsMin, true);
@@ -80,6 +81,7 @@ export function updateConfigUI() {
     if (el('age')) el('age').value = AppState.config.age || '';
     if (el('gender')) el('gender').value = AppState.config.gender || '';
     if (el('proteinGoalInput')) el('proteinGoalInput').value = AppState.config.proteinGoal || '';
+    if (el('deficitTargetInput')) el('deficitTargetInput').value = AppState.config.deficitTarget || 500;
     if (el('calsEntrenamiento')) el('calsEntrenamiento').value = AppState.config.calsEntrenamiento || '';
     if (el('calsDescanso')) el('calsDescanso').value = AppState.config.calsDescanso || '';
     if (el('carbsMin')) el('carbsMin').value = AppState.config.carbsMin || '';

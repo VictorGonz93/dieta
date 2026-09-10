@@ -12,13 +12,23 @@ export function initWorkoutPlan() {
         jueves: 'Jueves', viernes: 'Viernes', sabado: 'Sábado', domingo: 'Domingo',
     };
 
+    const templates = getWorkoutTemplates();
+    const templateOptions = `<option value="">-- Sin plantilla --</option>` +
+        Object.values(templates).map(t => `<option value="${t.id}">${t.name} (${t.exercises.length} ej)</option>`).join('');
+
     days.forEach(day => {
         const dayName = dayNames[day];
-        const dayInfo = routine[dayName] || { type: 'descanso', label: '' };
+        const dayInfo = routine[dayName] || { type: 'descanso', label: '', templateId: '' };
         const typeSelect = document.getElementById(`${day}-type`);
         const labelInput = document.getElementById(`${day}-label`);
+        const tmplSelect = document.getElementById(`${day}-template`);
+
         if (typeSelect) typeSelect.value = dayInfo.type || 'descanso';
         if (labelInput) labelInput.value = dayInfo.label || '';
+        if (tmplSelect) {
+            tmplSelect.innerHTML = templateOptions;
+            tmplSelect.value = dayInfo.templateId || '';
+        }
     });
 }
 
@@ -40,8 +50,10 @@ export function saveWorkoutPlan() {
         const dayName = dayNames[day];
         const typeSelect = document.getElementById(`${day}-type`);
         const labelInput = document.getElementById(`${day}-label`);
+        const tmplSelect = document.getElementById(`${day}-template`);
         const type = typeSelect?.value || 'descanso';
         const label = labelInput?.value?.trim() || '';
+        const templateId = tmplSelect?.value || '';
 
         if (!label && type === 'entreno') {
             showNotification(`Por favor completa la descripción para ${dayName}`, 'warning');
@@ -52,6 +64,7 @@ export function saveWorkoutPlan() {
         customRoutine[dayName] = {
             type: type,
             label: label || (type === 'descanso' ? 'Descanso' : ''),
+            templateId: templateId
         };
     });
 
@@ -245,6 +258,52 @@ export function saveCustomExercise(exData) {
     EXERCISES_DB.push(newEx);
     showNotification(`Ejercicio "${newEx.name}" creado correctamente`);
     return newEx;
+}
+
+/**
+ * Consulta la API internacional Wger en tiempo real para buscar ejercicios de su catálogo global
+ */
+export async function searchWgerExercises(query) {
+    if (!query || query.trim().length < 2) return [];
+    try {
+        const url = `https://wger.de/api/v2/exercise/search/?term=${encodeURIComponent(query.trim())}`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        if (data && data.suggestions) {
+            return data.suggestions.map(s => {
+                const item = s.data || {};
+                const name = s.value || item.name || 'Ejercicio';
+                const categoryName = item.category || 'Otros';
+
+                let muscle = 'Pecho';
+                if (/chest|pecho/i.test(categoryName)) muscle = 'Pecho';
+                else if (/back|espalda|lats/i.test(categoryName)) muscle = 'Espalda';
+                else if (/legs|pierna|thighs|calves|quad/i.test(categoryName)) muscle = 'Piernas';
+                else if (/glute|glúteo/i.test(categoryName)) muscle = 'Glúteos';
+                else if (/shoulder|hombro|deltoid/i.test(categoryName)) muscle = 'Hombros';
+                else if (/biceps|bíceps/i.test(categoryName)) muscle = 'Bíceps';
+                else if (/triceps|tríceps/i.test(categoryName)) muscle = 'Tríceps';
+                else if (/abs|core|abdominal/i.test(categoryName)) muscle = 'Core';
+                else if (/cardio/i.test(categoryName)) muscle = 'Cardio';
+
+                return {
+                    id: `wger-${item.id || Date.now()}`,
+                    wgerId: item.id,
+                    name: name,
+                    muscle: muscle,
+                    type: 'libre',
+                    category: 'compuesto',
+                    met: 5.0,
+                    isWger: true,
+                    image: item.image_thumbnail ? `https://wger.de${item.image_thumbnail}` : null
+                };
+            });
+        }
+    } catch (e) {
+        console.warn('Wger API search failed:', e);
+    }
+    return [];
 }
 
 // ==================== REGISTRO DE ENTRENOS ====================

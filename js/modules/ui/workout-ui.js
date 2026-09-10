@@ -132,12 +132,20 @@ export function renderTodayWorkout() {
 
     const dateKey = getDateKey(AppState.currentDate);
     initTodayWorkout(dateKey);
-    const workout = getTodayWorkout();
+    let workout = getTodayWorkout();
 
     const dayName = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][AppState.currentDate.getDay()];
     const routine = AppState.config.customGymRoutine || {};
     const dayPlan = routine[dayName];
     const planLabel = dayPlan?.label || (dayPlan?.type === 'entreno' ? 'Entrenamiento' : 'Descanso');
+
+    // Auto-cargar plantilla asignada si la sesión de hoy no tiene ejercicios todavía
+    if ((!workout.exercises || workout.exercises.length === 0) && dayPlan?.templateId) {
+        if (loadWorkoutTemplate(dayPlan.templateId)) {
+            workout = getTodayWorkout();
+        }
+    }
+
     const kcalEst = estimateWorkoutKcal(workout);
     const templates = Object.values(getWorkoutTemplates());
 
@@ -403,14 +411,22 @@ export function renderExercisesDB() {
                 </button>
             </div>
 
-            <!-- Filtros -->
+            <!-- Filtros y Búsqueda Nube -->
             <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
-                <div style="position:relative;">
-                    <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:18px;">search</span>
-                    <input type="text" placeholder="Buscar ejercicio por nombre..." value="${_exSearch}"
-                        oninput="window._exSearch(this.value)"
-                        style="width:100%;padding:8px 12px 8px 36px;background:var(--bg-card);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;box-sizing:border-box;">
+                <div style="display:flex;gap:8px;">
+                    <div style="position:relative;flex:1;">
+                        <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:18px;">search</span>
+                        <input type="text" placeholder="Buscar ejercicio local..." value="${_exSearch}"
+                            oninput="window._exSearch(this.value)"
+                            style="width:100%;padding:8px 12px 8px 36px;background:var(--bg-card);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;box-sizing:border-box;">
+                    </div>
+                    <button onclick="window._searchCloudExercises()"
+                        style="padding:8px 14px;background:rgba(56,189,248,0.15);color:#38BDF8;border:1px solid rgba(56,189,248,0.3);border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+                        <span class="material-icons" style="font-size:16px;">cloud_search</span>
+                        <span>Buscar Nube (Wger)</span>
+                    </button>
                 </div>
+                <div id="wger-cloud-results"></div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;">
                     ${MUSCLES.map(m => `
                         <button onclick="window._exFilter('${m}')"
@@ -487,6 +503,53 @@ window._promptCreateCustomExercise = function () {
     const category = categoryPrompt === 'compuesto' ? 'compuesto' : 'aislamiento';
 
     saveCustomExercise({ name, muscle, type, category, met: category === 'compuesto' ? 6.0 : 4.0 });
+    renderExercisesDB();
+};
+
+window._searchCloudExercises = async function () {
+    const input = document.querySelector('#sport-ejercicios input[type="text"]');
+    const query = input?.value?.trim() || _exSearch;
+    if (!query || query.length < 2) {
+        import('./notifications.js').then(m => m.showNotification('Escribe al menos 2 letras para buscar en la nube', 'warning'));
+        return;
+    }
+
+    const container = document.getElementById('wger-cloud-results');
+    if (container) container.innerHTML = '<div style="color:var(--text-2);padding:10px;font-size:0.85rem;">🔍 Consultando API Wger en la nube...</div>';
+
+    const { searchWgerExercises } = await import('../workout.js?v=501');
+    const results = await searchWgerExercises(query);
+
+    if (!container) return;
+
+    if (!results || results.length === 0) {
+        container.innerHTML = `<div style="color:var(--text-3);padding:10px;font-size:0.85rem;">No se encontraron resultados en Wger para "${query}".</div>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="font-size:0.82rem;font-weight:700;color:#38BDF8;margin-bottom:8px;text-transform:uppercase;">
+            Resultados Wger API Nube (${results.length})
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            ${results.map(r => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;gap:10px;">
+                    <div>
+                        <div style="font-weight:600;color:var(--text-1);font-size:0.9rem;">${r.name}</div>
+                        <div style="font-size:0.75rem;color:var(--text-3);">${r.muscle} · Global Wger DB</div>
+                    </div>
+                    <button onclick="window._importWgerExercise('${r.name.replace(/'/g, "\\'")}', '${r.muscle}')"
+                        style="padding:5px 10px;background:#38BDF8;color:#0F172A;border:none;border-radius:6px;font-weight:700;font-size:0.78rem;cursor:pointer;white-space:nowrap;">
+                        + Añadir
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+};
+
+window._importWgerExercise = function (name, muscle) {
+    saveCustomExercise({ name, muscle, type: 'libre', category: 'compuesto', met: 5.0 });
     renderExercisesDB();
 };
 
