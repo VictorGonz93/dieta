@@ -23,6 +23,7 @@ import { renderProductsList } from './modules/ui/products-list.js';
 import { startUpdateChecker, performUpdate } from './modules/ui/update.js';
 import { showNotification } from './modules/ui/notifications.js';
 import { initSportTabs } from './modules/ui/workout-ui.js?v=501';
+import { openBarcodeScanner, closeBarcodeScanner } from './modules/barcode.js';
 
 // ==================== SERVICE WORKER ====================
 if ('serviceWorker' in navigator) {
@@ -104,3 +105,5 @@ window.performUpdate = performUpdate;
 window.initializeCharts = initializeCharts;
 window.renderWeightHistory = renderWeightHistory;
 window.showNotification = showNotification;
+window.openBarcodeScanner = openBarcodeScanner;
+window.closeBarcodeScanner = closeBarcodeScanner;

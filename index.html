@@ -50,6 +50,9 @@
     <!-- Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     
+    <!-- Html5Qrcode (Barcode Scanner) -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
         /* These base styles are overridden by css/styles.css */
     </style>
@@ -506,12 +509,16 @@
                             Base de Datos
                         </h2>
 
-                        <div class="mb-6 flex gap-3 items-center">
-                            <div class="relative flex-1">
+                        <div class="mb-6 flex gap-3 items-center flex-wrap sm:flex-nowrap">
+                            <div class="relative flex-1 min-w-[180px]">
                                 <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" style="font-size:18px">search</span>
                                 <input type="text" id="searchProduct" placeholder="Buscar producto..." class="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
                             </div>
-                            <select id="categoryFilter" class="w-40 shrink-0 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
+                            <button onclick="openBarcodeScanner('database')" class="px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-lg smooth-transition flex items-center gap-1.5 shrink-0 font-semibold text-sm cursor-pointer" title="Escanear código de barras">
+                                <span class="material-icons text-lg">qr_code_scanner</span>
+                                <span>Escanear</span>
+                            </button>
+                            <select id="categoryFilter" class="w-36 shrink-0 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
                                 <option value="">Todas</option>
                                 <option value="bebidas">Bebidas</option>
                                 <option value="proteinas">Proteínas</option>
@@ -957,7 +964,13 @@
                 <div class="p-6">
                     <!-- Search -->
                     <div class="mb-6">
-                        <input type="text" id="modalSearch" placeholder="Buscar producto..." class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
+                        <div class="flex gap-2">
+                            <input type="text" id="modalSearch" placeholder="Buscar producto..." class="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
+                            <button onclick="openBarcodeScanner('modal')" class="px-3.5 py-3 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-lg smooth-transition flex items-center justify-center gap-1.5 shrink-0 font-semibold text-sm cursor-pointer" title="Escanear código de barras">
+                                <span class="material-icons text-xl">qr_code_scanner</span>
+                                <span class="hidden sm:inline">Escanear</span>
+                            </button>
+                        </div>
                         <div id="suggestedProducts" class="suggested-products mt-3 space-y-2"></div>
                     </div>
 
@@ -1020,4 +1033,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250527-55"></script>
+    <script type="module" src="js/app.js?v=20250527-56"></script>
