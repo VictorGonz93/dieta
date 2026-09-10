@@ -10,6 +10,7 @@ export function openModal(mealType) {
     modal.classList.add('show');
     resetModalForm();
     setupTabSearch();
+    renderCombosInModal();
 }
 
 export function closeModal() {
@@ -83,6 +84,75 @@ export function setupTabSearch() {
 export function getDisplayProductName(name) {
     return String(name || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
 }
+
+export function renderCombosInModal() {
+    const container = document.getElementById('modalCombosContainer');
+    if (!container) return;
+
+    const combos = AppState.mealCombos || [];
+    const dateKey = AppState.currentDate ? AppState.currentDate.toISOString().split('T')[0] : '';
+    const dayData = AppState.allDays[dateKey];
+    const currentMealFoods = (dayData && AppState.currentMealForModal && dayData.meals[AppState.currentMealForModal]) || [];
+
+    let html = '';
+
+    // Si la comida actual tiene alimentos, opción para guardarla como combo
+    if (currentMealFoods.length > 0) {
+        html += `
+            <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div style="font-size: 0.82rem; color: #34D399; font-weight: 600;">
+                    💡 Tienes ${currentMealFoods.length} alimento${currentMealFoods.length !== 1 ? 's' : ''} en esta comida
+                </div>
+                <button onclick="window._promptSaveMealAsCombo()" style="padding: 5px 10px; background: #10B981; color: #fff; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
+                    <span class="material-icons" style="font-size: 14px;">bookmark_add</span> Guardar como Combo
+                </button>
+            </div>
+        `;
+    }
+
+    if (combos.length > 0) {
+        html += `
+            <div style="margin-bottom: 14px;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                    🍱 Mis Combos y Recetas (1-Clic para añadir)
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    ${combos.map(c => `
+                        <div style="display: flex; align-items: center; background: #1E293B; border: 1px solid #334155; border-radius: 8px; overflow: hidden;">
+                            <button onclick="window.applyComboToCurrentMeal(${c.id})" style="padding: 6px 10px; background: transparent; border: none; color: #F8FAFC; cursor: pointer; text-align: left; font-size: 0.82rem; display: flex; flex-direction: column;">
+                                <span style="font-weight: 600; color: #38BDF8;">${c.name}</span>
+                                <span style="font-size: 0.72rem; color: #94A3B8;">${c.totalKcal} kcal · ${c.totalProtein}g P (${c.items.length} prod)</span>
+                            </button>
+                            <button onclick="window._confirmDeleteCombo(${c.id})" title="Eliminar combo" style="padding: 6px 8px; background: transparent; border: none; border-left: 1px solid #334155; color: #64748B; cursor: pointer;">
+                                <span class="material-icons" style="font-size: 14px;">close</span>
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+window._promptSaveMealAsCombo = async function () {
+    const comboName = prompt('Nombre para esta receta/combo (ej: Desayuno Habitual, Batido Proteína):');
+    if (!comboName || !comboName.trim()) return;
+
+    const { saveCurrentMealAsCombo } = await import('../combos.js');
+    if (saveCurrentMealAsCombo(AppState.currentMealForModal, comboName.trim())) {
+        renderCombosInModal();
+    }
+};
+
+window._confirmDeleteCombo = async function (comboId) {
+    if (!confirm('¿Eliminar esta receta/combo guardado?')) return;
+    const { deleteMealCombo } = await import('../combos.js');
+    if (deleteMealCombo(comboId)) {
+        renderCombosInModal();
+    }
+};
 
 export async function selectProduct(productId) {
     const { PRODUCTS_DB } = await import('../products.js');

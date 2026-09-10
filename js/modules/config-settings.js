@@ -15,27 +15,41 @@ export function loadConfig() {
     updateConfigUI();
 }
 
-export function saveConfig() {
-    const newWeight = parseFloat(document.getElementById('currentWeightInput')?.value || AppState.config.currentWeight);
-    const oldWeight = AppState.config.currentWeight;
+function parseNum(id, currentVal, isInt = false) {
+    const el = document.getElementById(id);
+    if (!el) return currentVal;
+    const v = el.value?.trim();
+    if (v === '' || v === null || v === undefined) return currentVal;
+    const num = isInt ? parseInt(v, 10) : parseFloat(v);
+    return isNaN(num) ? currentVal : num;
+}
 
-    AppState.config.startWeight = parseFloat(document.getElementById('startWeight')?.value || AppState.config.startWeight);
+export function saveConfig() {
+    const oldWeight = AppState.config.currentWeight;
+    const newWeight = parseNum('currentWeightInput', AppState.config.currentWeight);
+
+    AppState.config.startWeight = parseNum('startWeight', AppState.config.startWeight);
     AppState.config.currentWeight = newWeight;
-    AppState.config.targetWeight = parseFloat(document.getElementById('targetWeight')?.value || AppState.config.targetWeight);
+    AppState.config.targetWeight = parseNum('targetWeight', AppState.config.targetWeight);
 
     const startDateInput = document.getElementById('startDate')?.value;
-    AppState.config.startDate = startDateInput ? new Date(startDateInput) : (AppState.config.startDate || null);
+    if (startDateInput) {
+        AppState.config.startDate = new Date(startDateInput);
+    }
 
-    AppState.config.height = parseInt(document.getElementById('height')?.value || AppState.config.height);
-    AppState.config.age = parseInt(document.getElementById('age')?.value || AppState.config.age);
-    AppState.config.gender = document.getElementById('gender')?.value || AppState.config.gender;
-    AppState.config.proteinGoal = parseInt(document.getElementById('proteinGoalInput')?.value || AppState.config.proteinGoal);
-    AppState.config.calsEntrenamiento = parseInt(document.getElementById('calsEntrenamiento')?.value || AppState.config.calsEntrenamiento);
-    AppState.config.calsDescanso = parseInt(document.getElementById('calsDescanso')?.value || AppState.config.calsDescanso);
-    AppState.config.carbsMin = parseInt(document.getElementById('carbsMin')?.value || AppState.config.carbsMin);
-    AppState.config.carbsMax = parseInt(document.getElementById('carbsMax')?.value || AppState.config.carbsMax);
-    AppState.config.fatsMin = parseInt(document.getElementById('fatsMin')?.value || AppState.config.fatsMin);
-    AppState.config.fatsMax = parseInt(document.getElementById('fatsMax')?.value || AppState.config.fatsMax);
+    AppState.config.height = parseNum('height', AppState.config.height, true);
+    AppState.config.age = parseNum('age', AppState.config.age, true);
+
+    const genderEl = document.getElementById('gender');
+    if (genderEl?.value) AppState.config.gender = genderEl.value;
+
+    AppState.config.proteinGoal = parseNum('proteinGoalInput', AppState.config.proteinGoal, true);
+    AppState.config.calsEntrenamiento = parseNum('calsEntrenamiento', AppState.config.calsEntrenamiento, true);
+    AppState.config.calsDescanso = parseNum('calsDescanso', AppState.config.calsDescanso, true);
+    AppState.config.carbsMin = parseNum('carbsMin', AppState.config.carbsMin, true);
+    AppState.config.carbsMax = parseNum('carbsMax', AppState.config.carbsMax, true);
+    AppState.config.fatsMin = parseNum('fatsMin', AppState.config.fatsMin, true);
+    AppState.config.fatsMax = parseNum('fatsMax', AppState.config.fatsMax, true);
 
     if (newWeight !== oldWeight) {
         recordWeight(new Date(), newWeight);

@@ -14,6 +14,17 @@ export function saveDays() {
     localStorage.setItem('nutrition_days', JSON.stringify(AppState.allDays));
 }
 
+export function loadMealCombos() {
+    const saved = localStorage.getItem('meal_combos');
+    if (saved) {
+        try { AppState.mealCombos = JSON.parse(saved); } catch (e) { AppState.mealCombos = []; }
+    }
+}
+
+export function saveMealCombos() {
+    localStorage.setItem('meal_combos', JSON.stringify(AppState.mealCombos));
+}
+
 export function loadAllDays() {
     const saved = localStorage.getItem('nutrition_days');
     if (saved) {
@@ -90,6 +101,7 @@ export function exportData() {
             days: AppState.allDays,
             customProducts: AppState.customProducts,
             mealHistory: AppState.mealHistory,
+            mealCombos: AppState.mealCombos,
             weight_history: AppState.config.weightHistory,
             dailySummary,
             statistics,
@@ -195,6 +207,11 @@ export function importData(event) {
             if (data.mealHistory) {
                 AppState.mealHistory = data.mealHistory;
                 localStorage.setItem('meal_history', JSON.stringify(AppState.mealHistory));
+            }
+
+            if (data.mealCombos) {
+                AppState.mealCombos = data.mealCombos;
+                saveMealCombos();
             }
 
             if (data.darkModeEnabled !== undefined) {

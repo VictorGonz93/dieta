@@ -54,7 +54,7 @@ export function calculateWeeklyStats() {
     // Lunes como inicio de semana (0=Lun, 6=Dom)
     weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
 
-    let totalWeight = 0, totalKcal = 0, totalDeficit = 0, daysRecorded = 0;
+    let totalWeight = 0, totalKcal = 0, totalDeficit = 0, daysWithFood = 0, daysWithWeight = 0;
     const dailyStats = [];
 
     for (let i = 0; i < 7; i++) {
@@ -62,35 +62,60 @@ export function calculateWeeklyStats() {
         date.setDate(weekStart.getDate() + i);
         const dateKey = getDateKey(date);
 
-        const weight = AppState.config.weightHistory?.find(w => w.date === dateKey);
-        if (weight) {
-            daysRecorded++;
-            totalWeight += weight.weight;
-
-            const dayData = AppState.allDays[dateKey];
-            if (dayData) {
-                let kcal = 0;
-                Object.values(dayData.meals).forEach(meal => {
-                    meal.forEach(food => { kcal += food.kcal; });
-                });
-                const dayInfo = getDayType(date);
-                const tdee = calculateTDEE(dayInfo.type);
-                const deficit = tdee - kcal;
-                totalKcal += kcal;
-                totalDeficit += deficit;
-                dailyStats.push({ date: dateKey, weight: weight.weight, kcal, deficit });
-            }
+        const weightEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
+        const currentWeight = weightEntry?.weight || AppState.config.currentWeight;
+        if (weightEntry) {
+            daysWithWeight++;
+            totalWeight += weightEntry.weight;
         }
+
+        const dayData = AppState.allDays[dateKey];
+        let kcal = 0, protein = 0, carbs = 0, fats = 0;
+
+        if (dayData) {
+            Object.values(dayData.meals).forEach(meal => {
+                meal.forEach(food => {
+                    kcal += food.kcal;
+                    protein += food.protein;
+                    carbs += food.carbs;
+                    fats += food.fats;
+                });
+            });
+        }
+
+        if (kcal > 0) daysWithFood++;
+
+        const targets = getDynamicDayTargets(dateKey);
+        const dayInfo = getDayType(date);
+        const tdee = targets?.tdee || calculateTDEE(dayInfo.type);
+        const deficit = tdee - kcal;
+
+        totalKcal += kcal;
+        totalDeficit += deficit;
+
+        dailyStats.push({
+            date: dateKey,
+            weight: currentWeight,
+            kcal,
+            protein,
+            carbs,
+            fats,
+            tdee,
+            deficit,
+            workoutKcal: targets?.workoutKcal || 0,
+        });
     }
 
-    const avgWeight = daysRecorded > 0 ? totalWeight / daysRecorded : AppState.config.currentWeight;
-    const weeklyLoss = daysRecorded >= 2 ? dailyStats[0]?.weight - dailyStats[daysRecorded - 1]?.weight : 0;
+    const avgWeight = daysWithWeight > 0 ? totalWeight / daysWithWeight : AppState.config.currentWeight;
+    const firstW = dailyStats.find(d => d.weight)?.weight;
+    const lastW = [...dailyStats].reverse().find(d => d.weight)?.weight;
+    const weeklyLoss = (firstW && lastW && firstW !== lastW) ? (firstW - lastW) : 0;
 
     return {
-        daysRecorded,
+        daysRecorded: daysWithFood,
         avgWeight,
-        avgKcal: Math.round(totalKcal / Math.max(daysRecorded, 1)),
-        avgDeficit: Math.round(totalDeficit / Math.max(daysRecorded, 1)),
+        avgKcal: Math.round(totalKcal / Math.max(daysWithFood, 1)),
+        avgDeficit: Math.round(totalDeficit / Math.max(daysWithFood, 1)),
         weeklyLoss: weeklyLoss?.toFixed(2) || 0,
         dailyStats,
     };
@@ -412,20 +437,44 @@ export function updateBestDayStats() {
     if (!container) return;
 
     const dates = Object.keys(AppState.allDays).sort();
-    let bestDay = null, maxProtein = 0;
+    let bestDay = null, bestScore = -1;
 
-    dates.forEach(date => {
-        const day = AppState.allDays[date];
-        let dayProtein = 0;
+    dates.forEach(dateKey => {
+        const day = AppState.allDays[dateKey];
+        let dayKcal = 0, dayProtein = 0;
         Object.values(day.meals).forEach(meal => {
-            meal.forEach(food => { dayProtein += food.protein; });
+            meal.forEach(food => { dayKcal += food.kcal; dayProtein += food.protein; });
         });
-        if (dayProtein > maxProtein) { maxProtein = dayProtein; bestDay = { date, protein: dayProtein, dayNumber: day.dayNumber }; }
+
+        if (dayKcal > 200) {
+            const targets = getDynamicDayTargets(dateKey);
+            const targetCals = targets?.cals || getCalorieTarget() || 1800;
+            const targetProtein = targets?.protein || AppState.config.proteinGoal || 150;
+
+            const kcalDiff = Math.abs(dayKcal - targetCals);
+            const kcalScore = Math.max(0, 100 - (kcalDiff / targetCals * 100));
+
+            const proteinRatio = Math.min(1.2, dayProtein / targetProtein);
+            const proteinScore = Math.min(100, proteinRatio * 100);
+
+            const totalScore = (kcalScore * 0.5) + (proteinScore * 0.5);
+
+            if (totalScore > bestScore) {
+                bestScore = totalScore;
+                bestDay = {
+                    date: dateKey,
+                    dayNumber: day.dayNumber,
+                    kcal: Math.round(dayKcal),
+                    protein: Math.round(dayProtein),
+                    score: Math.round(totalScore)
+                };
+            }
+        }
     });
 
     container.innerHTML = bestDay
-        ? `<p><strong>Día ${bestDay.dayNumber}</strong></p><p><strong>Proteína:</strong> ${bestDay.protein.toFixed(1)}g</p><p><strong>Fecha:</strong> ${bestDay.date}</p>`
-        : '<p>Sin datos registrados</p>';
+        ? `<p><strong>Día ${bestDay.dayNumber} (${bestDay.date})</strong></p><p><strong>Adherencia:</strong> ${bestDay.score}%</p><p><strong>Macros:</strong> ${bestDay.kcal} kcal · ${bestDay.protein}g P</p>`
+        : '<p>Sin suficientes datos registrados</p>';
 }
 
 export function updateHistoryList(resetPage = false) {

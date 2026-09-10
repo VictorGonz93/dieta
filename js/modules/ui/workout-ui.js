@@ -254,8 +254,8 @@ function _renderExerciseList() {
     `).join('');
 
     window._workoutRemoveEx = (id) => { removeExerciseFromWorkout(id); _renderExerciseList(); _updateKcalDisplay(); };
-    window._workoutAddSet = (id) => { addSetToExercise(id); _renderExerciseList(); };
-    window._workoutRemoveSet = (id, i) => { removeSetFromExercise(id, i); _renderExerciseList(); };
+    window._workoutAddSet = (id) => { addSetToExercise(id); _renderExerciseList(); _updateKcalDisplay(); };
+    window._workoutRemoveSet = (id, i) => { removeSetFromExercise(id, i); _renderExerciseList(); _updateKcalDisplay(); };
     window._workoutUpdateSet = (id, i, field, val) => { updateSet(id, i, field, val); _updateKcalDisplay(); };
 }
 

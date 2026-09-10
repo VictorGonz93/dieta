@@ -25,6 +25,7 @@ const AppState = {
     },
     customProducts: [],
     mealHistory: [],
+    mealCombos: [],
     charts: {},
     currentMealForModal: null,
     latestRemoteVersion: null,

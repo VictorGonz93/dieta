@@ -9,7 +9,7 @@ import { loadCustomProducts, addNewProduct, deleteProduct, editProductCustomUnit
 import { loadConfig, saveConfig, updateHeaderInfo } from './modules/config-settings.js';
 import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previousDay, nextDay, todayDay, copyYesterdayMeals } from './modules/meals.js';
 import { loadWeightHistory, saveDailyWeight, updateWeightPrediction, displayNextDayPrediction, renderWeightHistory, updateWeightEntry, deleteWeightEntry } from './modules/weight.js';
-import { loadAllDays, exportData, exportCSV, importData, clearAllData } from './modules/storage.js';
+import { loadAllDays, loadMealCombos, exportData, exportCSV, importData, clearAllData } from './modules/storage.js';
 import { initializeCharts } from './modules/charts.js';
 import { initWorkoutPlan, updateWorkoutPlan, saveWorkoutPlan, resetWorkoutPlan } from './modules/workout.js?v=501';
 
@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadConfig();
     loadCustomProducts();
     loadMealHistory();
+    loadMealCombos();
     loadWeightHistory();
     loadAllDays();
     initializeToday();

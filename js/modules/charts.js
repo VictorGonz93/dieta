@@ -229,27 +229,54 @@ export function initProteinChart() {
     });
 
     const labelsText = displayDates2.map(d => new Date(d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
+    const proteinGoal = AppState.config.proteinGoal || 160;
 
     AppState.charts.protein = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labelsText,
-            datasets: [{
-                label: 'Proteína (g)',
-                data: proteinData,
-                borderColor: '#48bb78',
-                backgroundColor: 'rgba(72, 187, 120, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3,
-            }],
+            datasets: [
+                {
+                    label: 'Proteína (g)',
+                    data: proteinData,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#10B981',
+                    order: 2,
+                },
+                {
+                    label: `Objetivo (${proteinGoal}g)`,
+                    data: new Array(labelsText.length).fill(proteinGoal),
+                    borderColor: '#60A5FA',
+                    borderWidth: 1.5,
+                    borderDash: [6, 4],
+                    pointRadius: 0,
+                    fill: false,
+                    order: 1,
+                }
+            ],
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: { color: '#6B8BAE', font: { size: 11 }, boxWidth: 24 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#6B8BAE', callback: v => v + 'g' },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { ticks: { color: '#6B8BAE' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            },
         },
     });
 }
@@ -394,26 +421,46 @@ export function renderWeightPredictionChart() {
                 {
                     label: 'Peso Real',
                     data: realWeights,
-                    borderColor: '#48bb78',
-                    backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
                     tension: 0.3,
                     fill: true,
+                    borderWidth: 2.5,
+                    pointRadius: 4,
                 },
                 {
                     label: 'Peso Predicho',
                     data: predictedWeights,
-                    borderColor: '#4299e1',
-                    backgroundColor: 'rgba(66, 153, 225, 0.1)',
+                    borderColor: '#60A5FA',
+                    backgroundColor: 'transparent',
                     tension: 0.3,
-                    fill: true,
+                    fill: false,
+                    borderWidth: 2,
                     borderDash: [5, 5],
+                    pointRadius: 2,
                 },
             ],
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: true } },
-            scales: { y: { beginAtZero: false, title: { display: true, text: 'Peso (kg)' } } },
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: { color: '#6B8BAE', font: { size: 11 } }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: { color: '#6B8BAE', callback: v => v + ' kg' },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: {
+                    ticks: { color: '#6B8BAE' },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                }
+            },
         },
     });
 }

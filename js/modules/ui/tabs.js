@@ -34,7 +34,12 @@ export function showTab(tabId) {
     } else if (tabId === 'planteamiento') {
         import('../workout.js').then(m => m.initWorkoutPlan());
     } else if (tabId === 'historial' || tabId === 'graficos') {
-        import('../charts.js').then(m => m.renderWeightPredictionChart());
+        setTimeout(() => {
+            import('../charts.js').then(m => {
+                m.initializeCharts();
+                m.renderWeightPredictionChart();
+            });
+        }, 80);
     } else if (tabId === 'estadisticas') {
         import('../stats.js').then(m => {
             m.displayWeeklyStats();
