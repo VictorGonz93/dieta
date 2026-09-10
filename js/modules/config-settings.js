@@ -43,7 +43,20 @@ export function saveConfig() {
     const genderEl = document.getElementById('gender');
     if (genderEl?.value) AppState.config.gender = genderEl.value;
 
-    AppState.config.deficitTarget = parseNum('deficitTargetInput', AppState.config.deficitTarget || 500, true);
+    const paceEl = document.getElementById('lossPaceSelect');
+    if (paceEl?.value) {
+        AppState.config.lossPace = paceEl.value;
+    } else {
+        AppState.config.lossPace = AppState.config.lossPace || 'moderado';
+    }
+
+    if (AppState.config.lossPace === 'manual') {
+        AppState.config.deficitTarget = parseNum('deficitTargetInput', AppState.config.deficitTarget || 500, true);
+    } else {
+        import('./nutrition.js').then(m => {
+            AppState.config.deficitTarget = m.calculateAutoDeficit(AppState.config.currentWeight, AppState.config.lossPace);
+        });
+    }
 
     const pFactorEl = document.getElementById('proteinFactorSelect');
     if (pFactorEl?.value) {
@@ -82,6 +95,7 @@ export function updateConfigUI() {
     if (el('height')) el('height').value = AppState.config.height || '';
     if (el('age')) el('age').value = AppState.config.age || '';
     if (el('gender')) el('gender').value = AppState.config.gender || '';
+    if (el('lossPaceSelect')) el('lossPaceSelect').value = AppState.config.lossPace || 'moderado';
     if (el('deficitTargetInput')) el('deficitTargetInput').value = AppState.config.deficitTarget || 500;
     if (el('proteinFactorSelect')) el('proteinFactorSelect').value = AppState.config.proteinFactor || 2.0;
 

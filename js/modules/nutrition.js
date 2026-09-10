@@ -52,10 +52,38 @@ export function calculateTDEE(dayType) {
     return Math.round(tmr * factor);
 }
 
+/**
+ * Calcula el déficit calórico diario óptimo automáticamente según el peso corporal
+ * y el ritmo de pérdida elegido (suave, moderado, intenso o manual).
+ */
+export function calculateAutoDeficit(weight = null, lossPace = null) {
+    const w = parseFloat(weight || AppState.config.currentWeight) || 75;
+    const pace = lossPace || AppState.config.lossPace || 'moderado';
+
+    if (pace === 'suave') {
+        // ~0.5% del peso corporal por semana
+        const weeklyLossKg = w * 0.005;
+        return Math.round((weeklyLossKg * 7700) / 7);
+    } else if (pace === 'moderado') {
+        // ~0.75% del peso corporal por semana (Recomendado)
+        const weeklyLossKg = w * 0.0075;
+        return Math.round((weeklyLossKg * 7700) / 7);
+    } else if (pace === 'intenso') {
+        // ~1.0% del peso corporal por semana
+        const weeklyLossKg = w * 0.010;
+        return Math.round((weeklyLossKg * 7700) / 7);
+    } else if (pace === 'manual') {
+        return AppState.config.deficitTarget || 500;
+    }
+
+    const weeklyLossKg = w * 0.0075;
+    return Math.round((weeklyLossKg * 7700) / 7);
+}
+
 // ─── Targets dinámicos diarios ────────────────────────────────────────────────
 // Calcula calorías y macros del día usando el TDEE adaptativo:
 // TDEE = TMB * 1.25 (NEAT diario) + gasto deportivo (real o plantilla asignada)
-// Objetivo Calórico = TDEE - Déficit Objetivo
+// Objetivo Calórico = TDEE - Déficit Objetivo Automático
 export function getDynamicDayTargets(dateKey) {
     const [year, month, day] = dateKey.split('-').map(Number);
     const dayDate = new Date(year, month - 1, day);
@@ -88,8 +116,10 @@ export function getDynamicDayTargets(dateKey) {
     const tdeeBase = Math.round(tmr * 1.25);
     const tdee = tdeeBase + workoutKcal;
 
-    // Déficit objetivo configurado por el usuario (ej: 500 kcal)
-    const deficitTarget = AppState.config.deficitTarget || 500;
+    // Déficit objetivo calculado automáticamente según peso actual y ritmo de pérdida
+    const weight = AppState.config.currentWeight || 75;
+    const lossPace = AppState.config.lossPace || 'moderado';
+    const deficitTarget = calculateAutoDeficit(weight, lossPace);
 
     // Calorías diarias objetivo
     const cals = Math.max(1200, tdee - deficitTarget);

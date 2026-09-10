@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { getDateKey } from './storage.js';
-import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets } from './nutrition.js';
+import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 
 const HISTORY_PER_PAGE = 10;
@@ -322,8 +322,10 @@ export function updateGoalsDisplay() {
     const stillToLose = (currentWeight || 0) - (targetWeight || 0);
     const progressPercent = totalToLose > 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0;
 
-    const deficitTarget = AppState.config.deficitTarget || 500;
-    const weeklyLossKg = (deficitTarget * 7) / 7700; // ~0.45 kg/sem para 500 kcal
+    const w = currentWeight || 75;
+    const lossPace = AppState.config.lossPace || 'moderado';
+    const deficitTarget = calculateAutoDeficit(w, lossPace);
+    const weeklyLossKg = (deficitTarget * 7) / 7700; // kg/semana equivalentes
     const weeksRemaining = weeklyLossKg > 0 && stillToLose > 0 ? Math.ceil(stillToLose / weeklyLossKg) : 0;
     const daysRemaining = weeksRemaining * 7;
 
@@ -368,9 +370,45 @@ export function updateGoalsDisplay() {
     if (el('goalCarbs')) el('goalCarbs').textContent = Math.round(carbsTarget);
     if (el('goalFats')) el('goalFats').textContent = Math.round(fatsTarget);
 
+    if (el('lossPaceSelect')) el('lossPaceSelect').value = lossPace;
     if (el('deficitTargetInput')) el('deficitTargetInput').value = deficitTarget;
     if (el('proteinFactorSelect')) el('proteinFactorSelect').value = AppState.config.proteinFactor || 2.0;
+
+    _updateLossPaceExplanation(w, lossPace, deficitTarget, weeklyLossKg);
 }
+
+function _updateLossPaceExplanation(weight, lossPace, deficit, weeklyLossKg) {
+    const explainEl = document.getElementById('lossPaceExplain');
+    const manualContainer = document.getElementById('manualDeficitContainer');
+
+    if (manualContainer) {
+        manualContainer.style.display = lossPace === 'manual' ? 'block' : 'none';
+    }
+
+    if (explainEl) {
+        if (lossPace === 'suave') {
+            explainEl.innerHTML = `Paso Suave (~0.5%/sem): Déficit de <strong>~${deficit} kcal/día</strong> (Pérdida estimada: <strong>~${weeklyLossKg.toFixed(2)} kg/sem</strong> para tus ${weight} kg).`;
+        } else if (lossPace === 'moderado') {
+            explainEl.innerHTML = `Paso Moderado (~0.75%/sem): Déficit de <strong>~${deficit} kcal/día</strong> (Pérdida estimada: <strong>~${weeklyLossKg.toFixed(2)} kg/sem</strong> para tus ${weight} kg).`;
+        } else if (lossPace === 'intenso') {
+            explainEl.innerHTML = `Paso Intenso (~1.0%/sem): Déficit de <strong>~${deficit} kcal/día</strong> (Pérdida estimada: <strong>~${weeklyLossKg.toFixed(2)} kg/sem</strong> para tus ${weight} kg).`;
+        } else if (lossPace === 'manual') {
+            explainEl.innerHTML = `Modo Manual: Déficit fijo de <strong>${deficit} kcal/día</strong> (Pérdida estimada: <strong>~${weeklyLossKg.toFixed(2)} kg/sem</strong>).`;
+        }
+    }
+}
+
+window._onLossPaceChange = function() {
+    const select = document.getElementById('lossPaceSelect');
+    if (!select) return;
+    const pace = select.value;
+    const w = AppState.config.currentWeight || 75;
+    import('./nutrition.js').then(m => {
+        const def = m.calculateAutoDeficit(w, pace);
+        const weeklyLoss = (def * 7) / 7700;
+        _updateLossPaceExplanation(w, pace, def, weeklyLoss);
+    });
+};
 
 export function updateStatistics() {
     updateWeekStats();

@@ -463,9 +463,19 @@
                             <h4 class="text-sm font-semibold text-white uppercase tracking-wider text-slate-300">Ajuste de Parámetros de Pérdida</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-300 mb-2">Déficit Calórico Objetivo (kcal/día)</label>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Ritmo de Pérdida Deseado</label>
+                                    <select id="lossPaceSelect" onchange="window._onLossPaceChange()" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                        <option value="suave">🍏 Suave / Gradual (~0.5% peso corporal/sem)</option>
+                                        <option value="moderado" selected>⭐ Moderado / Recomendado (~0.75% peso corporal/sem)</option>
+                                        <option value="intenso">🔥 Intenso / Rápido (~1.0% peso corporal/sem)</option>
+                                        <option value="manual">⚙️ Manual (Definir Kcal exactas)</option>
+                                    </select>
+                                    <p class="text-xs text-slate-400 mt-1.5" id="lossPaceExplain">Déficit calculado automáticamente según tu peso actual.</p>
+                                </div>
+                                <div id="manualDeficitContainer" style="display: none;">
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Déficit Manual (kcal/día)</label>
                                     <input type="number" id="deficitTargetInput" value="500" step="50" min="100" max="1200" placeholder="Ej: 500" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                    <p class="text-xs text-slate-400 mt-1.5">Un déficit de 500 kcal/día equivale a ~0.45 kg de grasa por semana.</p>
+                                    <p class="text-xs text-slate-400 mt-1.5">Especifica el número exacto de calorías a restar de tu TDEE.</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">Nivel de Proteína (g por kg de peso)</label>
@@ -1059,4 +1069,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250527-61"></script>
+    <script type="module" src="js/app.js?v=20250527-62"></script>
