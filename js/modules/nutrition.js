@@ -125,7 +125,6 @@ export function getDynamicDayTargets(dateKey) {
     const cals = Math.max(1200, tdee - deficitTarget);
 
     // Macros: proteína fija según objetivo, grasas mínimo saludable, carbos con el resto
-    const weight = AppState.config.currentWeight || 75;
     const protein = AppState.config.proteinGoal || Math.round(weight * 2.0);
     const fats = Math.max(AppState.config.fatsMin || Math.round(weight * 0.8), 40);
     const carbs = Math.max(0, Math.round((cals - protein * 4 - fats * 9) / 4));
