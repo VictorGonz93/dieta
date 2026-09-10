@@ -317,18 +317,23 @@ export function displayGoalsTracking() {
 
 export function updateGoalsDisplay() {
     const { startWeight, currentWeight, targetWeight } = AppState.config;
-    const totalToLose = startWeight - targetWeight;
-    const alreadyLost = startWeight - currentWeight;
-    const stillToLose = currentWeight - targetWeight;
+    const totalToLose = (startWeight || 0) - (targetWeight || 0);
+    const alreadyLost = (startWeight || 0) - (currentWeight || 0);
+    const stillToLose = (currentWeight || 0) - (targetWeight || 0);
     const progressPercent = totalToLose > 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0;
-    const weeklyLoss = 0.5;
-    const weeksRemaining = Math.ceil(stillToLose / weeklyLoss);
+
+    const deficitTarget = AppState.config.deficitTarget || 500;
+    const weeklyLossKg = (deficitTarget * 7) / 7700; // ~0.45 kg/sem para 500 kcal
+    const weeksRemaining = weeklyLossKg > 0 && stillToLose > 0 ? Math.ceil(stillToLose / weeklyLossKg) : 0;
     const daysRemaining = weeksRemaining * 7;
 
-    const calsTarget = getCalorieTarget() || 1550;
-    const proteinTarget = AppState.config.proteinGoal || 160;
-    const carbsTarget = AppState.config.carbsMax || 130;
-    const fatsTarget = AppState.config.fatsMax || 60;
+    const dateKey = getDateKey(AppState.currentDate);
+    const dynamic = getDynamicDayTargets(dateKey);
+
+    const calsTarget    = dynamic?.cals    || 1550;
+    const proteinTarget = dynamic?.protein || Math.round((currentWeight || 75) * 2.0);
+    const carbsTarget   = dynamic?.carbs   || 130;
+    const fatsTarget    = dynamic?.fats    || 60;
 
     const el = (id) => document.getElementById(id);
     if (el('goalStartWeight')) el('goalStartWeight').textContent = startWeight ? `${startWeight} kg` : '-';
@@ -345,11 +350,11 @@ export function updateGoalsDisplay() {
             timeExplain = 'Estás muy cerca de tu objetivo';
         } else if (weeksRemaining < 4) {
             timeEstimate = `${weeksRemaining} semana${weeksRemaining > 1 ? 's' : ''}`;
-            timeExplain = `Aproximadamente ${daysRemaining} días`;
+            timeExplain = `Aproximadamente ${daysRemaining} días (${weeklyLossKg.toFixed(2)} kg/semana)`;
         } else {
             const months = Math.ceil(weeksRemaining / 4.3);
             timeEstimate = `${months} mes${months > 1 ? 'es' : ''}`;
-            timeExplain = `Aproximadamente ${weeksRemaining} semanas`;
+            timeExplain = `Aproximadamente ${weeksRemaining} semanas (${weeklyLossKg.toFixed(2)} kg/semana)`;
         }
     } else {
         timeEstimate = 'Objetivo alcanzado';
@@ -362,6 +367,9 @@ export function updateGoalsDisplay() {
     if (el('goalProtein')) el('goalProtein').textContent = Math.round(proteinTarget);
     if (el('goalCarbs')) el('goalCarbs').textContent = Math.round(carbsTarget);
     if (el('goalFats')) el('goalFats').textContent = Math.round(fatsTarget);
+
+    if (el('deficitTargetInput')) el('deficitTargetInput').value = deficitTarget;
+    if (el('proteinFactorSelect')) el('proteinFactorSelect').value = AppState.config.proteinFactor || 2.0;
 }
 
 export function updateStatistics() {

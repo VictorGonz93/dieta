@@ -422,62 +422,67 @@
                         </div>
                     </div>
 
-                    <!-- Macro Goals - Display & Edit -->
+                    <!-- Macro Goals - Display & Preferences -->
                     <div class="stat-card">
-                        <h3 class="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                            <span class="material-icons text-primary">restaurant</span>
-                            Objetivos Nutricionales Diarios
-                        </h3>
+                        <div class="flex items-center justify-between mb-6 flex-wrap gap-2">
+                            <div>
+                                <h3 class="text-xl font-semibold text-white flex items-center gap-2">
+                                    <span class="material-icons text-primary">restaurant</span>
+                                    Objetivos Nutricionales Calculados para Hoy
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">Calculados automáticamente según tu peso corporal, ritmo de déficit y entrenamiento</p>
+                            </div>
+                            <span class="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-medium">✨ Autorregulado</span>
+                        </div>
+
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                             <div class="bg-gradient-to-br from-red-500/20 to-red-600/20 rounded-lg p-4 border border-red-500/30">
-                                <p class="text-xs text-slate-400 mb-1">Calorías</p>
-                                <p class="text-2xl font-bold text-red-400" id="goalCals">1550</p>
-                                <p class="text-xs text-slate-500 mt-1">kcal/día</p>
+                                <p class="text-xs text-slate-400 mb-1">Calorías Objetivo</p>
+                                <p class="text-2xl font-bold text-red-400" id="goalCals">-</p>
+                                <p class="text-xs text-slate-400 mt-1">kcal/día</p>
                             </div>
                             <div class="bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-lg p-4 border border-blue-500/30">
-                                <p class="text-xs text-slate-400 mb-1">Proteína</p>
-                                <p class="text-2xl font-bold text-blue-400" id="goalProtein">160</p>
-                                <p class="text-xs text-slate-500 mt-1">g/día</p>
+                                <p class="text-xs text-slate-400 mb-1">Proteína Objetivo</p>
+                                <p class="text-2xl font-bold text-blue-400" id="goalProtein">-</p>
+                                <p class="text-xs text-slate-400 mt-1">g/día</p>
                             </div>
                             <div class="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 rounded-lg p-4 border border-yellow-500/30">
-                                <p class="text-xs text-slate-400 mb-1">Carbos</p>
-                                <p class="text-2xl font-bold text-yellow-400" id="goalCarbs">130</p>
-                                <p class="text-xs text-slate-500 mt-1">g/día</p>
+                                <p class="text-xs text-slate-400 mb-1">Carbos Estimados</p>
+                                <p class="text-2xl font-bold text-yellow-400" id="goalCarbs">-</p>
+                                <p class="text-xs text-slate-400 mt-1">g/día</p>
                             </div>
                             <div class="bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-lg p-4 border border-green-500/30">
-                                <p class="text-xs text-slate-400 mb-1">Grasas</p>
-                                <p class="text-2xl font-bold text-green-400" id="goalFats">60</p>
-                                <p class="text-xs text-slate-500 mt-1">g/día</p>
+                                <p class="text-xs text-slate-400 mb-1">Grasas Mínimas</p>
+                                <p class="text-2xl font-bold text-green-400" id="goalFats">-</p>
+                                <p class="text-xs text-slate-400 mt-1">g/día</p>
                             </div>
                         </div>
-                        <div class="space-y-4">
+
+                        <!-- Ajuste de Preferencias de Cálculo -->
+                        <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700/60 space-y-4">
+                            <h4 class="text-sm font-semibold text-white uppercase tracking-wider text-slate-300">Ajuste de Parámetros de Pérdida</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-300 mb-2">Proteína (g/día)</label>
-                                    <input type="number" id="proteinGoalInput" value="160" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                </div>
-                                <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">Déficit Calórico Objetivo (kcal/día)</label>
-                                    <input type="number" id="deficitTargetInput" value="500" placeholder="Ej: 500" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                    <p class="text-xs text-slate-400 mt-1">Las calorías objetivo se adaptan solas cada día: TDEE - Déficit</p>
+                                    <input type="number" id="deficitTargetInput" value="500" step="50" min="100" max="1200" placeholder="Ej: 500" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                    <p class="text-xs text-slate-400 mt-1.5">Un déficit de 500 kcal/día equivale a ~0.45 kg de grasa por semana.</p>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-300 mb-2">Rango Carbohidratos (g)</label>
-                                    <div class="flex gap-2">
-                                        <input type="number" id="carbsMin" value="80" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                        <input type="number" id="carbsMax" value="130" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-300 mb-2">Rango Grasas (g)</label>
-                                    <div class="flex gap-2">
-                                        <input type="number" id="fatsMin" value="45" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                        <input type="number" id="fatsMax" value="60" class="w-1/2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
-                                    </div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Nivel de Proteína (g por kg de peso)</label>
+                                    <select id="proteinFactorSelect" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                        <option value="1.8">1.8 g/kg (Salud & Mantenimiento)</option>
+                                        <option value="2.0" selected>2.0 g/kg (Óptimo Deportista & Retención)</option>
+                                        <option value="2.2">2.2 g/kg (Déficit Agresivo & Máxima Saciedad)</option>
+                                    </select>
+                                    <p class="text-xs text-slate-400 mt-1.5">Se recalcula automáticamente al cambiar tu peso registrado.</p>
                                 </div>
                             </div>
-                            <button onclick="saveConfig()" class="w-full py-3 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition">
-                                <span class="material-icons inline text-lg mr-2">save</span>Guardar Objetivos
+                            <div class="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 leading-relaxed flex items-center gap-2">
+                                <span class="material-icons text-base text-blue-400">info</span>
+                                <span><strong>Cálculo Automático:</strong> Las Grasas se fijan saludablemente en 0.8g por kg de peso corporal. Los Carbohidratos absorben todas las calorías restantes según tu presupuesto diario.</span>
+                            </div>
+                            <button onclick="saveConfig()" class="w-full py-3 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition cursor-pointer">
+                                <span class="material-icons inline text-lg mr-2">save</span>Guardar Preferencias de Objetivos
                             </button>
                         </div>
                     </div>
@@ -1054,4 +1059,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250527-60"></script>
+    <script type="module" src="js/app.js?v=20250527-61"></script>

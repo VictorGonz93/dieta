@@ -43,21 +43,23 @@ export function saveConfig() {
     const genderEl = document.getElementById('gender');
     if (genderEl?.value) AppState.config.gender = genderEl.value;
 
-    AppState.config.proteinGoal = parseNum('proteinGoalInput', AppState.config.proteinGoal, true);
     AppState.config.deficitTarget = parseNum('deficitTargetInput', AppState.config.deficitTarget || 500, true);
-    AppState.config.calsEntrenamiento = parseNum('calsEntrenamiento', AppState.config.calsEntrenamiento, true);
-    AppState.config.calsDescanso = parseNum('calsDescanso', AppState.config.calsDescanso, true);
-    AppState.config.carbsMin = parseNum('carbsMin', AppState.config.carbsMin, true);
-    AppState.config.carbsMax = parseNum('carbsMax', AppState.config.carbsMax, true);
-    AppState.config.fatsMin = parseNum('fatsMin', AppState.config.fatsMin, true);
-    AppState.config.fatsMax = parseNum('fatsMax', AppState.config.fatsMax, true);
+
+    const pFactorEl = document.getElementById('proteinFactorSelect');
+    if (pFactorEl?.value) {
+        AppState.config.proteinFactor = parseFloat(pFactorEl.value) || 2.0;
+    } else {
+        AppState.config.proteinFactor = AppState.config.proteinFactor || 2.0;
+    }
+
+    AppState.config.proteinGoal = Math.round((AppState.config.currentWeight || 75) * AppState.config.proteinFactor);
 
     if (newWeight !== oldWeight) {
         recordWeight(new Date(), newWeight);
     }
 
     localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
-    showNotification('Configuración guardada correctamente', 'success');
+    showNotification('Configuración y Objetivos guardados correctamente', 'success');
     updateHeaderInfo();
     updateCalculatedValues();
     updateWeightPrediction();
@@ -80,14 +82,8 @@ export function updateConfigUI() {
     if (el('height')) el('height').value = AppState.config.height || '';
     if (el('age')) el('age').value = AppState.config.age || '';
     if (el('gender')) el('gender').value = AppState.config.gender || '';
-    if (el('proteinGoalInput')) el('proteinGoalInput').value = AppState.config.proteinGoal || '';
     if (el('deficitTargetInput')) el('deficitTargetInput').value = AppState.config.deficitTarget || 500;
-    if (el('calsEntrenamiento')) el('calsEntrenamiento').value = AppState.config.calsEntrenamiento || '';
-    if (el('calsDescanso')) el('calsDescanso').value = AppState.config.calsDescanso || '';
-    if (el('carbsMin')) el('carbsMin').value = AppState.config.carbsMin || '';
-    if (el('carbsMax')) el('carbsMax').value = AppState.config.carbsMax || '';
-    if (el('fatsMin')) el('fatsMin').value = AppState.config.fatsMin || '';
-    if (el('fatsMax')) el('fatsMax').value = AppState.config.fatsMax || '';
+    if (el('proteinFactorSelect')) el('proteinFactorSelect').value = AppState.config.proteinFactor || 2.0;
 
     updateCalculatedValues();
 }

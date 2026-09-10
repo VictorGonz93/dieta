@@ -3,6 +3,7 @@
 import AppState from './state.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 import { updateStatistics } from './stats.js';
+import { getDynamicDayTargets } from './nutrition.js';
 
 export function initializeCharts() {
     if (window.Chart) {
@@ -142,9 +143,10 @@ export function initCaloriesChart() {
 
     const labelsText = displayDates.map(d => new Date(d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
 
-    const caloriesGoal = AppState.config.calsEntrenamiento || 1800;
-    const caloriesRest = AppState.config.calsDescanso || 1650;
-    const avgGoal = Math.round((caloriesGoal + caloriesRest) / 2);
+    const dynamicTargetsData = displayDates.map(date => {
+        const dyn = getDynamicDayTargets(date);
+        return dyn ? dyn.cals : 1800;
+    });
 
     AppState.charts.calories = new Chart(ctx, {
         type: 'bar',
@@ -152,32 +154,21 @@ export function initCaloriesChart() {
             labels: labelsText,
             datasets: [
                 {
-                    label: 'Calorías',
+                    label: 'Calorías Consumidas',
                     data: caloriesData,
-                    backgroundColor: caloriesData.map(val => val > caloriesGoal ? 'rgba(248,113,113,0.85)' : 'rgba(16,185,129,0.85)'),
+                    backgroundColor: caloriesData.map((val, i) => val > dynamicTargetsData[i] ? 'rgba(248,113,113,0.85)' : 'rgba(16,185,129,0.85)'),
                     borderRadius: 5,
                     borderSkipped: false,
                     order: 2,
                 },
                 {
-                    label: `Objetivo entreno (${caloriesGoal})`,
-                    data: new Array(labelsText.length).fill(caloriesGoal),
+                    label: 'Objetivo Adaptativo',
+                    data: dynamicTargetsData,
                     type: 'line',
                     borderColor: '#FBBF24',
-                    borderWidth: 1.5,
-                    borderDash: [6, 4],
-                    pointRadius: 0,
-                    fill: false,
-                    order: 1,
-                },
-                {
-                    label: `Objetivo descanso (${caloriesRest})`,
-                    data: new Array(labelsText.length).fill(caloriesRest),
-                    type: 'line',
-                    borderColor: '#A78BFA',
-                    borderWidth: 1.5,
-                    borderDash: [4, 4],
-                    pointRadius: 0,
+                    borderWidth: 2,
+                    borderDash: [5, 4],
+                    pointRadius: 2,
                     fill: false,
                     order: 1,
                 },
