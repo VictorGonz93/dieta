@@ -1,7 +1,7 @@
 // ==================== UI DE DEPORTE ====================
 
 import {
-    EXERCISES_DB, MUSCLES,
+    EXERCISES_DB, MUSCLES, EQUIPMENT_TYPES, getExercisesDB, saveCustomExercise, calculate1RM,
     initTodayWorkout, getTodayWorkout,
     addExerciseToWorkout, removeExerciseFromWorkout,
     addSetToExercise, removeSetFromExercise, updateSet,
@@ -12,6 +12,83 @@ import {
 } from '../workout.js?v=501';
 import { getDateKey } from '../storage.js';
 import AppState from '../state.js';
+
+// ─── Temporizador de Descanso ────────────────────────────────────────────────
+let _restTimerInterval = null;
+let _restTimeRemaining = 0;
+let _restTimeTotal = 90;
+let _restTimerActive = false;
+
+function _playRestBeep() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+    } catch (e) { /* ignore */ }
+}
+
+export function startRestTimer(seconds) {
+    if (_restTimerInterval) clearInterval(_restTimerInterval);
+    _restTimeTotal = seconds;
+    _restTimeRemaining = seconds;
+    _restTimerActive = true;
+    _updateRestTimerUI();
+
+    _restTimerInterval = setInterval(() => {
+        _restTimeRemaining--;
+        if (_restTimeRemaining <= 0) {
+            clearInterval(_restTimerInterval);
+            _restTimerActive = false;
+            _playRestBeep();
+            if (navigator.vibrate) {
+                try { navigator.vibrate([200, 100, 200, 100, 200]); } catch (e) { }
+            }
+            import('./notifications.js').then(m => m.showNotification('⏱️ ¡Tiempo de descanso terminado! A por la siguiente serie 💪'));
+        }
+        _updateRestTimerUI();
+    }, 1000);
+}
+
+export function stopRestTimer() {
+    if (_restTimerInterval) clearInterval(_restTimerInterval);
+    _restTimerActive = false;
+    _restTimeRemaining = 0;
+    _updateRestTimerUI();
+}
+
+function _updateRestTimerUI() {
+    const display = document.getElementById('workout-rest-timer-display');
+    const bar = document.getElementById('workout-rest-timer-bar');
+    if (!display) return;
+
+    if (!_restTimerActive && _restTimeRemaining <= 0) {
+        display.textContent = '00:00';
+        if (bar) bar.style.width = '0%';
+        return;
+    }
+
+    const mins = Math.floor(_restTimeRemaining / 60);
+    const secs = _restTimeRemaining % 60;
+    display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    if (bar) {
+        const pct = Math.max(0, Math.min(100, (_restTimeRemaining / _restTimeTotal) * 100));
+        bar.style.width = `${pct}%`;
+    }
+}
+
+window.startRestTimer = startRestTimer;
+window.stopRestTimer = stopRestTimer;
 
 // ─── Sub-tab navigation ───────────────────────────────────────────────────────
 export function initSportTabs() {
@@ -215,18 +292,34 @@ function _renderExerciseList() {
         return;
     }
 
-    container.innerHTML = workout.exercises.map(ex => `
+    container.innerHTML = workout.exercises.map(ex => {
+        const prevPerf = getPreviousExercisePerformance(ex.exerciseId);
+        const bestSet = ex.sets.reduce((b, s) => {
+            const val = (parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0);
+            const bVal = (parseFloat(b.kg) || 0) * (parseInt(b.reps) || 0);
+            return val > bVal ? s : b;
+        }, { kg: 0, reps: 0 });
+        const est1RM = calculate1RM(bestSet.kg, bestSet.reps);
+
+        return `
         <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;margin-bottom:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;">
                 <div>
-                    <span style="font-weight:600;color:var(--text-1);">${ex.name}</span>
-                    <span style="font-size:0.75rem;color:var(--text-2);margin-left:8px;background:var(--bg-elevated);padding:2px 8px;border-radius:20px;">${ex.muscle}</span>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="font-weight:600;color:var(--text-1);font-size:1rem;">${ex.name}</span>
+                        <span style="font-size:0.75rem;color:var(--text-2);background:var(--bg-elevated);padding:2px 8px;border-radius:20px;">${ex.muscle}</span>
+                    </div>
+                    <div style="font-size:0.75rem;color:var(--text-3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
+                        ${est1RM > 0 ? `<span>1RM est: <strong style="color:#10B981;">${est1RM} kg</strong></span>` : ''}
+                        ${prevPerf ? `<span>Anterior (${prevPerf.date}): <strong style="color:#60A5FA;">${prevPerf.setsText}</strong></span>` : ''}
+                    </div>
                 </div>
                 <button onclick="window._workoutRemoveEx(${ex.exerciseId})"
                     style="padding:4px 8px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.3);border-radius:6px;cursor:pointer;font-size:0.8rem;">
                     <span class="material-icons" style="font-size:14px;vertical-align:middle;">close</span>
                 </button>
             </div>
+
             <!-- Cabecera series -->
             <div style="display:grid;grid-template-columns:32px 1fr 1fr auto;gap:6px;margin-bottom:6px;color:var(--text-3);font-size:0.75rem;text-transform:uppercase;letter-spacing:.04em;padding:0 2px;">
                 <span>#</span><span>Reps</span><span>Kg</span><span></span>
@@ -240,10 +333,16 @@ function _renderExerciseList() {
                     <input type="number" value="${set.kg}" min="0" step="0.5"
                         onchange="window._workoutUpdateSet(${ex.exerciseId},${i},'kg',this.value)"
                         style="padding:5px 8px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">
-                    <button onclick="window._workoutRemoveSet(${ex.exerciseId},${i})"
-                        style="padding:4px 6px;background:transparent;color:var(--text-3);border:1px solid var(--border-dim);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
-                        <span class="material-icons" style="font-size:14px;">remove</span>
-                    </button>
+                    <div style="display:flex;gap:4px;">
+                        <button onclick="startRestTimer(90)" title="Iniciar descanso 90s"
+                            style="padding:4px 6px;background:var(--bg-elevated);color:var(--primary);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
+                            <span class="material-icons" style="font-size:14px;">timer</span>
+                        </button>
+                        <button onclick="window._workoutRemoveSet(${ex.exerciseId},${i})"
+                            style="padding:4px 6px;background:transparent;color:var(--text-3);border:1px solid var(--border-dim);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
+                            <span class="material-icons" style="font-size:14px;">remove</span>
+                        </button>
+                    </div>
                 </div>
             `).join('')}
             <button onclick="window._workoutAddSet(${ex.exerciseId})"
@@ -251,7 +350,8 @@ function _renderExerciseList() {
                 <span class="material-icons" style="font-size:14px;">add</span> Añadir serie
             </button>
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     window._workoutRemoveEx = (id) => { removeExerciseFromWorkout(id); _renderExerciseList(); _updateKcalDisplay(); };
     window._workoutAddSet = (id) => { addSetToExercise(id); _renderExerciseList(); _updateKcalDisplay(); };
@@ -278,10 +378,9 @@ export function renderExercisesDB() {
     if (!container) return;
 
     const prs = getExercisePRs();
-    const typeColors = { libre: '#60A5FA', maquina: '#A78BFA', cuerpo: '#34D399', cardio: '#FBBF24' };
-    const typeLabels = { libre: 'Libre', maquina: 'Máquina', cuerpo: 'Cuerpo', cardio: 'Cardio' };
+    const allEx = getExercisesDB();
 
-    const filtered = EXERCISES_DB.filter(e => {
+    const filtered = allEx.filter(e => {
         const matchMuscle = _muscleFilter === 'Todos' || e.muscle === _muscleFilter;
         const matchSearch = !_exSearch || e.name.toLowerCase().includes(_exSearch);
         return matchMuscle && matchSearch;
@@ -295,11 +394,20 @@ export function renderExercisesDB() {
 
     container.innerHTML = `
         <div class="max-w-3xl mx-auto">
+            <!-- Barra Superior y Crear Ejercicio -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+                <div style="font-size:1rem;font-weight:700;color:var(--text-1);">Base de Ejercicios (${allEx.length})</div>
+                <button onclick="window._promptCreateCustomExercise()"
+                    style="padding:7px 14px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:4px;">
+                    <span class="material-icons" style="font-size:16px;">add</span> Crear Ejercicio
+                </button>
+            </div>
+
             <!-- Filtros -->
             <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
                 <div style="position:relative;">
                     <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:18px;">search</span>
-                    <input type="text" placeholder="Buscar ejercicio..." value="${_exSearch}"
+                    <input type="text" placeholder="Buscar ejercicio por nombre..." value="${_exSearch}"
                         oninput="window._exSearch(this.value)"
                         style="width:100%;padding:8px 12px 8px 36px;background:var(--bg-card);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;box-sizing:border-box;">
                 </div>
@@ -317,13 +425,16 @@ export function renderExercisesDB() {
             <div style="display:flex;flex-direction:column;gap:8px;">
                 ${paginated.map(e => {
                     const pr = prs[e.id];
+                    const equipInfo = EQUIPMENT_TYPES[e.type] || { label: e.type, color: '#6B7280' };
                     return `
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-base);border-left:3px solid ${typeColors[e.type] || '#6B7280'};border-radius:8px;gap:12px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-base);border-left:3px solid ${equipInfo.color};border-radius:8px;gap:12px;">
                         <div style="flex:1;">
-                            <div style="font-weight:600;color:var(--text-1);margin-bottom:3px;">${e.name}</div>
+                            <div style="font-weight:600;color:var(--text-1);margin-bottom:3px;">
+                                ${e.name} ${e.isCustom ? '<span style="font-size:0.68rem;color:#FBBF24;background:rgba(251,191,36,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">Personalizado</span>' : ''}
+                            </div>
                             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                                <span style="font-size:0.75rem;color:${typeColors[e.type]};background:rgba(0,0,0,0.2);padding:1px 7px;border-radius:20px;">${typeLabels[e.type]}</span>
-                                <span style="font-size:0.75rem;color:var(--text-3);">${e.muscle}</span>
+                                <span style="font-size:0.75rem;color:${equipInfo.color};background:rgba(0,0,0,0.2);padding:1px 7px;border-radius:20px;">${equipInfo.label}</span>
+                                <span style="font-size:0.75rem;color:var(--text-3);">${e.muscle} · ${e.category || 'aislamiento'}</span>
                             </div>
                         </div>
                         ${pr ? `
@@ -361,6 +472,23 @@ export function renderExercisesDB() {
     window._exSearch = (v) => { _exSearch = v.toLowerCase(); _exPage = 0; renderExercisesDB(); };
     window._exGoPage = (p) => { _exPage = p; renderExercisesDB(); document.getElementById('sport-ejercicios').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 }
+
+window._promptCreateCustomExercise = function () {
+    const name = prompt('Nombre del nuevo ejercicio (ej: Press Inclinado con Cadenas):');
+    if (!name || !name.trim()) return;
+
+    const musclePrompt = prompt(`Grupo muscular (${MUSCLES.filter(m => m !== 'Todos').join(', ')}):`, 'Pecho');
+    const muscle = MUSCLES.includes(musclePrompt) ? musclePrompt : 'Pecho';
+
+    const typePrompt = prompt('Tipo/Equipamiento (libre, maquina, polea, cuerpo, kettlebell, cardio):', 'libre');
+    const type = EQUIPMENT_TYPES[typePrompt] ? typePrompt : 'libre';
+
+    const categoryPrompt = prompt('Categoría (compuesto o aislamiento):', 'compuesto');
+    const category = categoryPrompt === 'compuesto' ? 'compuesto' : 'aislamiento';
+
+    saveCustomExercise({ name, muscle, type, category, met: category === 'compuesto' ? 6.0 : 4.0 });
+    renderExercisesDB();
+};
 
 // ─── Historial de entrenos ────────────────────────────────────────────────────
 export function renderWorkoutHistory() {
