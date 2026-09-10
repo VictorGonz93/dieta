@@ -610,12 +610,15 @@
                                         <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
                                         Lunes
                                     </div>
-                                    <div class="flex-1 flex gap-2 w-full">
+                                    <div class="flex-1 flex gap-2 w-full flex-wrap sm:flex-nowrap">
                                         <select id="lunes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
                                             <option value="descanso">Descanso</option>
                                             <option value="entreno">Entrenamiento</option>
                                         </select>
-                                        <input type="text" id="lunes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <input type="text" id="lunes-label" placeholder="Ej: Pierna" class="flex-1 min-w-[120px] px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <select id="lunes-template" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="">-- Sin plantilla --</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <!-- Tuesday -->
@@ -624,12 +627,15 @@
                                         <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
                                         Martes
                                     </div>
-                                    <div class="flex-1 flex gap-2 w-full">
+                                    <div class="flex-1 flex gap-2 w-full flex-wrap sm:flex-nowrap">
                                         <select id="martes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
                                             <option value="descanso">Descanso</option>
                                             <option value="entreno">Entrenamiento</option>
                                         </select>
-                                        <input type="text" id="martes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <input type="text" id="martes-label" placeholder="Ej: Pierna" class="flex-1 min-w-[120px] px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <select id="martes-template" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="">-- Sin plantilla --</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <!-- Wednesday -->
@@ -638,12 +644,15 @@
                                         <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
                                         Miércoles
                                     </div>
-                                    <div class="flex-1 flex gap-2 w-full">
+                                    <div class="flex-1 flex gap-2 w-full flex-wrap sm:flex-nowrap">
                                         <select id="miercoles-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
                                             <option value="descanso">Descanso</option>
                                             <option value="entreno">Entrenamiento</option>
                                         </select>
-                                        <input type="text" id="miercoles-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <input type="text" id="miercoles-label" placeholder="Ej: Pierna" class="flex-1 min-w-[120px] px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <select id="miercoles-template" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="">-- Sin plantilla --</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <!-- Thursday -->
@@ -652,12 +661,15 @@
                                         <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
                                         Jueves
                                     </div>
-                                    <div class="flex-1 flex gap-2 w-full">
+                                    <div class="flex-1 flex gap-2 w-full flex-wrap sm:flex-nowrap">
                                         <select id="jueves-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
                                             <option value="descanso">Descanso</option>
                                             <option value="entreno">Entrenamiento</option>
                                         </select>
-                                        <input type="text" id="jueves-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <input type="text" id="jueves-label" placeholder="Ej: Pierna" class="flex-1 min-w-[120px] px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <select id="jueves-template" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="">-- Sin plantilla --</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <!-- Friday -->
@@ -666,12 +678,15 @@
                                         <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
                                         Viernes
                                     </div>
-                                    <div class="flex-1 flex gap-2 w-full">
+                                    <div class="flex-1 flex gap-2 w-full flex-wrap sm:flex-nowrap">
                                         <select id="viernes-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
                                             <option value="descanso">Descanso</option>
                                             <option value="entreno">Entrenamiento</option>
                                         </select>
-                                        <input type="text" id="viernes-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <input type="text" id="viernes-label" placeholder="Ej: Pierna" class="flex-1 min-w-[120px] px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <select id="viernes-template" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="">-- Sin plantilla --</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <!-- Saturday -->
@@ -680,12 +695,15 @@
                                         <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
                                         Sábado
                                     </div>
-                                    <div class="flex-1 flex gap-2 w-full">
+                                    <div class="flex-1 flex gap-2 w-full flex-wrap sm:flex-nowrap">
                                         <select id="sabado-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
                                             <option value="descanso">Descanso</option>
                                             <option value="entreno">Entrenamiento</option>
                                         </select>
-                                        <input type="text" id="sabado-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <input type="text" id="sabado-label" placeholder="Ej: Pierna" class="flex-1 min-w-[120px] px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <select id="sabado-template" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="">-- Sin plantilla --</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <!-- Sunday -->
@@ -694,12 +712,15 @@
                                         <span class="material-icons inline align-middle mr-1 text-primary text-sm">calendar_today</span>
                                         Domingo
                                     </div>
-                                    <div class="flex-1 flex gap-2 w-full">
+                                    <div class="flex-1 flex gap-2 w-full flex-wrap sm:flex-nowrap">
                                         <select id="domingo-type" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
                                             <option value="descanso">Descanso</option>
                                             <option value="entreno">Entrenamiento</option>
                                         </select>
-                                        <input type="text" id="domingo-label" placeholder="Ej: Pierna" class="flex-1 px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <input type="text" id="domingo-label" placeholder="Ej: Pierna" class="flex-1 min-w-[120px] px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                        <select id="domingo-template" class="px-2 sm:px-3 py-1 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-primary smooth-transition" onchange="updateWorkoutPlan()">
+                                            <option value="">-- Sin plantilla --</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -1033,4 +1054,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250527-59"></script>
+    <script type="module" src="js/app.js?v=20250527-60"></script>

@@ -381,12 +381,73 @@ let _exSearch = '';
 let _exPage = 0;
 const _exPageSize = 20;
 
-export function renderExercisesDB() {
+export function renderExercisesDB(fullReset = false) {
     const container = document.getElementById('sport-ejercicios');
     if (!container) return;
 
+    const cardsContainer = document.getElementById('ex-list-cards-container');
+
+    if (!cardsContainer || fullReset) {
+        const allEx = getExercisesDB();
+        container.innerHTML = `
+            <div class="max-w-3xl mx-auto">
+                <!-- Barra Superior y Crear Ejercicio -->
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+                    <div style="font-size:1rem;font-weight:700;color:var(--text-1);" id="ex-db-total-count">Base de Ejercicios (${allEx.length})</div>
+                    <button onclick="window._promptCreateCustomExercise()"
+                        style="padding:7px 14px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:4px;">
+                        <span class="material-icons" style="font-size:16px;">add</span> Crear Ejercicio
+                    </button>
+                </div>
+
+                <!-- Filtros y Búsqueda Nube -->
+                <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+                    <div style="display:flex;gap:8px;">
+                        <div style="position:relative;flex:1;">
+                            <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:18px;">search</span>
+                            <input id="ex-local-search-input" type="text" placeholder="Buscar ejercicio local..." value="${_exSearch}"
+                                oninput="window._exSearch(this.value)"
+                                style="width:100%;padding:8px 12px 8px 36px;background:var(--bg-card);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;box-sizing:border-box;">
+                        </div>
+                        <button onclick="window._searchCloudExercises()"
+                            style="padding:8px 14px;background:rgba(56,189,248,0.15);color:#38BDF8;border:1px solid rgba(56,189,248,0.3);border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+                            <span class="material-icons" style="font-size:16px;">cloud_search</span>
+                            <span>Buscar Nube (Wger)</span>
+                        </button>
+                    </div>
+                    <div id="wger-cloud-results"></div>
+                    <div id="ex-muscle-pills-container" style="display:flex;flex-wrap:wrap;gap:6px;">
+                        ${_renderMusclePillsHTML()}
+                    </div>
+                </div>
+
+                <!-- Lista de Tarjetas de Ejercicios y Paginación -->
+                <div id="ex-list-cards-container"></div>
+            </div>
+        `;
+    }
+
+    _updateExercisesCardsHTML();
+}
+
+function _renderMusclePillsHTML() {
+    return MUSCLES.map(m => `
+        <button onclick="window._exFilter('${m}')"
+            style="padding:5px 12px;border-radius:20px;border:1px solid ${_muscleFilter === m ? 'var(--primary)' : 'var(--border-base)'};background:${_muscleFilter === m ? 'var(--primary-dim)' : 'transparent'};color:${_muscleFilter === m ? 'var(--primary-text)' : 'var(--text-2)'};cursor:pointer;font-size:0.82rem;transition:.15s;">
+            ${m}
+        </button>
+    `).join('');
+}
+
+function _updateExercisesCardsHTML() {
+    const cardsContainer = document.getElementById('ex-list-cards-container');
+    if (!cardsContainer) return;
+
     const prs = getExercisePRs();
     const allEx = getExercisesDB();
+
+    const totalCountEl = document.getElementById('ex-db-total-count');
+    if (totalCountEl) totalCountEl.textContent = `Base de Ejercicios (${allEx.length})`;
 
     const filtered = allEx.filter(e => {
         const matchMuscle = _muscleFilter === 'Todos' || e.muscle === _muscleFilter;
@@ -400,94 +461,59 @@ export function renderExercisesDB() {
     const start = filtered.length === 0 ? 0 : _exPage * _exPageSize + 1;
     const end = Math.min((_exPage + 1) * _exPageSize, filtered.length);
 
-    container.innerHTML = `
-        <div class="max-w-3xl mx-auto">
-            <!-- Barra Superior y Crear Ejercicio -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-                <div style="font-size:1rem;font-weight:700;color:var(--text-1);">Base de Ejercicios (${allEx.length})</div>
-                <button onclick="window._promptCreateCustomExercise()"
-                    style="padding:7px 14px;background:var(--primary-dim);color:var(--primary-text);border:1px solid rgba(16,185,129,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:4px;">
-                    <span class="material-icons" style="font-size:16px;">add</span> Crear Ejercicio
-                </button>
-            </div>
-
-            <!-- Filtros y Búsqueda Nube -->
-            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
-                <div style="display:flex;gap:8px;">
-                    <div style="position:relative;flex:1;">
-                        <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:18px;">search</span>
-                        <input type="text" placeholder="Buscar ejercicio local..." value="${_exSearch}"
-                            oninput="window._exSearch(this.value)"
-                            style="width:100%;padding:8px 12px 8px 36px;background:var(--bg-card);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;box-sizing:border-box;">
-                    </div>
-                    <button onclick="window._searchCloudExercises()"
-                        style="padding:8px 14px;background:rgba(56,189,248,0.15);color:#38BDF8;border:1px solid rgba(56,189,248,0.3);border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;white-space:nowrap;display:flex;align-items:center;gap:4px;">
-                        <span class="material-icons" style="font-size:16px;">cloud_search</span>
-                        <span>Buscar Nube (Wger)</span>
-                    </button>
-                </div>
-                <div id="wger-cloud-results"></div>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                    ${MUSCLES.map(m => `
-                        <button onclick="window._exFilter('${m}')"
-                            style="padding:5px 12px;border-radius:20px;border:1px solid ${_muscleFilter === m ? 'var(--primary)' : 'var(--border-base)'};background:${_muscleFilter === m ? 'var(--primary-dim)' : 'transparent'};color:${_muscleFilter === m ? 'var(--primary-text)' : 'var(--text-2)'};cursor:pointer;font-size:0.82rem;transition:.15s;">
-                            ${m}
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-
-            <!-- Lista -->
-            <div style="display:flex;flex-direction:column;gap:8px;">
-                ${paginated.map(e => {
-                    const pr = prs[e.id];
-                    const equipInfo = EQUIPMENT_TYPES[e.type] || { label: e.type, color: '#6B7280' };
-                    return `
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-base);border-left:3px solid ${equipInfo.color};border-radius:8px;gap:12px;">
-                        <div style="flex:1;">
-                            <div style="font-weight:600;color:var(--text-1);margin-bottom:3px;">
-                                ${e.name} ${e.isCustom ? '<span style="font-size:0.68rem;color:#FBBF24;background:rgba(251,191,36,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">Personalizado</span>' : ''}
-                            </div>
-                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                                <span style="font-size:0.75rem;color:${equipInfo.color};background:rgba(0,0,0,0.2);padding:1px 7px;border-radius:20px;">${equipInfo.label}</span>
-                                <span style="font-size:0.75rem;color:var(--text-3);">${e.muscle} · ${e.category || 'aislamiento'}</span>
-                            </div>
+    cardsContainer.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            ${paginated.map(e => {
+                const pr = prs[e.id];
+                const equipInfo = EQUIPMENT_TYPES[e.type] || { label: e.type, color: '#6B7280' };
+                return `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-base);border-left:3px solid ${equipInfo.color};border-radius:8px;gap:12px;">
+                    <div style="flex:1;">
+                        <div style="font-weight:600;color:var(--text-1);margin-bottom:3px;">
+                            ${e.name} ${e.isCustom ? '<span style="font-size:0.68rem;color:#FBBF24;background:rgba(251,191,36,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">Personalizado</span>' : ''}
                         </div>
-                        ${pr ? `
-                        <div style="text-align:right;min-width:80px;">
-                            <div style="font-size:0.7rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">PR</div>
-                            <div style="font-size:1rem;font-weight:700;color:#FBBF24;">${pr.maxWeight} kg</div>
-                            <div style="font-size:0.72rem;color:var(--text-3);">${pr.reps} reps · ${pr.date}</div>
-                        </div>` : `<div style="min-width:80px;text-align:right;color:var(--text-3);font-size:0.8rem;">Sin PR</div>`}
-                    </div>`;
-                }).join('')}
-                ${filtered.length === 0 ? '<div style="text-align:center;color:var(--text-3);padding:30px;">Sin resultados</div>' : ''}
-            </div>
-
-            <!-- Paginación -->
-            ${totalPages > 1 ? `
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding:10px 0;">
-                <button onclick="window._exGoPage(${_exPage - 1})" ${_exPage === 0 ? 'disabled' : ''}
-                    style="display:flex;align-items:center;gap:4px;padding:7px 14px;border-radius:8px;border:1px solid var(--border-base);background:${_exPage === 0 ? 'transparent' : 'var(--bg-card)'};color:${_exPage === 0 ? 'var(--text-3)' : 'var(--text-2)'};cursor:${_exPage === 0 ? 'default' : 'pointer'};font-size:0.85rem;">
-                    <span class="material-icons" style="font-size:16px;">chevron_left</span> Anterior
-                </button>
-                <span style="font-size:0.82rem;color:var(--text-2);">
-                    ${start}–${end} <span style="color:var(--text-3);">de ${filtered.length}</span>
-                    &nbsp;·&nbsp; Pág. ${_exPage + 1}/${totalPages}
-                </span>
-                <button onclick="window._exGoPage(${_exPage + 1})" ${_exPage >= totalPages - 1 ? 'disabled' : ''}
-                    style="display:flex;align-items:center;gap:4px;padding:7px 14px;border-radius:8px;border:1px solid var(--border-base);background:${_exPage >= totalPages - 1 ? 'transparent' : 'var(--bg-card)'};color:${_exPage >= totalPages - 1 ? 'var(--text-3)' : 'var(--text-2)'};cursor:${_exPage >= totalPages - 1 ? 'default' : 'pointer'};font-size:0.85rem;">
-                    Siguiente <span class="material-icons" style="font-size:16px;">chevron_right</span>
-                </button>
-            </div>` : `
-            <div style="text-align:center;margin-top:12px;font-size:0.8rem;color:var(--text-3);">${filtered.length} ejercicio${filtered.length !== 1 ? 's' : ''}</div>`}
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <span style="font-size:0.75rem;color:${equipInfo.color};background:rgba(0,0,0,0.2);padding:1px 7px;border-radius:20px;">${equipInfo.label}</span>
+                            <span style="font-size:0.75rem;color:var(--text-3);">${e.muscle} · ${e.category || 'aislamiento'}</span>
+                        </div>
+                    </div>
+                    ${pr ? `
+                    <div style="text-align:right;min-width:80px;">
+                        <div style="font-size:0.7rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">PR</div>
+                        <div style="font-size:1rem;font-weight:700;color:#FBBF24;">${pr.maxWeight} kg</div>
+                        <div style="font-size:0.72rem;color:var(--text-3);">${pr.reps} reps · ${pr.date}</div>
+                    </div>` : `<div style="min-width:80px;text-align:right;color:var(--text-3);font-size:0.8rem;">Sin PR</div>`}
+                </div>`;
+            }).join('')}
+            ${filtered.length === 0 ? '<div style="text-align:center;color:var(--text-3);padding:30px;">Sin resultados locales para "' + _exSearch + '"</div>' : ''}
         </div>
+
+        <!-- Paginación -->
+        ${totalPages > 1 ? `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding:10px 0;">
+            <button onclick="window._exGoPage(${_exPage - 1})" ${_exPage === 0 ? 'disabled' : ''}
+                style="display:flex;align-items:center;gap:4px;padding:7px 14px;border-radius:8px;border:1px solid var(--border-base);background:${_exPage === 0 ? 'transparent' : 'var(--bg-card)'};color:${_exPage === 0 ? 'var(--text-3)' : 'var(--text-2)'};cursor:${_exPage === 0 ? 'default' : 'pointer'};font-size:0.85rem;">
+                <span class="material-icons" style="font-size:16px;">chevron_left</span> Anterior
+            </button>
+            <span style="font-size:0.82rem;color:var(--text-2);">
+                ${start}–${end} <span style="color:var(--text-3);">de ${filtered.length}</span>
+                &nbsp;·&nbsp; Pág. ${_exPage + 1}/${totalPages}
+            </span>
+            <button onclick="window._exGoPage(${_exPage + 1})" ${_exPage >= totalPages - 1 ? 'disabled' : ''}
+                style="display:flex;align-items:center;gap:4px;padding:7px 14px;border-radius:8px;border:1px solid var(--border-base);background:${_exPage >= totalPages - 1 ? 'transparent' : 'var(--bg-card)'};color:${_exPage >= totalPages - 1 ? 'var(--text-3)' : 'var(--text-2)'};cursor:${_exPage >= totalPages - 1 ? 'default' : 'pointer'};font-size:0.85rem;">
+                Siguiente <span class="material-icons" style="font-size:16px;">chevron_right</span>
+            </button>
+        </div>` : `
+        <div style="text-align:center;margin-top:12px;font-size:0.8rem;color:var(--text-3);">${filtered.length} ejercicio${filtered.length !== 1 ? 's' : ''}</div>`}
     `;
 
-    window._exFilter = (m) => { _muscleFilter = m; _exPage = 0; renderExercisesDB(); };
-    window._exSearch = (v) => { _exSearch = v.toLowerCase(); _exPage = 0; renderExercisesDB(); };
-    window._exGoPage = (p) => { _exPage = p; renderExercisesDB(); document.getElementById('sport-ejercicios').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    const pillsContainer = document.getElementById('ex-muscle-pills-container');
+    if (pillsContainer) pillsContainer.innerHTML = _renderMusclePillsHTML();
 }
+
+window._exFilter = (m) => { _muscleFilter = m; _exPage = 0; _updateExercisesCardsHTML(); };
+window._exSearch = (v) => { _exSearch = v.toLowerCase(); _exPage = 0; _updateExercisesCardsHTML(); };
+window._exGoPage = (p) => { _exPage = p; _updateExercisesCardsHTML(); document.getElementById('sport-ejercicios').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
 window._promptCreateCustomExercise = function () {
     const name = prompt('Nombre del nuevo ejercicio (ej: Press Inclinado con Cadenas):');
@@ -503,19 +529,19 @@ window._promptCreateCustomExercise = function () {
     const category = categoryPrompt === 'compuesto' ? 'compuesto' : 'aislamiento';
 
     saveCustomExercise({ name, muscle, type, category, met: category === 'compuesto' ? 6.0 : 4.0 });
-    renderExercisesDB();
+    renderExercisesDB(true);
 };
 
 window._searchCloudExercises = async function () {
-    const input = document.querySelector('#sport-ejercicios input[type="text"]');
+    const input = document.getElementById('ex-local-search-input');
     const query = input?.value?.trim() || _exSearch;
     if (!query || query.length < 2) {
-        import('./notifications.js').then(m => m.showNotification('Escribe al menos 2 letras para buscar en la nube', 'warning'));
+        import('./notifications.js').then(m => m.showNotification('Escribe al menos 2 letras en el buscador', 'warning'));
         return;
     }
 
     const container = document.getElementById('wger-cloud-results');
-    if (container) container.innerHTML = '<div style="color:var(--text-2);padding:10px;font-size:0.85rem;">🔍 Consultando API Wger en la nube...</div>';
+    if (container) container.innerHTML = '<div style="color:var(--text-2);padding:10px;font-size:0.85rem;display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:16px;">cloud_sync</span> Consultando Wger API en la nube...</div>';
 
     const { searchWgerExercises } = await import('../workout.js?v=501');
     const results = await searchWgerExercises(query);
@@ -523,22 +549,23 @@ window._searchCloudExercises = async function () {
     if (!container) return;
 
     if (!results || results.length === 0) {
-        container.innerHTML = `<div style="color:var(--text-3);padding:10px;font-size:0.85rem;">No se encontraron resultados en Wger para "${query}".</div>`;
+        container.innerHTML = `<div style="color:var(--text-3);padding:10px;font-size:0.85rem;">No se encontraron resultados en Wger para "${query}". Intenta con un término general (ej: press, squat, curl, bench).</div>`;
         return;
     }
 
     container.innerHTML = `
-        <div style="font-size:0.82rem;font-weight:700;color:#38BDF8;margin-bottom:8px;text-transform:uppercase;">
-            Resultados Wger API Nube (${results.length})
+        <div style="font-size:0.82rem;font-weight:700;color:#38BDF8;margin-bottom:8px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;">
+            <span>Resultados Wger API Nube (${results.length})</span>
+            <button onclick="document.getElementById('wger-cloud-results').innerHTML=''" style="background:transparent;border:none;color:var(--text-3);cursor:pointer;font-size:1.1rem;">×</button>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;padding-right:4px;">
             ${results.map(r => `
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;gap:10px;">
-                    <div>
+                    <div style="flex:1;">
                         <div style="font-weight:600;color:var(--text-1);font-size:0.9rem;">${r.name}</div>
-                        <div style="font-size:0.75rem;color:var(--text-3);">${r.muscle} · Global Wger DB</div>
+                        <div style="font-size:0.75rem;color:var(--text-3);">${r.muscle} ${r.equipmentName ? '· ' + r.equipmentName : ''}</div>
                     </div>
-                    <button onclick="window._importWgerExercise('${r.name.replace(/'/g, "\\'")}', '${r.muscle}')"
+                    <button onclick="window._importWgerExercise('${r.name.replace(/'/g, "\\'")}', '${r.muscle}', '${r.type}')"
                         style="padding:5px 10px;background:#38BDF8;color:#0F172A;border:none;border-radius:6px;font-weight:700;font-size:0.78rem;cursor:pointer;white-space:nowrap;">
                         + Añadir
                     </button>
@@ -548,9 +575,9 @@ window._searchCloudExercises = async function () {
     `;
 };
 
-window._importWgerExercise = function (name, muscle) {
-    saveCustomExercise({ name, muscle, type: 'libre', category: 'compuesto', met: 5.0 });
-    renderExercisesDB();
+window._importWgerExercise = function (name, muscle, type = 'libre') {
+    saveCustomExercise({ name, muscle, type, category: 'compuesto', met: 5.0 });
+    renderExercisesDB(true);
 };
 
 // ─── Historial de entrenos ────────────────────────────────────────────────────

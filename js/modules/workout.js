@@ -266,16 +266,22 @@ export function saveCustomExercise(exData) {
 export async function searchWgerExercises(query) {
     if (!query || query.trim().length < 2) return [];
     try {
-        const url = `https://wger.de/api/v2/exercise/search/?term=${encodeURIComponent(query.trim())}`;
-        const res = await fetch(url);
+        const url = `https://wger.de/api/v2/exerciseinfo/?term=${encodeURIComponent(query.trim())}`;
+        const res = await fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        });
         if (!res.ok) return [];
         const data = await res.json();
-        if (data && data.suggestions) {
-            return data.suggestions.map(s => {
-                const item = s.data || {};
-                const name = s.value || item.name || 'Ejercicio';
-                const categoryName = item.category || 'Otros';
+        if (data && data.results && data.results.length > 0) {
+            return data.results.map(item => {
+                let name = 'Ejercicio Wger';
+                if (item.translations && item.translations.length > 0) {
+                    const esTrans = item.translations.find(t => t.language === 4);
+                    const enTrans = item.translations.find(t => t.language === 2);
+                    name = (esTrans && esTrans.name) ? esTrans.name : ((enTrans && enTrans.name) ? enTrans.name : item.translations[0].name || 'Ejercicio Wger');
+                }
 
+                const categoryName = item.category?.name || '';
                 let muscle = 'Pecho';
                 if (/chest|pecho/i.test(categoryName)) muscle = 'Pecho';
                 else if (/back|espalda|lats/i.test(categoryName)) muscle = 'Espalda';
@@ -286,17 +292,25 @@ export async function searchWgerExercises(query) {
                 else if (/triceps|tríceps/i.test(categoryName)) muscle = 'Tríceps';
                 else if (/abs|core|abdominal/i.test(categoryName)) muscle = 'Core';
                 else if (/cardio/i.test(categoryName)) muscle = 'Cardio';
+                else if (/arms|brazos/i.test(categoryName)) muscle = 'Bíceps';
+
+                const equipName = item.equipment && item.equipment.length > 0 ? item.equipment[0].name : '';
+                let type = 'libre';
+                if (/machine|máquina/i.test(equipName)) type = 'maquina';
+                else if (/cable|polea/i.test(equipName)) type = 'polea';
+                else if (/bodyweight|cuerpo/i.test(equipName)) type = 'cuerpo';
+                else if (/kettlebell/i.test(equipName)) type = 'kettlebell';
 
                 return {
-                    id: `wger-${item.id || Date.now()}`,
+                    id: `wger-${item.id}`,
                     wgerId: item.id,
                     name: name,
                     muscle: muscle,
-                    type: 'libre',
+                    type: type,
                     category: 'compuesto',
                     met: 5.0,
                     isWger: true,
-                    image: item.image_thumbnail ? `https://wger.de${item.image_thumbnail}` : null
+                    equipmentName: equipName
                 };
             });
         }
