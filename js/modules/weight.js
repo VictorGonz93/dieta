@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit } from './nutrition.js';
-import { getWorkoutSessions } from './workout.js?v=501';
+import { getWorkoutSessions } from './workout.js';
 import { getDateKey, saveDays } from './storage.js';
 import { showNotification } from './ui/notifications.js';
 

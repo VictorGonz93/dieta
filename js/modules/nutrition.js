@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { GYM_ROUTINE, UNIT_CONVERSIONS } from './constants.js';
-import { estimateWorkoutKcal } from './workout.js?v=501';
+import { estimateWorkoutKcal } from './workout.js';
 
 export function getDayNumber(date) {
     if (!AppState.config.startDate) return 0;

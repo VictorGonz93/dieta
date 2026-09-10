@@ -1,4 +1,4 @@
-const CACHE_VERSION = 72; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 73; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -91,14 +91,14 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                 }
                 return response;
-            }).catch(() => caches.match(event.request))
+            }).catch(() => caches.match(event.request, { ignoreSearch: true }))
         );
         return;
     }
 
     // Resto de recursos: cache-first (CSS, HTML, imágenes, CDN)
     event.respondWith(
-        caches.match(event.request).then((response) => {
+        caches.match(event.request, { ignoreSearch: true }).then((response) => {
             if (response) return response;
             return fetch(event.request).then((response) => {
                 if (!response || response.status !== 200 || response.type === 'error') return response;

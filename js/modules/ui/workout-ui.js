@@ -9,7 +9,7 @@ import {
     finalizeWorkout, estimateWorkoutKcal,
     getWorkoutSessions, getExercisePRs,
     getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate, loadWorkoutTemplate,
-} from '../workout.js?v=501';
+} from '../workout.js';
 import { getDateKey } from '../storage.js';
 import AppState from '../state.js';
 
@@ -747,7 +747,7 @@ window._searchCloudExercises = async function () {
     const container = document.getElementById('wger-cloud-results');
     if (container) container.innerHTML = '<div style="color:var(--text-2);padding:10px;font-size:0.85rem;display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:16px;">cloud_sync</span> Consultando Wger API en la nube...</div>';
 
-    const { searchWgerExercises } = await import('../workout.js?v=501');
+    const { searchWgerExercises } = await import('../workout.js');
     const results = await searchWgerExercises(query);
 
     if (!container) return;

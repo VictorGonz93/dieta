@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { getDateKey } from './storage.js';
-import { getTodayWorkout, estimateWorkoutKcal, getWorkoutSessions, getExercisesDB } from './workout.js?v=501';
+import { getTodayWorkout, estimateWorkoutKcal, getWorkoutSessions, getExercisesDB } from './workout.js';
 import { showNotification } from './ui/notifications.js';
 
 const GOOGLE_FIT_SCOPE = 'https://www.googleapis.com/auth/fitness.activity.read';
@@ -318,9 +318,4 @@ export function initGoogleFitAutoSync() {
 window.connectGoogleFit = connectGoogleFit;
 window.disconnectGoogleFit = disconnectGoogleFit;
 window._manualSyncGoogleFit = () => syncTodayStepsFromGoogleFit(true);
-}
-
-// Window Exposures
-window.connectGoogleFit = connectGoogleFit;
-window.disconnectGoogleFit = disconnectGoogleFit;
 window._manualSyncGoogleFit = () => syncTodayStepsFromGoogleFit(true);

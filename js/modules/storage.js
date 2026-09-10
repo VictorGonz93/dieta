@@ -240,7 +240,7 @@ export function importData(event) {
             const { updateWeightPrediction, displayNextDayPrediction } = await import('./weight.js');
             const { initializeToday } = await import('./meals.js');
             const { initializeCharts, renderWeightPredictionChart } = await import('./charts.js');
-            const { initSportTabs } = await import('./ui/workout-ui.js?v=501');
+            const { initSportTabs } = await import('./ui/workout-ui.js');
 
             loadConfig();
             renderProductsList();
