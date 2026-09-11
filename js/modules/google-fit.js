@@ -274,10 +274,8 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
 
     let exInSession = session.exercises.find(e => e.exerciseId == stepsExDB.id || (e.name && e.name.toLowerCase().includes('pasos')));
 
-    const approxMins = Math.round(steps / 100);
-
     if (exInSession) {
-        exInSession.sets = [{ steps: steps, mins: approxMins, done: true }];
+        exInSession.sets = [{ steps: steps, done: true }];
     } else {
         session.exercises.push({
             exerciseId: stepsExDB.id,
@@ -286,7 +284,7 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
             type: stepsExDB.type,
             category: stepsExDB.category,
             trackingType: 'steps',
-            sets: [{ steps: steps, mins: approxMins, done: true }]
+            sets: [{ steps: steps, done: true }]
         });
     }
 

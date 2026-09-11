@@ -614,12 +614,17 @@ export function estimateWorkoutKcal(workout) {
     }
 
     const restKcal = totalStrengthSets * REST_MIN * MET_REST * bodyWeight / 60;
+
+    if (!workout.duration) {
+        return Math.round(cardioKcal + restKcal);
+    }
+
     const countedMins = totalStrengthSets * (1.2 + REST_MIN);
-    const extraMins = Math.max(0, (workout.duration || 60) - countedMins);
+    const extraMins = Math.max(0, workout.duration - countedMins);
     const transitionKcal = extraMins > 0 ? (2.0 * bodyWeight * extraMins / 60) : 0;
 
     const subtotal = strengthKcal + restKcal + transitionKcal + cardioKcal;
-    const epocFactor = (totalStrengthSets > 12 || (workout.duration || 60) > 45) ? 1.08 : 1.05;
+    const epocFactor = (totalStrengthSets > 12 || workout.duration > 45) ? 1.08 : 1.05;
 
     return Math.round(subtotal * epocFactor);
 }
