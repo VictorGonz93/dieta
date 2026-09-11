@@ -10,7 +10,6 @@ const DEFAULT_CLIENT_ID = '188472915937-i8jb9ericnjehqut53q6j67q6detusk1.apps.go
 
 let tokenClient = null;
 let syncInterval = null;
-let tokenRefreshTimer = null;
 
 /**
  * Obtiene las credenciales guardadas
@@ -56,27 +55,6 @@ export function isGoogleFitConnected() {
 }
 
 /**
- * Programa la renovación automática del token ~50 min antes de que expire
- */
-function scheduleTokenRefresh() {
-    if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
-
-    const creds = getFitCredentials();
-    if (!creds.accessToken || !creds.expiresAt) return;
-
-    const msUntilRefresh = Math.max(creds.expiresAt - Date.now() - 50 * 60 * 1000, 30 * 1000);
-    tokenRefreshTimer = setTimeout(async () => {
-        const freshCreds = getFitCredentials();
-        if (!freshCreds.accessToken) return;
-        try {
-            await silentTokenRefresh();
-        } catch (e) {
-            console.warn('Auto-refresh del token falló:', e);
-        }
-    }, msUntilRefresh);
-}
-
-/**
  * Renueva el token silenciosamente sin popup (prompt: 'none')
  */
 function silentTokenRefresh() {
@@ -92,7 +70,6 @@ function silentTokenRefresh() {
             callback: (tokenResponse) => {
                 if (tokenResponse && tokenResponse.access_token) {
                     saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, DEFAULT_CLIENT_ID);
-                    scheduleTokenRefresh();
                     resolve(tokenResponse.access_token);
                 } else {
                     reject(new Error('No token in silent refresh response'));
@@ -134,7 +111,6 @@ export function connectGoogleFit(silent = false) {
                     if (!syncResult && !silent) {
                         showNotification('Conectado, pero no se pudieron obtener los pasos. Haz clic en Sincronizar.', 'warning');
                     }
-                    scheduleTokenRefresh();
                 } else if (!silent) {
                     showNotification('No se pudo completar la conexión con Google. Revisa tu cuenta.', 'error');
                 }
@@ -403,17 +379,25 @@ export function initGoogleFitAutoSync() {
     const creds = getFitCredentials();
     if (creds.autoSync && isGoogleFitConnected()) {
         syncTodayStepsFromGoogleFit(false);
-        scheduleTokenRefresh();
 
-        // Re-sincronizar cada 10 minutos
+        // Re-sincronizar cada 10 minutos solo si token sigue válido
         if (syncInterval) clearInterval(syncInterval);
         syncInterval = setInterval(() => {
-            syncTodayStepsFromGoogleFit(false);
+            if (isGoogleFitConnected()) {
+                syncTodayStepsFromGoogleFit(false);
+            }
         }, 10 * 60 * 1000);
 
-        // Re-sincronizar cuando el usuario vuelve a enfocar la app en el móvil
+        // Refrescar token silencioso cuando el usuario vuelve a la pestaña (funciona porque es interacción del usuario)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && isGoogleFitConnected()) {
+                const currentCreds = getFitCredentials();
+                if (currentCreds.accessToken && Date.now() >= currentCreds.expiresAt) {
+                    console.log('[GoogleFit] Token expirado al volver a la pestaña, intentando refresh...');
+                    silentTokenRefresh().catch(() => {
+                        console.warn('[GoogleFit] Refresh silencioso en visibility change falló');
+                    });
+                }
                 syncTodayStepsFromGoogleFit(false);
             }
         });
@@ -423,4 +407,16 @@ export function initGoogleFitAutoSync() {
 // Window Exposures
 window.connectGoogleFit = connectGoogleFit;
 window.disconnectGoogleFit = disconnectGoogleFit;
-window._manualSyncGoogleFit = () => syncTodayStepsFromGoogleFit(true);
+window._manualSyncGoogleFit = async () => {
+    const creds = getFitCredentials();
+    if (creds.accessToken && Date.now() >= creds.expiresAt) {
+        showNotification('Refrescando conexión con Google Fit...', 'info');
+        try {
+            await silentTokenRefresh();
+        } catch (e) {
+            showNotification('Token expirado. Reconecta desde la pestaña de entrenamiento.', 'warning');
+            return;
+        }
+    }
+    syncTodayStepsFromGoogleFit(true);
+};
