@@ -231,6 +231,7 @@ export async function fetchTodayStepsFromGoogleFit() {
         }
 
         const data = await response.json();
+        console.log('[GoogleFit] API raw response:', JSON.stringify(data, null, 2));
         let totalSteps = 0;
 
         if (data && data.bucket) {
