@@ -1,7 +1,7 @@
 ﻿// ==================== CONFIGURACIÓN ====================
 
 import AppState from './state.js';
-import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget, calculateAutoDeficit } from './nutrition.js';
+import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget, calculateAutoDeficit, calculateAdaptiveTDEE } from './nutrition.js';
 import { recordWeight, updateWeightPrediction, displayNextDayPrediction } from './weight.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -106,17 +106,42 @@ export function updateCalculatedValues() {
         if (el('tmrValue')) el('tmrValue').textContent = '-';
         if (el('tdeeEntrenoValue')) el('tdeeEntrenoValue').textContent = '-';
         if (el('tdeeDescansoValue')) el('tdeeDescansoValue').textContent = '-';
+        if (el('tdeeAdaptiveValue')) el('tdeeAdaptiveValue').textContent = '-';
         return;
     }
 
     const tmr = calculateTMR();
     const tdeeEntreno = calculateTDEE('entreno');
     const tdeeDescanso = calculateTDEE('descanso');
+    const adaptive = calculateAdaptiveTDEE();
 
     const el = (id) => document.getElementById(id);
     if (el('tmrValue')) el('tmrValue').textContent = `${Math.round(tmr)} kcal/día`;
     if (el('tdeeEntrenoValue')) el('tdeeEntrenoValue').textContent = `${tdeeEntreno} kcal/día`;
     if (el('tdeeDescansoValue')) el('tdeeDescansoValue').textContent = `${tdeeDescanso} kcal/día`;
+
+    // TDEE Adaptativo
+    if (el('tdeeAdaptiveValue')) {
+        if (adaptive.confidence === 'none') {
+            el('tdeeAdaptiveValue').textContent = `- (necesita ≥14 días de datos)`;
+            el('tdeeAdaptiveValue').style.color = 'var(--text-2)';
+        } else {
+            const diff = adaptive.tdee - adaptive.formulaTDEE;
+            const sign = diff > 0 ? '+' : '';
+            el('tdeeAdaptiveValue').textContent = `${adaptive.tdee} kcal/día`;
+            el('tdeeAdaptiveValue').style.color = diff > 0 ? 'var(--color-green)' : diff < 0 ? 'var(--color-red)' : 'var(--text-2)';
+        }
+    }
+    if (el('tdeeAdaptiveDetail')) {
+        if (adaptive.confidence !== 'none') {
+            const diff = adaptive.tdee - adaptive.formulaTDEE;
+            const sign = diff > 0 ? '+' : '';
+            el('tdeeAdaptiveDetail').textContent = `Fórmula: ${adaptive.formulaTDEE} | Diferencia: ${sign}${diff} | Confianza: ${adaptive.confidence} | Datos: ${adaptive.daysUsed} días`;
+            el('tdeeAdaptiveDetail').style.display = 'block';
+        } else {
+            el('tdeeAdaptiveDetail').style.display = 'none';
+        }
+    }
 }
 
 export function updateHeaderInfo() {

@@ -57,6 +57,136 @@ export function calculateTDEE(dayType) {
 }
 
 /**
+ * Calcula el TDEE adaptativo basado en el balance energético real.
+ * Compara las calorías consumidas con el cambio de peso observado.
+ * 
+ * Fórmula: TDEE = calorias_diarias_promedio + (peso_inicio - peso_fin) * 7700 / dias
+ * 
+ * Requiere: ≥14 días de datos de peso y comida.
+ * Incluye suavizado EMA y safety cap para evitar outliers.
+ * 
+ * @returns {{ tdee: number, confidence: 'high'|'medium'|'low'|'none', daysUsed: number, formulaTDEE: number }}
+ */
+export function calculateAdaptiveTDEE() {
+    const weightHistory = AppState.config.weightHistory;
+    if (!weightHistory || weightHistory.length < 14) {
+        return { tdee: calculateTMR() * 1.25, confidence: 'none', daysUsed: 0, formulaTDEE: calculateTMR() * 1.25 };
+    }
+
+    // Usar ventana de 21 días (máximo)
+    const windowSize = Math.min(21, weightHistory.length);
+    const recentWeight = weightHistory.slice(-windowSize);
+
+    let totalCalories = 0;
+    let totalDaysWithData = 0;
+    let validDays = 0;
+
+    // Agregar calorías consumidas y contar días con datos válidos
+    for (let i = 0; i < recentWeight.length; i++) {
+        const entry = recentWeight[i];
+        const dayData = AppState.allDays[entry.date];
+        if (dayData && dayData.meals) {
+            let dayKcal = 0;
+            Object.values(dayData.meals).forEach(meal => {
+                meal.forEach(food => {
+                    dayKcal += food.kcal;
+                });
+            });
+            if (dayKcal > 500) {  // Mínimo 500 kcal para considerar día válido
+                totalCalories += dayKcal;
+                validDays++;
+            }
+        }
+    }
+
+    // Necesitamos al menos 10 días con comida registrada
+    if (validDays < 10) {
+        const formulaTDEE = calculateTMR() * 1.25;
+        return { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE };
+    }
+
+    // Calcular cambio de peso
+    const firstWeight = recentWeight[0].weight;
+    const lastWeight = recentWeight[recentWeight.length - 1].weight;
+    const weightChangeKg = firstWeight - lastWeight;  // Positivo = perdiendo
+
+    // Días entre primera y última medida
+    const firstDate = new Date(recentWeight[0].date);
+    const lastDate = new Date(recentWeight[recentWeight.length - 1].date);
+    const daysBetween = Math.max(1, (lastDate - firstDate) / (1000 * 60 * 60 * 24));
+
+    // Calorías diarias promedio
+    const avgDailyCalories = totalCalories / validDays;
+
+    // Balance energético: TDEE =摄入 + (pérdida * 7700 / días)
+    // Si perdiste peso, tu TDEE fue MAYOR que lo que comiste
+    const adaptiveTDEE = avgDailyCalories + (weightChangeKg * 7700 / daysBetween);
+
+    // Safety cap: ±500 kcal del TDEE fórmula (prevenir outliers)
+    const formulaTDEE = calculateTMR() * 1.25;
+    const cappedTDEE = Math.max(formulaTDEE - 500, Math.min(formulaTDEE + 500, adaptiveTDEE));
+
+    // Suavizado EMA con los últimos 7 días
+    const recent7 = weightHistory.slice(-7);
+    if (recent7.length >= 7) {
+        let recent7Calories = 0;
+        let recent7Days = 0;
+        for (const entry of recent7) {
+            const dayData = AppState.allDays[entry.date];
+            if (dayData && dayData.meals) {
+                let dayKcal = 0;
+                Object.values(dayData.meals).forEach(meal => {
+                    meal.forEach(food => { dayKcal += food.kcal; });
+                });
+                if (dayKcal > 500) {
+                    recent7Calories += dayKcal;
+                    recent7Days++;
+                }
+            }
+        }
+        if (recent7Days >= 5) {
+            const r7W0 = recent7[0].weight;
+            const r7W1 = recent7[recent7.length - 1].weight;
+            const r7Days = Math.max(1, (new Date(recent7[recent7.length - 1].date) - new Date(recent7[0].date)) / (1000 * 60 * 60 * 24));
+            const r7AvgCals = recent7Calories / recent7Days;
+            const r7TDEE = r7AvgCals + ((r7W0 - r7W1) * 7700 / r7Days);
+            const r7Capped = Math.max(formulaTDEE - 500, Math.min(formulaTDEE + 500, r7TDEE));
+
+            // EMA: 70% últimos 7 días + 30% ventana completa
+            const smoothedTDEE = r7Capped * 0.7 + cappedTDEE * 0.3;
+
+            // Determinar confianza
+            let confidence = 'medium';
+            if (windowSize >= 21 && validDays >= 18) confidence = 'high';
+            else if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
+            else confidence = 'low';
+
+            return {
+                tdee: Math.round(smoothedTDEE),
+                confidence,
+                daysUsed: validDays,
+                formulaTDEE: Math.round(formulaTDEE),
+                rawAdaptive: Math.round(adaptiveTDEE),
+                smoothedAdaptive: Math.round(smoothedTDEE),
+            };
+        }
+    }
+
+    // Sin datos suficientes para EMA, usar capping simple
+    let confidence = 'low';
+    if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
+
+    return {
+        tdee: Math.round(cappedTDEE),
+        confidence,
+        daysUsed: validDays,
+        formulaTDEE: Math.round(formulaTDEE),
+        rawAdaptive: Math.round(adaptiveTDEE),
+        smoothedAdaptive: Math.round(cappedTDEE),
+    };
+}
+
+/**
  * Calcula el déficit calórico diario óptimo automáticamente según el peso corporal
  * y el ritmo de pérdida elegido (suave, moderado, intenso o manual).
  */
@@ -116,8 +246,9 @@ export function getDynamicDayTargets(dateKey) {
         }
     } catch { workoutKcal = 0; }
 
-    // TDEE Base sin deporte (TMB * 1.25 factor NEAT sedentario/diario)
-    const tdeeBase = Math.round(tmr * 1.25);
+    // TDEE Base: usar adaptativo si hay suficientes datos, si否則 usar fórmula
+    const adaptiveResult = calculateAdaptiveTDEE();
+    const tdeeBase = adaptiveResult.confidence !== 'none' ? adaptiveResult.tdee : Math.round(tmr * 1.25);
     const tdee = tdeeBase + workoutKcal;
 
     // Peso específico para el día (si existe peso registrado ese día) o peso actual
@@ -149,7 +280,8 @@ export function getDynamicDayTargets(dateKey) {
         deficitTarget,
         isRealLoggedSession,
         dayType: dayInfo.type || 'descanso',
-        dayLabel: dayInfo.label || ''
+        dayLabel: dayInfo.label || '',
+        adaptiveTDEE: adaptiveResult.confidence !== 'none' ? adaptiveResult : null,
     };
 }
 
