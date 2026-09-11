@@ -231,7 +231,6 @@ export async function fetchTodayStepsFromGoogleFit() {
         }
 
         const data = await response.json();
-        console.log('[GoogleFit] API raw response:', JSON.stringify(data, null, 2));
         let totalSteps = 0;
 
         if (data && data.bucket) {
@@ -253,7 +252,10 @@ export async function fetchTodayStepsFromGoogleFit() {
         }
 
         console.log('[GoogleFit] API response OK. Total pasos:', totalSteps);
-        return Math.round(totalSteps);
+        if (totalSteps === 0) {
+            console.log('[GoogleFit] Sin datos de pasos en Google Fit para hoy. Asegúrate de que Google Fit esté instalado y sincronizando en tu móvil.');
+        }
+        return totalSteps > 0 ? Math.round(totalSteps) : null;
     } catch (err) {
         console.error('[GoogleFit] Error obteniendo pasos:', err.message || err);
         return null;
