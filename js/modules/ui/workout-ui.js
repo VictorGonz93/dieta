@@ -535,7 +535,7 @@ function _renderExerciseList() {
     window._workoutUpdateSet = (id, i, field, val) => {
         updateSet(id, i, field, val);
         _updateKcalDisplay();
-        _renderExerciseList();
+        _updateSetBadges(id);
     };
     window._workoutToggleSetDone = (id, i) => {
         const isDone = toggleSetDone(id, i);
@@ -545,6 +545,45 @@ function _renderExerciseList() {
         _renderExerciseList();
         _updateKcalDisplay();
     };
+}
+
+function _updateSetBadges(exerciseId) {
+    const workout = getTodayWorkout();
+    if (!workout) return;
+    const ex = workout.exercises.find(e => e.exerciseId == exerciseId);
+    if (!ex) return;
+    const badge = document.getElementById(`badge-info-${exerciseId}`);
+    if (!badge) return;
+    const allExercisesDB = getExercisesDB();
+    const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
+    const trackingType = ex.trackingType || getExerciseTrackingType(dbEx);
+    let badgesHTML = '';
+    if (trackingType === 'steps') {
+        const totalSteps = ex.sets.reduce((sum, s) => sum + (parseInt(s.steps) || 0), 0);
+        const approxKm = (totalSteps * 0.00075).toFixed(2);
+        badgesHTML = `<span>Pasos: <strong style="color:#10B981;">${totalSteps.toLocaleString('es-ES')}</strong> (~${approxKm} km)</span>`;
+    } else if (trackingType === 'cardio_distance') {
+        const totalMins = ex.sets.reduce((sum, s) => sum + (parseInt(s.mins) || 0), 0);
+        const totalKm = ex.sets.reduce((sum, s) => sum + (parseFloat(s.km) || 0), 0);
+        badgesHTML = `<span>Tiempo: <strong style="color:#10B981;">${totalMins} min</strong></span>${totalKm > 0 ? ` · <span>Distancia: <strong style="color:#38BDF8;">${totalKm.toFixed(1)} km</strong></span>` : ''}`;
+    } else if (trackingType === 'time_hold') {
+        const totalSecs = ex.sets.reduce((sum, s) => sum + (parseInt(s.secs) || 0), 0);
+        badgesHTML = `<span>Tiempo total: <strong style="color:#10B981;">${totalSecs}s</strong></span>`;
+    } else if (trackingType === 'calisthenics') {
+        const totalReps = ex.sets.reduce((sum, s) => sum + (parseInt(s.reps) || 0), 0);
+        const maxKg = Math.max(...ex.sets.map(s => parseFloat(s.kg) || 0));
+        badgesHTML = `<span>Reps totales: <strong style="color:#10B981;">${totalReps}</strong></span>${maxKg > 0 ? ` · <span>Lastre máx: <strong style="color:#FBBF24;">${maxKg} kg</strong></span>` : ''}`;
+    } else {
+        const bestSet = ex.sets.reduce((b, s) => {
+            const val = (parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0);
+            const bVal = (parseFloat(b.kg) || 0) * (parseInt(b.reps) || 0);
+            return val > bVal ? s : b;
+        }, { kg: 0, reps: 0 });
+        const est1RM = calculate1RM(bestSet.kg, bestSet.reps);
+        const totalVol = ex.sets.reduce((sum, s) => sum + ((parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0)), 0);
+        badgesHTML = `${est1RM > 0 ? `<span>1RM est: <strong style="color:#10B981;">${est1RM} kg</strong></span> · ` : ''}<span>Volumen: <strong style="color:#60A5FA;">${totalVol.toLocaleString('es-ES')} kg</strong></span>`;
+    }
+    badge.innerHTML = badgesHTML;
 }
 
 function _update1RMDisplay(exerciseId) {

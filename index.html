@@ -501,6 +501,14 @@
                                     <p class="text-xs text-slate-400 mt-1.5">Especifica el número exacto de calorías a restar de tu TDEE.</p>
                                 </div>
                                 <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Fuente de TDEE</label>
+                                    <select id="tdeeModeSelect" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                        <option value="formula">🧮 Fórmula (TMR × factor actividad)</option>
+                                        <option value="adaptive">📊 Adaptativo (basado en tu historial real)</option>
+                                    </select>
+                                    <p class="text-xs text-slate-400 mt-1.5">Adaptativo se ajusta según tu peso y comida real. Fórmula usa valores fijos.</p>
+                                </div>
+                                <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">Nivel de Proteína (g por kg de peso)</label>
                                     <select id="proteinFactorSelect" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
                                         <option value="1.8">1.8 g/kg (Salud & Mantenimiento)</option>
@@ -1120,4 +1128,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250912-84"></script>
+    <script type="module" src="js/app.js?v=20250912-85"></script>

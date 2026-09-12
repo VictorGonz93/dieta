@@ -56,6 +56,13 @@ export function saveConfig() {
         AppState.config.deficitTarget = calculateAutoDeficit(AppState.config.currentWeight, AppState.config.lossPace);
     }
 
+    const tdeeModeEl = document.getElementById('tdeeModeSelect');
+    if (tdeeModeEl?.value) {
+        AppState.config.tdeeMode = tdeeModeEl.value;
+    } else {
+        AppState.config.tdeeMode = AppState.config.tdeeMode || 'formula';
+    }
+
     const pFactorEl = document.getElementById('proteinFactorSelect');
     if (pFactorEl?.value) {
         AppState.config.proteinFactor = parseFloat(pFactorEl.value) || 2.0;
@@ -95,6 +102,7 @@ export function updateConfigUI() {
     if (el('gender')) el('gender').value = AppState.config.gender || '';
     if (el('lossPaceSelect')) el('lossPaceSelect').value = AppState.config.lossPace || 'moderado';
     if (el('deficitTargetInput')) el('deficitTargetInput').value = AppState.config.deficitTarget || 500;
+    if (el('tdeeModeSelect')) el('tdeeModeSelect').value = AppState.config.tdeeMode || 'formula';
     if (el('proteinFactorSelect')) el('proteinFactorSelect').value = AppState.config.proteinFactor || 2.0;
 
     updateCalculatedValues();

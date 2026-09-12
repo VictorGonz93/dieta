@@ -249,13 +249,18 @@ export function getDynamicDayTargets(dateKey) {
         }
     } catch { workoutKcal = 0; }
 
-    // TDEE Base: usar adaptativo si hay suficientes datos, si否則 usar fórmula
-    const adaptiveResult = calculateAdaptiveTDEE();
+    // TDEE Base: usar adaptativo si está seleccionado, si no usar fórmula
+    const tdeeMode = AppState.config.tdeeMode || 'formula';
     let tdeeBase;
-    if (adaptiveResult.confidence !== 'none') {
-        tdeeBase = Math.round(adaptiveResult.tdee - (adaptiveResult.avgWorkoutPerDay || 0));
+    if (tdeeMode === 'adaptive') {
+        const adaptiveResult = calculateAdaptiveTDEE();
+        if (adaptiveResult.confidence !== 'none') {
+            tdeeBase = Math.round(adaptiveResult.tdee - (adaptiveResult.avgWorkoutPerDay || 0));
+        } else {
+            tdeeBase = Math.round(tmr * 1.25);
+        }
     } else {
-        tdeeBase = Math.round(tmr * 1.25);
+        tdeeBase = dayInfo.type === 'entreno' ? Math.round(tmr * 1.55) : Math.round(tmr * 1.30);
     }
     const tdee = tdeeBase + workoutKcal;
 
@@ -289,7 +294,7 @@ export function getDynamicDayTargets(dateKey) {
         isRealLoggedSession,
         dayType: dayInfo.type || 'descanso',
         dayLabel: dayInfo.label || '',
-        adaptiveTDEE: adaptiveResult.confidence !== 'none' ? adaptiveResult : null,
+        adaptiveTDEE: tdeeMode === 'adaptive' ? calculateAdaptiveTDEE() : null,
     };
 }
 
