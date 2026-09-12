@@ -141,6 +141,3 @@ export async function applyComboToCurrentMeal(comboId) {
         showNotification('Error al aplicar el combo. Reintenta.', 'error');
     }
 }
-
-window.applyComboToCurrentMeal = applyComboToCurrentMeal;
-window.deleteMealCombo = deleteMealCombo;
