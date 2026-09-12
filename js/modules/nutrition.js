@@ -67,9 +67,8 @@ export function calculateTDEE(dayType) {
  * 
  * @returns {{ tdee: number, confidence: 'high'|'medium'|'low'|'none', daysUsed: number, formulaTDEE: number }}
  */
-function _getWorkoutKcalForDate(dateKey) {
+function _getWorkoutKcalForDate(dateKey, sessions) {
     try {
-        const sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}');
         const session = sessions[dateKey];
         if (session && session.exercises && session.exercises.length > 0) {
             return session.estimatedKcal || 0;
@@ -85,7 +84,10 @@ export function calculateAdaptiveTDEE() {
         return { tdee: formulaTDEE, confidence: 'none', daysUsed: 0, formulaTDEE, avgWorkoutPerDay: 0 };
     }
 
-    // Usar ventana de 21 días (máximo)
+    // Cachear workoutSessions una sola vez (evitar 21+ lecturas de localStorage)
+    let sessions = {};
+    try { sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}'); } catch {}
+
     const windowSize = Math.min(21, weightHistory.length);
     const recentWeight = weightHistory.slice(-windowSize);
 
@@ -108,7 +110,7 @@ export function calculateAdaptiveTDEE() {
                 validDays++;
             }
         }
-        totalWorkoutKcal += _getWorkoutKcalForDate(entry.date);
+        totalWorkoutKcal += _getWorkoutKcalForDate(entry.date, sessions);
     }
 
     const avgWorkoutPerDay = totalWorkoutKcal / windowSize;
@@ -133,7 +135,6 @@ export function calculateAdaptiveTDEE() {
     if (recent7.length >= 7) {
         let recent7Calories = 0;
         let recent7Days = 0;
-        let recent7WorkoutKcal = 0;
         for (const entry of recent7) {
             const dayData = AppState.allDays[entry.date];
             if (dayData && dayData.meals) {
@@ -146,7 +147,6 @@ export function calculateAdaptiveTDEE() {
                     recent7Days++;
                 }
             }
-            recent7WorkoutKcal += _getWorkoutKcalForDate(entry.date);
         }
         if (recent7Days >= 5) {
             const r7W0 = recent7[0].weight;
@@ -170,7 +170,7 @@ export function calculateAdaptiveTDEE() {
                 formulaTDEE: Math.round(formulaTDEE),
                 rawAdaptive: Math.round(adaptiveTDEE),
                 smoothedAdaptive: Math.round(smoothedTDEE),
-                avgWorkoutPerDay: Math.round(avgWorkoutPerDay),
+                avgWorkoutPerDay,
             };
         }
     }
@@ -185,7 +185,7 @@ export function calculateAdaptiveTDEE() {
         formulaTDEE: Math.round(formulaTDEE),
         rawAdaptive: Math.round(adaptiveTDEE),
         smoothedAdaptive: Math.round(cappedTDEE),
-        avgWorkoutPerDay: Math.round(avgWorkoutPerDay),
+        avgWorkoutPerDay,
     };
 }
 
