@@ -252,15 +252,17 @@ export function getDynamicDayTargets(dateKey) {
     // TDEE Base: usar adaptativo si está seleccionado, si no usar fórmula
     const tdeeMode = AppState.config.tdeeMode || 'formula';
     let tdeeBase;
+    let adaptiveResult = null;
     if (tdeeMode === 'adaptive') {
-        const adaptiveResult = calculateAdaptiveTDEE();
+        adaptiveResult = calculateAdaptiveTDEE();
         if (adaptiveResult.confidence !== 'none') {
             tdeeBase = Math.round(adaptiveResult.tdee - (adaptiveResult.avgWorkoutPerDay || 0));
         } else {
             tdeeBase = Math.round(tmr * 1.25);
         }
     } else {
-        tdeeBase = dayInfo.type === 'entreno' ? Math.round(tmr * 1.55) : Math.round(tmr * 1.30);
+        // Fórmula: base sedentaria (NEAT) + workoutKcal encima
+        tdeeBase = Math.round(tmr * 1.25);
     }
     const tdee = tdeeBase + workoutKcal;
 
@@ -294,7 +296,7 @@ export function getDynamicDayTargets(dateKey) {
         isRealLoggedSession,
         dayType: dayInfo.type || 'descanso',
         dayLabel: dayInfo.label || '',
-        adaptiveTDEE: tdeeMode === 'adaptive' ? calculateAdaptiveTDEE() : null,
+        adaptiveTDEE: adaptiveResult,
     };
 }
 
