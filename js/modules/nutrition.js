@@ -67,10 +67,22 @@ export function calculateTDEE(dayType) {
  * 
  * @returns {{ tdee: number, confidence: 'high'|'medium'|'low'|'none', daysUsed: number, formulaTDEE: number }}
  */
+function _getWorkoutKcalForDate(dateKey) {
+    try {
+        const sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}');
+        const session = sessions[dateKey];
+        if (session && session.exercises && session.exercises.length > 0) {
+            return session.estimatedKcal || 0;
+        }
+    } catch {}
+    return 0;
+}
+
 export function calculateAdaptiveTDEE() {
     const weightHistory = AppState.config.weightHistory;
+    const formulaTDEE = calculateTMR() * 1.25;
     if (!weightHistory || weightHistory.length < 14) {
-        return { tdee: calculateTMR() * 1.25, confidence: 'none', daysUsed: 0, formulaTDEE: calculateTMR() * 1.25 };
+        return { tdee: formulaTDEE, confidence: 'none', daysUsed: 0, formulaTDEE, avgWorkoutPerDay: 0 };
     }
 
     // Usar ventana de 21 días (máximo)
@@ -78,10 +90,9 @@ export function calculateAdaptiveTDEE() {
     const recentWeight = weightHistory.slice(-windowSize);
 
     let totalCalories = 0;
-    let totalDaysWithData = 0;
     let validDays = 0;
+    let totalWorkoutKcal = 0;
 
-    // Agregar calorías consumidas y contar días con datos válidos
     for (let i = 0; i < recentWeight.length; i++) {
         const entry = recentWeight[i];
         const dayData = AppState.allDays[entry.date];
@@ -92,45 +103,37 @@ export function calculateAdaptiveTDEE() {
                     dayKcal += food.kcal;
                 });
             });
-            if (dayKcal > 500) {  // Mínimo 500 kcal para considerar día válido
+            if (dayKcal > 500) {
                 totalCalories += dayKcal;
                 validDays++;
             }
         }
+        totalWorkoutKcal += _getWorkoutKcalForDate(entry.date);
     }
 
-    // Necesitamos al menos 10 días con comida registrada
+    const avgWorkoutPerDay = totalWorkoutKcal / windowSize;
+
     if (validDays < 10) {
-        const formulaTDEE = calculateTMR() * 1.25;
-        return { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE };
+        return { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay };
     }
 
-    // Calcular cambio de peso
     const firstWeight = recentWeight[0].weight;
     const lastWeight = recentWeight[recentWeight.length - 1].weight;
-    const weightChangeKg = firstWeight - lastWeight;  // Positivo = perdiendo
+    const weightChangeKg = firstWeight - lastWeight;
 
-    // Días entre primera y última medida
     const firstDate = new Date(recentWeight[0].date);
     const lastDate = new Date(recentWeight[recentWeight.length - 1].date);
     const daysBetween = Math.max(1, (lastDate - firstDate) / (1000 * 60 * 60 * 24));
 
-    // Calorías diarias promedio
     const avgDailyCalories = totalCalories / validDays;
-
-    // Balance energético: TDEE =摄入 + (pérdida * 7700 / días)
-    // Si perdiste peso, tu TDEE fue MAYOR que lo que comiste
     const adaptiveTDEE = avgDailyCalories + (weightChangeKg * 7700 / daysBetween);
-
-    // Safety cap: ±500 kcal del TDEE fórmula (prevenir outliers)
-    const formulaTDEE = calculateTMR() * 1.25;
     const cappedTDEE = Math.max(formulaTDEE - 500, Math.min(formulaTDEE + 500, adaptiveTDEE));
 
-    // Suavizado EMA con los últimos 7 días
     const recent7 = weightHistory.slice(-7);
     if (recent7.length >= 7) {
         let recent7Calories = 0;
         let recent7Days = 0;
+        let recent7WorkoutKcal = 0;
         for (const entry of recent7) {
             const dayData = AppState.allDays[entry.date];
             if (dayData && dayData.meals) {
@@ -143,6 +146,7 @@ export function calculateAdaptiveTDEE() {
                     recent7Days++;
                 }
             }
+            recent7WorkoutKcal += _getWorkoutKcalForDate(entry.date);
         }
         if (recent7Days >= 5) {
             const r7W0 = recent7[0].weight;
@@ -152,10 +156,8 @@ export function calculateAdaptiveTDEE() {
             const r7TDEE = r7AvgCals + ((r7W0 - r7W1) * 7700 / r7Days);
             const r7Capped = Math.max(formulaTDEE - 500, Math.min(formulaTDEE + 500, r7TDEE));
 
-            // EMA: 70% últimos 7 días + 30% ventana completa
             const smoothedTDEE = r7Capped * 0.7 + cappedTDEE * 0.3;
 
-            // Determinar confianza
             let confidence = 'medium';
             if (windowSize >= 21 && validDays >= 18) confidence = 'high';
             else if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
@@ -168,11 +170,11 @@ export function calculateAdaptiveTDEE() {
                 formulaTDEE: Math.round(formulaTDEE),
                 rawAdaptive: Math.round(adaptiveTDEE),
                 smoothedAdaptive: Math.round(smoothedTDEE),
+                avgWorkoutPerDay: Math.round(avgWorkoutPerDay),
             };
         }
     }
 
-    // Sin datos suficientes para EMA, usar capping simple
     let confidence = 'low';
     if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
 
@@ -183,6 +185,7 @@ export function calculateAdaptiveTDEE() {
         formulaTDEE: Math.round(formulaTDEE),
         rawAdaptive: Math.round(adaptiveTDEE),
         smoothedAdaptive: Math.round(cappedTDEE),
+        avgWorkoutPerDay: Math.round(avgWorkoutPerDay),
     };
 }
 
@@ -248,7 +251,12 @@ export function getDynamicDayTargets(dateKey) {
 
     // TDEE Base: usar adaptativo si hay suficientes datos, si否則 usar fórmula
     const adaptiveResult = calculateAdaptiveTDEE();
-    const tdeeBase = adaptiveResult.confidence !== 'none' ? adaptiveResult.tdee : Math.round(tmr * 1.25);
+    let tdeeBase;
+    if (adaptiveResult.confidence !== 'none') {
+        tdeeBase = Math.round(adaptiveResult.tdee - (adaptiveResult.avgWorkoutPerDay || 0));
+    } else {
+        tdeeBase = Math.round(tmr * 1.25);
+    }
     const tdee = tdeeBase + workoutKcal;
 
     // Peso específico para el día (si existe peso registrado ese día) o peso actual
