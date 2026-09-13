@@ -111,10 +111,15 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     }
 
     const weightHistory = AppState.config.weightHistory || [];
-    const formulaTDEE = Math.round(_getFormulaTMR(AppState.config.currentWeight) * 1.25);
 
     // Solo usar entradas de peso ANTERIORES a dateKey (excluir el día objetivo)
     const historicalWeights = weightHistory.filter(w => w.date < dateKey);
+
+    // BUG FIX 1: formulaTDEE usa el peso más reciente del histórico, no el actual
+    const lastHistoricalWeight = historicalWeights.length > 0
+        ? historicalWeights[historicalWeights.length - 1].weight
+        : AppState.config.currentWeight;
+    const formulaTDEE = Math.round(_getFormulaTMR(lastHistoricalWeight) * 1.25);
 
     if (historicalWeights.length < 14) {
         const result = { tdee: formulaTDEE, confidence: 'none', daysUsed: 0, formulaTDEE, avgWorkoutPerDay: 0 };
@@ -122,32 +127,31 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
         return result;
     }
 
-    // Cachear workoutSessions una sola vez
     let sessions = {};
     try { sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}'); } catch {}
 
-    // Usar ventana de 21 días máximo
     const windowSize = Math.min(21, historicalWeights.length);
     const window = historicalWeights.slice(-windowSize);
 
     let totalCalories = 0;
     let validDays = 0;
-    let totalWorkoutKcal = 0;
+    let validWorkoutKcal = 0;
 
     for (const entry of window) {
         const dayKcal = _sumDayKcal(entry.date);
         if (dayKcal > 500) {
             totalCalories += dayKcal;
             validDays++;
+            // BUG FIX 2: solo contar workout de días válidos (con comida registrada)
+            validWorkoutKcal += _getWorkoutKcalForDate(entry.date, sessions);
         }
-        totalWorkoutKcal += _getWorkoutKcalForDate(entry.date, sessions);
     }
 
-    // Dividir entre días válidos (no entre windowSize)
-    const avgWorkoutPerDay = validDays > 0 ? totalWorkoutKcal / validDays : 0;
+    const avgWorkoutPerDay = validDays > 0 ? validWorkoutKcal / validDays : 0;
 
+    // BUG FIX 2b: fallback con validDays < 10 no debe restar workouts del TDEE fórmula
     if (validDays < 10) {
-        const result = { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay };
+        const result = { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay: 0 };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
@@ -185,7 +189,7 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
             const r7TDEE = r7AvgCals + ((r7W0 - r7W1) * 7700 / r7DaysSpan);
             const r7Capped = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, r7TDEE));
 
-            // EMA más fuerte: 0.85 reciente / 0.3 histórico
+            // EMA: 0.85 reciente / 0.15 histórico
             const smoothedTDEE = r7Capped * 0.85 + cappedTDEE * 0.15;
 
             let confidence = 'medium';
