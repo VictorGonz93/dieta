@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { GYM_ROUTINE, UNIT_CONVERSIONS } from './constants.js';
-import { estimateWorkoutKcal } from './workout.js';
+import { estimateWorkoutKcal, calculateWorkoutDuration } from './workout.js';
 
 export function getDayNumber(date) {
     if (!AppState.config.startDate) return 0;
@@ -298,7 +298,8 @@ export function getDynamicDayTargets(dateKey) {
             const templates = JSON.parse(localStorage.getItem('workoutTemplates') || '{}');
             const tmpl = templates[dayInfo.templateId];
             if (tmpl && tmpl.exercises && tmpl.exercises.length > 0) {
-                workoutKcal = estimateWorkoutKcal({ date: dateKey, exercises: tmpl.exercises, duration: 60 });
+                const estDuration = calculateWorkoutDuration({ exercises: tmpl.exercises, restTimeMin: 3 });
+                workoutKcal = estimateWorkoutKcal({ date: dateKey, exercises: tmpl.exercises, duration: estDuration, restTimeMin: 3 });
             }
         }
     } catch { workoutKcal = 0; }

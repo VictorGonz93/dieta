@@ -330,7 +330,8 @@ export function initTodayWorkout(dateKey) {
     const saved = getTodaySession(dateKey);
     _todayWorkout = saved
         ? { ...saved }
-        : { date: dateKey, exercises: [], duration: 60, notes: '', finalized: false };
+        : { date: dateKey, exercises: [], duration: 0, restTimeMin: 3, notes: '', finalized: false };
+    if (_todayWorkout.restTimeMin === undefined) _todayWorkout.restTimeMin = 3;
 }
 
 export function getTodayWorkout() { return _todayWorkout; }
@@ -484,6 +485,53 @@ export function setWorkoutDuration(minutes) {
     _autoSave();
 }
 
+export function setWorkoutRestTime(minutes) {
+    if (!_todayWorkout) return;
+    _todayWorkout.restTimeMin = parseInt(minutes) || 3;
+    _autoSave();
+}
+
+/**
+ * Calcula la duración estimada del entreno basándose en las series reales.
+ * Solo cuenta series de fuerza/calistenia/isométrico (NO pasos/cardio).
+ * @param {object} workout
+ * @returns {number} minutos estimados
+ */
+export function calculateWorkoutDuration(workout) {
+    if (!workout?.exercises?.length) return 0;
+    const allExercisesDB = getExercisesDB();
+    const restTime = workout.restTimeMin || 3;
+    const EXERCISE_TIME_PER_SET = 1.2; // minutos promedio por serie
+
+    let strengthSets = 0;
+    let cardioMins = 0;
+
+    for (const ex of workout.exercises) {
+        const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
+        if (!dbEx) continue;
+        const trackingType = ex.trackingType || dbEx.trackingType || getExerciseTrackingType(dbEx);
+
+        if (trackingType === 'steps') {
+            for (const set of ex.sets) {
+                const steps = parseFloat(set.steps) || 0;
+                const mins = parseFloat(set.mins) || 0;
+                if (steps > 0) cardioMins += steps / 100;
+                else if (mins > 0) cardioMins += mins;
+            }
+        } else if (trackingType === 'cardio_distance') {
+            for (const set of ex.sets) {
+                cardioMins += parseFloat(set.mins) || 0;
+            }
+        } else {
+            // weight_reps, calisthenics, time_hold
+            strengthSets += ex.sets.length;
+        }
+    }
+
+    const strengthMins = strengthSets * (EXERCISE_TIME_PER_SET + restTime);
+    return Math.round(strengthMins + cardioMins);
+}
+
 export function setWorkoutNotes(notes) {
     if (!_todayWorkout) return;
     _todayWorkout.notes = notes;
@@ -524,7 +572,7 @@ export function estimateWorkoutKcal(workout) {
     const historyEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
     const bodyWeight = historyEntry?.weight || AppState.config.currentWeight || 75;
 
-    const REST_MIN = 3;
+    const REST_MIN = workout.restTimeMin || 3;
     const MET_REST = 1.6;
     const KCAL_PER_KG_REP = (9.8 * 0.38) / 0.20 / 4186; // ≈ 0.00445
     const KCAL_PER_BW_REP  = (9.8 * 0.28) / 0.20 / 4186; // ≈ 0.00327
@@ -615,16 +663,19 @@ export function estimateWorkoutKcal(workout) {
 
     const restKcal = totalStrengthSets * REST_MIN * MET_REST * bodyWeight / 60;
 
-    if (!workout.duration) {
+    // Usar duration explícito o calcular automáticamente desde las series
+    const effectiveDuration = workout.duration || calculateWorkoutDuration(workout);
+
+    if (effectiveDuration <= 0) {
         return Math.round(cardioKcal + restKcal);
     }
 
     const countedMins = totalStrengthSets * (1.2 + REST_MIN);
-    const extraMins = Math.max(0, workout.duration - countedMins);
+    const extraMins = Math.max(0, effectiveDuration - countedMins);
     const transitionKcal = extraMins > 0 ? (2.0 * bodyWeight * extraMins / 60) : 0;
 
     const subtotal = strengthKcal + restKcal + transitionKcal + cardioKcal;
-    const epocFactor = (totalStrengthSets > 12 || workout.duration > 45) ? 1.08 : 1.05;
+    const epocFactor = (totalStrengthSets > 12 || effectiveDuration > 45) ? 1.08 : 1.05;
 
     return Math.round(subtotal * epocFactor);
 }

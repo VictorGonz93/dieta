@@ -257,7 +257,7 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
     let session = sessions[dateKey];
 
     if (!session) {
-        session = { date: dateKey, exercises: [], duration: 60, notes: '', finalized: false };
+        session = { date: dateKey, exercises: [], duration: 0, restTimeMin: 3, notes: '', finalized: false };
         sessions[dateKey] = session;
     }
 

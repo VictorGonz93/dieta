@@ -5,7 +5,7 @@ import {
     initTodayWorkout, getTodayWorkout,
     addExerciseToWorkout, removeExerciseFromWorkout,
     addSetToExercise, removeSetFromExercise, updateSet, toggleSetDone, getFrequentExercises,
-    setWorkoutDuration, setWorkoutNotes,
+    setWorkoutDuration, setWorkoutNotes, setWorkoutRestTime, calculateWorkoutDuration,
     finalizeWorkout, estimateWorkoutKcal,
     getWorkoutSessions, getExercisePRs,
     getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate, loadWorkoutTemplate,
@@ -258,11 +258,24 @@ export function renderTodayWorkout() {
 
             <!-- Duración + notas + guardar -->
             <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
-                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                    <label style="color:var(--text-2);font-size:0.85rem;white-space:nowrap;">Duración (min)</label>
-                    <input type="number" id="workout-duration" value="${workout.duration || 60}" min="1" max="300"
-                        onchange="window._workoutSetDuration(this.value)"
-                        style="width:80px;padding:6px 10px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;">
+                <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <label style="color:var(--text-2);font-size:0.85rem;white-space:nowrap;">Descanso entre series</label>
+                        <input type="number" id="workout-rest-time" value="${workout.restTimeMin || 3}" min="1" max="10" step="0.5"
+                            onchange="window._workoutSetRestTime(this.value)"
+                            style="width:60px;padding:6px 10px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;">
+                        <span style="color:var(--text-3);font-size:0.85rem;">min</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <label style="color:var(--text-2);font-size:0.85rem;white-space:nowrap;">Duración</label>
+                        <input type="number" id="workout-duration" value="${workout.duration || ''}" min="0" max="300" placeholder="auto"
+                            onchange="window._workoutSetDuration(this.value)"
+                            style="width:70px;padding:6px 10px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;">
+                        <span style="color:var(--text-3);font-size:0.85rem;">min</span>
+                    </div>
+                    <div id="workout-duration-calc" style="font-size:0.78rem;color:var(--text-3);font-style:italic;">
+                        ${!workout.duration ? `Estimado: ~${calculateWorkoutDuration(workout)} min` : ''}
+                    </div>
                 </div>
                 <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
                     <label style="color:var(--text-2);font-size:0.85rem;white-space:nowrap;margin-top:8px;">Notas</label>
@@ -296,6 +309,12 @@ export function renderTodayWorkout() {
     window._workoutSetDuration = (v) => {
         setWorkoutDuration(v);
         _updateKcalDisplay();
+        _updateDurationCalc();
+    };
+    window._workoutSetRestTime = (v) => {
+        setWorkoutRestTime(v);
+        _updateKcalDisplay();
+        _updateDurationCalc();
     };
     window._workoutSetNotes = (v) => setWorkoutNotes(v);
     window._workoutSave = () => {
@@ -616,6 +635,19 @@ function _updateKcalDisplay() {
         if (AppState.allDays[dateKey]) m.updateDaySummary(AppState.allDays[dateKey]);
     });
     import('../config-settings.js').then(m => m.updateHeaderInfo());
+    _updateDurationCalc();
+}
+
+function _updateDurationCalc() {
+    const workout = getTodayWorkout();
+    const el = document.getElementById('workout-duration-calc');
+    if (!el || !workout) return;
+    if (workout.duration > 0) {
+        el.textContent = '';
+    } else {
+        const calc = calculateWorkoutDuration(workout);
+        el.textContent = calc > 0 ? `Estimado: ~${calc} min` : '';
+    }
 }
 
 // ─── Base de datos de ejercicios ──────────────────────────────────────────────
@@ -844,12 +876,13 @@ export function renderWorkoutHistory() {
                 const totalSets = s.exercises?.reduce((t, e) => t + e.sets.length, 0) || 0;
                 const kcal = s.estimatedKcal || 0;
 
+                const displayDuration = s.duration > 0 ? s.duration : calculateWorkoutDuration(s);
                 return `
                 <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;overflow:hidden;">
                     <div style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;user-select:none;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
                         <div>
                             <div style="font-weight:600;color:var(--text-1);">${date}</div>
-                            <div style="font-size:0.8rem;color:var(--text-2);">${exCount} ejercicios · ${totalSets} series · ${s.duration || 0} min</div>
+                            <div style="font-size:0.8rem;color:var(--text-2);">${exCount} ejercicios · ${totalSets} series · ~${displayDuration} min</div>
                         </div>
                         <div style="text-align:right;">
                             <div style="font-size:0.75rem;color:var(--text-3);">Kcal</div>
