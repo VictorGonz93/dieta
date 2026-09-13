@@ -56,17 +56,16 @@ export function calculateTDEE(dayType) {
     return Math.round(tmr * factor);
 }
 
-/**
- * Calcula el TDEE adaptativo basado en el balance energético real.
- * Compara las calorías consumidas con el cambio de peso observado.
- * 
- * Fórmula: TDEE = calorias_diarias_promedio + (peso_inicio - peso_fin) * 7700 / dias
- * 
- * Requiere: ≥14 días de datos de peso y comida.
- * Incluye suavizado EMA y safety cap para evitar outliers.
- * 
- * @returns {{ tdee: number, confidence: 'high'|'medium'|'low'|'none', daysUsed: number, formulaTDEE: number }}
- */
+// ─── TDEE Adaptativo con caché por día ────────────────────────────────────────
+// Cada día "congela" su TDEE basado SOLO en datos disponibles hasta esa fecha.
+// Esto evita que entrar un peso hoy cambie los objetivos de ayer.
+
+const _adaptiveTDEECache = new Map();
+
+export function clearAdaptiveTDEECache() {
+    _adaptiveTDEECache.clear();
+}
+
 function _getWorkoutKcalForDate(dateKey, sessions) {
     try {
         const session = sessions[dateKey];
@@ -77,116 +76,164 @@ function _getWorkoutKcalForDate(dateKey, sessions) {
     return 0;
 }
 
-export function calculateAdaptiveTDEE() {
-    const weightHistory = AppState.config.weightHistory;
-    const formulaTDEE = calculateTMR() * 1.25;
-    if (!weightHistory || weightHistory.length < 14) {
-        return { tdee: formulaTDEE, confidence: 'none', daysUsed: 0, formulaTDEE, avgWorkoutPerDay: 0 };
+function _sumDayKcal(dateKey) {
+    const dayData = AppState.allDays[dateKey];
+    if (!dayData || !dayData.meals) return 0;
+    let total = 0;
+    Object.values(dayData.meals).forEach(meal => {
+        meal.forEach(food => { total += food.kcal; });
+    });
+    return total;
+}
+
+function _getFormulaTMR(weightKg) {
+    const { height, age, gender } = AppState.config;
+    const w = parseFloat(weightKg) || 75;
+    const h = parseFloat(height) || 170;
+    const a = parseFloat(age) || 30;
+    const g = gender || 'male';
+    return g === 'male'
+        ? (10 * w) + (6.25 * h) - (5 * a) + 5
+        : (10 * w) + (6.25 * h) - (5 * a) - 161;
+}
+
+/**
+ * Calcula el TDEE adaptativo para una fecha específica.
+ * Solo usa datos de peso Y comida de FECHAS ANTERIORES a dateKey.
+ * Resultados cacheados — llamar clearAdaptiveTDEECache() al modificar peso.
+ *
+ * @param {string} dateKey - Fecha objetivo (YYYY-MM-DD)
+ * @returns {{ tdee, confidence, daysUsed, formulaTDEE, avgWorkoutPerDay, ... }}
+ */
+export function calculateAdaptiveTDEEForDate(dateKey) {
+    if (_adaptiveTDEECache.has(dateKey)) {
+        return _adaptiveTDEECache.get(dateKey);
     }
 
-    // Cachear workoutSessions una sola vez (evitar 21+ lecturas de localStorage)
+    const weightHistory = AppState.config.weightHistory || [];
+    const formulaTDEE = Math.round(_getFormulaTMR(AppState.config.currentWeight) * 1.25);
+
+    // Solo usar entradas de peso ANTERIORES a dateKey (excluir el día objetivo)
+    const historicalWeights = weightHistory.filter(w => w.date < dateKey);
+
+    if (historicalWeights.length < 14) {
+        const result = { tdee: formulaTDEE, confidence: 'none', daysUsed: 0, formulaTDEE, avgWorkoutPerDay: 0 };
+        _adaptiveTDEECache.set(dateKey, result);
+        return result;
+    }
+
+    // Cachear workoutSessions una sola vez
     let sessions = {};
     try { sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}'); } catch {}
 
-    const windowSize = Math.min(21, weightHistory.length);
-    const recentWeight = weightHistory.slice(-windowSize);
+    // Usar ventana de 21 días máximo
+    const windowSize = Math.min(21, historicalWeights.length);
+    const window = historicalWeights.slice(-windowSize);
 
     let totalCalories = 0;
     let validDays = 0;
     let totalWorkoutKcal = 0;
 
-    for (let i = 0; i < recentWeight.length; i++) {
-        const entry = recentWeight[i];
-        const dayData = AppState.allDays[entry.date];
-        if (dayData && dayData.meals) {
-            let dayKcal = 0;
-            Object.values(dayData.meals).forEach(meal => {
-                meal.forEach(food => {
-                    dayKcal += food.kcal;
-                });
-            });
-            if (dayKcal > 500) {
-                totalCalories += dayKcal;
-                validDays++;
-            }
+    for (const entry of window) {
+        const dayKcal = _sumDayKcal(entry.date);
+        if (dayKcal > 500) {
+            totalCalories += dayKcal;
+            validDays++;
         }
         totalWorkoutKcal += _getWorkoutKcalForDate(entry.date, sessions);
     }
 
-    const avgWorkoutPerDay = totalWorkoutKcal / windowSize;
+    // Dividir entre días válidos (no entre windowSize)
+    const avgWorkoutPerDay = validDays > 0 ? totalWorkoutKcal / validDays : 0;
 
     if (validDays < 10) {
-        return { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay };
+        const result = { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay };
+        _adaptiveTDEECache.set(dateKey, result);
+        return result;
     }
 
-    const firstWeight = recentWeight[0].weight;
-    const lastWeight = recentWeight[recentWeight.length - 1].weight;
+    // Calcular cambio de peso: primer vs último en la ventana
+    const firstWeight = window[0].weight;
+    const lastWeight = window[window.length - 1].weight;
     const weightChangeKg = firstWeight - lastWeight;
 
-    const firstDate = new Date(recentWeight[0].date);
-    const lastDate = new Date(recentWeight[recentWeight.length - 1].date);
+    const firstDate = new Date(window[0].date);
+    const lastDate = new Date(window[window.length - 1].date);
     const daysBetween = Math.max(1, (lastDate - firstDate) / (1000 * 60 * 60 * 24));
 
     const avgDailyCalories = totalCalories / validDays;
     const adaptiveTDEE = avgDailyCalories + (weightChangeKg * 7700 / daysBetween);
-    const cappedTDEE = Math.max(formulaTDEE - 500, Math.min(formulaTDEE + 500, adaptiveTDEE));
 
-    const recent7 = weightHistory.slice(-7);
+    // Safety cap: ±300 (más conservador que ±500)
+    const CAP = 300;
+    const cappedTDEE = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, adaptiveTDEE));
+
+    // EMA de 7 días (si hay suficientes datos)
+    const recent7 = historicalWeights.slice(-7);
     if (recent7.length >= 7) {
-        let recent7Calories = 0;
-        let recent7Days = 0;
+        let r7Calories = 0;
+        let r7Days = 0;
         for (const entry of recent7) {
-            const dayData = AppState.allDays[entry.date];
-            if (dayData && dayData.meals) {
-                let dayKcal = 0;
-                Object.values(dayData.meals).forEach(meal => {
-                    meal.forEach(food => { dayKcal += food.kcal; });
-                });
-                if (dayKcal > 500) {
-                    recent7Calories += dayKcal;
-                    recent7Days++;
-                }
-            }
+            const dayKcal = _sumDayKcal(entry.date);
+            if (dayKcal > 500) { r7Calories += dayKcal; r7Days++; }
         }
-        if (recent7Days >= 5) {
+        if (r7Days >= 5) {
             const r7W0 = recent7[0].weight;
             const r7W1 = recent7[recent7.length - 1].weight;
-            const r7Days = Math.max(1, (new Date(recent7[recent7.length - 1].date) - new Date(recent7[0].date)) / (1000 * 60 * 60 * 24));
-            const r7AvgCals = recent7Calories / recent7Days;
-            const r7TDEE = r7AvgCals + ((r7W0 - r7W1) * 7700 / r7Days);
-            const r7Capped = Math.max(formulaTDEE - 500, Math.min(formulaTDEE + 500, r7TDEE));
+            const r7DaysSpan = Math.max(1, (new Date(recent7[recent7.length - 1].date) - new Date(recent7[0].date)) / (1000 * 60 * 60 * 24));
+            const r7AvgCals = r7Calories / r7Days;
+            const r7TDEE = r7AvgCals + ((r7W0 - r7W1) * 7700 / r7DaysSpan);
+            const r7Capped = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, r7TDEE));
 
-            const smoothedTDEE = r7Capped * 0.7 + cappedTDEE * 0.3;
+            // EMA más fuerte: 0.85 reciente / 0.3 histórico
+            const smoothedTDEE = r7Capped * 0.85 + cappedTDEE * 0.15;
 
             let confidence = 'medium';
             if (windowSize >= 21 && validDays >= 18) confidence = 'high';
             else if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
             else confidence = 'low';
 
-            return {
+            const result = {
                 tdee: Math.round(smoothedTDEE),
                 confidence,
                 daysUsed: validDays,
-                formulaTDEE: Math.round(formulaTDEE),
+                formulaTDEE,
                 rawAdaptive: Math.round(adaptiveTDEE),
                 smoothedAdaptive: Math.round(smoothedTDEE),
                 avgWorkoutPerDay,
             };
+            _adaptiveTDEECache.set(dateKey, result);
+            return result;
         }
     }
 
     let confidence = 'low';
     if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
 
-    return {
+    const result = {
         tdee: Math.round(cappedTDEE),
         confidence,
         daysUsed: validDays,
-        formulaTDEE: Math.round(formulaTDEE),
+        formulaTDEE,
         rawAdaptive: Math.round(adaptiveTDEE),
         smoothedAdaptive: Math.round(cappedTDEE),
         avgWorkoutPerDay,
     };
+    _adaptiveTDEECache.set(dateKey, result);
+    return result;
+}
+
+/**
+ * Wrapper legacy: calcula TDEE adaptativo usando TODOS los datos actuales.
+ * Solo se usa para la tarjeta informativa en Ajustes.
+ */
+export function calculateAdaptiveTDEE() {
+    const today = new Date().toISOString().split('T')[0];
+    // Usar el día actual + 1 para incluir todos los datos en la ventana
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = tomorrow.toISOString().split('T')[0];
+    return calculateAdaptiveTDEEForDate(tomorrowKey);
 }
 
 /**
@@ -218,14 +265,19 @@ export function calculateAutoDeficit(weight = null, lossPace = null) {
 }
 
 // ─── Targets dinámicos diarios ────────────────────────────────────────────────
-// Calcula calorías y macros del día usando el TDEE adaptativo:
-// TDEE = TMB * 1.25 (NEAT diario) + gasto deportivo (real o plantilla asignada)
-// Objetivo Calórico = TDEE - Déficit Objetivo Automático
+// Cada día usa SOLO datos disponibles hasta esa fecha.
+// TDEE adaptativo congelado por día — no cambia al navegar al pasado.
 export function getDynamicDayTargets(dateKey) {
     const [year, month, day] = dateKey.split('-').map(Number);
     const dayDate = new Date(year, month - 1, day);
     const dayInfo = getDayType(dayDate);
-    const tmr = calculateTMR();
+
+    // Peso específico del día (si existe) — para TMR y macros
+    const historyEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
+    const dayWeight = historyEntry?.weight || AppState.config.currentWeight || 75;
+
+    // TMR con peso del día (no el peso actual)
+    const tmr = _getFormulaTMR(dayWeight);
     if (!tmr) return null;
 
     let workoutKcal = 0;
@@ -236,11 +288,9 @@ export function getDynamicDayTargets(dateKey) {
         const session = sessions[dateKey];
 
         if (session && session.exercises && session.exercises.length > 0) {
-            // A) Sesión realmente iniciada/editada en el día
             workoutKcal = session.estimatedKcal || estimateWorkoutKcal(session) || 0;
             isRealLoggedSession = true;
         } else if (dayInfo.templateId) {
-            // B) Sin sesión iniciada aún, pero con rutina/plantilla asignada a este día
             const templates = JSON.parse(localStorage.getItem('workoutTemplates') || '{}');
             const tmpl = templates[dayInfo.templateId];
             if (tmpl && tmpl.exercises && tmpl.exercises.length > 0) {
@@ -249,36 +299,30 @@ export function getDynamicDayTargets(dateKey) {
         }
     } catch { workoutKcal = 0; }
 
-    // TDEE Base: usar adaptativo si está seleccionado, si no usar fórmula
+    // TDEE Base: adaptativo congelado o fórmula
     const tdeeMode = AppState.config.tdeeMode || 'formula';
     let tdeeBase;
     let adaptiveResult = null;
     if (tdeeMode === 'adaptive') {
-        adaptiveResult = calculateAdaptiveTDEE();
+        adaptiveResult = calculateAdaptiveTDEEForDate(dateKey);
         if (adaptiveResult.confidence !== 'none') {
             tdeeBase = Math.round(adaptiveResult.tdee - (adaptiveResult.avgWorkoutPerDay || 0));
         } else {
             tdeeBase = Math.round(tmr * 1.25);
         }
     } else {
-        // Fórmula: base sedentaria (NEAT) + workoutKcal encima
         tdeeBase = Math.round(tmr * 1.25);
     }
     const tdee = tdeeBase + workoutKcal;
 
-    // Peso específico para el día (si existe peso registrado ese día) o peso actual
-    const historyEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
-    const dayWeight = historyEntry?.weight || AppState.config.currentWeight || 75;
-
-    // Déficit objetivo calculado automáticamente según peso del día y ritmo de pérdida
+    // Déficit según peso del día
     const lossPace = AppState.config.lossPace || 'moderado';
     const deficitTarget = calculateAutoDeficit(dayWeight, lossPace);
 
-    // Calorías diarias objetivo
+    // Calorías objetivo
     const cals = Math.max(1200, tdee - deficitTarget);
 
-    // Macros dinámicos:
-    // Proteína = peso del día * proteinFactor (1.8, 2.0, 2.2 g/kg)
+    // Macros
     const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
     const protein = Math.round(dayWeight * pFactor);
     const fats = Math.max(Math.round(dayWeight * 0.8), 40);

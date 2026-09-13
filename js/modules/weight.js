@@ -1,7 +1,7 @@
 ﻿// ==================== PREDICCIÓN Y GESTIÓN DE PESO ====================
 
 import AppState from './state.js';
-import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit } from './nutrition.js';
+import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, clearAdaptiveTDEECache } from './nutrition.js';
 import { getWorkoutSessions } from './workout.js';
 import { getDateKey, saveDays } from './storage.js';
 import { showNotification } from './ui/notifications.js';
@@ -60,6 +60,7 @@ export function recordWeight(date, weight) {
 
     AppState.config.weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
     saveWeightHistory();
+    clearAdaptiveTDEECache();
 }
 
 // Helper síncrono para getDayNumber (evitar circular import)
@@ -397,6 +398,7 @@ export function updateWeightEntry(date, newWeight) {
         const prediction = calculateNextDayPredictionForDate(date, weight);
         AppState.config.weightHistory[index].predictedWeight = prediction?.predictedWeight || null;
         saveWeightHistory();
+        clearAdaptiveTDEECache();
         renderWeightHistory();
         showNotification(`Peso actualizado: ${weight}kg`, 'success');
         import('./config-settings.js').then(m => m.updateHeaderInfo());
@@ -410,6 +412,7 @@ export function deleteWeightEntry(date) {
     if (!confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
     AppState.config.weightHistory = AppState.config.weightHistory.filter(w => w.date !== date);
     saveWeightHistory();
+    clearAdaptiveTDEECache();
     renderWeightHistory();
     showNotification('Registro eliminado', 'success');
     import('./config-settings.js').then(m => m.updateHeaderInfo());
