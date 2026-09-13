@@ -1,5 +1,7 @@
 // ==================== PESTAÑAS DE NAVEGACIÓN ====================
 
+import { getDateKey } from '../storage.js';
+
 export function setupTabNavigation() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -35,7 +37,7 @@ export function showTab(tabId) {
         import('../workout.js').then(w => {
             w.initWorkoutPlan();
             import('../google-fit.js').then(gf => {
-                const dateKey = new Date().toISOString().split('T')[0];
+                const dateKey = getDateKey(new Date());
                 const sessions = w.getWorkoutSessions();
                 const session = sessions[dateKey];
                 let steps = null;

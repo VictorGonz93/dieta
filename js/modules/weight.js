@@ -12,7 +12,7 @@ export function loadWeightHistory() {
         AppState.config.weightHistory = [];
         if (AppState.config.startDate && AppState.config.startWeight) {
             AppState.config.weightHistory.push({
-                date: AppState.config.startDate.toISOString().split('T')[0],
+                date: getDateKey(AppState.config.startDate),
                 weight: AppState.config.startWeight,
                 day: 1,
                 predictedWeight: null,
@@ -42,7 +42,7 @@ export function saveWeightHistory() {
 
 export function recordWeight(date, weight) {
     if (!AppState.config.weightHistory) AppState.config.weightHistory = [];
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = getDateKey(date);
     const existingIndex = AppState.config.weightHistory.findIndex(w => w.date === dateStr);
 
     const { getDayNumber } = await_getDayNumber();

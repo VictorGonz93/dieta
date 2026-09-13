@@ -19,14 +19,14 @@ export function getDayType(date) {
 }
 
 export function getCalorieTarget() {
-    const dateKey = AppState.currentDate ? AppState.currentDate.toISOString().split('T')[0] : '';
+    const dateKey = AppState.currentDate ? getDateKey(AppState.currentDate) : '';
     const dynamic = getDynamicDayTargets(dateKey);
     if (dynamic) return dynamic.cals;
     return AppState.config.calsDescanso || 1800;
 }
 
 export function getTDEE() {
-    const dateKey = AppState.currentDate ? AppState.currentDate.toISOString().split('T')[0] : '';
+    const dateKey = AppState.currentDate ? getDateKey(AppState.currentDate) : '';
     const dynamic = getDynamicDayTargets(dateKey);
     if (dynamic) return dynamic.tdee;
     return calculateTDEE('descanso');
@@ -232,11 +232,10 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
  * Solo se usa para la tarjeta informativa en Ajustes.
  */
 export function calculateAdaptiveTDEE() {
-    const today = new Date().toISOString().split('T')[0];
     // Usar el día actual + 1 para incluir todos los datos en la ventana
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowKey = tomorrow.toISOString().split('T')[0];
+    const tomorrowKey = getDateKey(tomorrow);
     return calculateAdaptiveTDEEForDate(tomorrowKey);
 }
 
