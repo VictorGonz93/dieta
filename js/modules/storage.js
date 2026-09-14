@@ -267,3 +267,118 @@ export function clearAllData() {
     showNotification('Todos los datos fueron eliminados');
     location.reload();
 }
+
+// ==================== BACKUP AUTOMÁTICO ====================
+
+const BACKUP_KEY = 'nutrition_auto_backup';
+const BACKUP_CHECK_KEY = 'nutrition_backup_last_check';
+
+export function autoBackup() {
+    try {
+        const lastCheck = parseInt(localStorage.getItem(BACKUP_CHECK_KEY) || '0');
+        const now = Date.now();
+        if (now - lastCheck < 24 * 60 * 60 * 1000) return;
+
+        localStorage.setItem(BACKUP_CHECK_KEY, String(now));
+
+        const backup = {
+            version: '1.0',
+            backupDate: new Date().toISOString(),
+            config: JSON.parse(JSON.stringify(AppState.config)),
+            days: JSON.parse(JSON.stringify(AppState.allDays)),
+            customProducts: JSON.parse(JSON.stringify(AppState.customProducts)),
+            mealHistory: JSON.parse(JSON.stringify(AppState.mealHistory)),
+            mealCombos: JSON.parse(JSON.stringify(AppState.mealCombos)),
+            workoutSessions: JSON.parse(localStorage.getItem('workoutSessions') || '{}'),
+            workoutTemplates: JSON.parse(localStorage.getItem('workoutTemplates') || '{}'),
+            exercisePRs: JSON.parse(localStorage.getItem('exercisePRs') || '{}'),
+            darkModeEnabled: localStorage.getItem('darkModeEnabled') === 'true',
+        };
+
+        localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+        console.log('Backup automático guardado:', Object.keys(backup.days).length, 'días');
+    } catch (e) {
+        console.error('Error en backup automático:', e);
+    }
+}
+
+export function restoreFromBackup() {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) {
+        showNotification('No hay backup automático disponible', 'warning');
+        return;
+    }
+
+    try {
+        const backup = JSON.parse(raw);
+        const daysCount = backup.days ? Object.keys(backup.days).length : 0;
+
+        if (!confirm(`Backup del ${new Date(backup.backupDate).toLocaleDateString('es-ES')}\n${daysCount} días de datos.\n\n¿Restaurar este backup?`)) return;
+
+        if (backup.config) {
+            Object.assign(AppState.config, backup.config);
+            if (backup.config.startDate) AppState.config.startDate = new Date(backup.config.startDate);
+            localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+        }
+
+        const weightHist = (backup.config && backup.config.weightHistory) || backup.weight_history;
+        if (weightHist && weightHist.length > 0) {
+            AppState.config.weightHistory = weightHist;
+            localStorage.setItem('weight_history', JSON.stringify(weightHist));
+        }
+
+        if (backup.days) {
+            AppState.allDays = backup.days;
+            saveDays();
+        }
+
+        if (backup.customProducts) {
+            AppState.customProducts = backup.customProducts;
+            localStorage.setItem('custom_products', JSON.stringify(AppState.customProducts));
+        }
+
+        if (backup.mealHistory) {
+            AppState.mealHistory = backup.mealHistory;
+            localStorage.setItem('meal_history', JSON.stringify(AppState.mealHistory));
+        }
+
+        if (backup.mealCombos) {
+            AppState.mealCombos = backup.mealCombos;
+            saveMealCombos();
+        }
+
+        if (backup.workoutSessions && Object.keys(backup.workoutSessions).length > 0) {
+            localStorage.setItem('workoutSessions', JSON.stringify(backup.workoutSessions));
+        }
+        if (backup.workoutTemplates && Object.keys(backup.workoutTemplates).length > 0) {
+            localStorage.setItem('workoutTemplates', JSON.stringify(backup.workoutTemplates));
+        }
+        if (backup.exercisePRs && Object.keys(backup.exercisePRs).length > 0) {
+            localStorage.setItem('exercisePRs', JSON.stringify(backup.exercisePRs));
+        }
+
+        if (backup.darkModeEnabled) {
+            localStorage.setItem('darkModeEnabled', 'true');
+        }
+
+        showNotification(`Backup restaurado: ${daysCount} días recuperados`, 'success');
+        location.reload();
+    } catch (e) {
+        showNotification('Error al restaurar backup: ' + e.message, 'error');
+    }
+}
+
+export function getBackupInfo() {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return null;
+    try {
+        const backup = JSON.parse(raw);
+        return {
+            date: backup.backupDate,
+            days: backup.days ? Object.keys(backup.days).length : 0,
+            size: raw.length,
+        };
+    } catch (e) {
+        return null;
+    }
+}

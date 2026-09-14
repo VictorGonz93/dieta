@@ -1015,6 +1015,9 @@
                                 <span class="material-icons">upload</span> Subir JSON
                             </button>
                             <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+                            <button onclick="restoreFromBackup()" class="py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg smooth-transition flex items-center justify-center gap-2">
+                                <span class="material-icons">restore</span> Restaurar Backup
+                            </button>
                             <button onclick="clearAllData()" class="py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg smooth-transition flex items-center justify-center gap-2">
                                 <span class="material-icons">delete</span> Limpiar Todo
                             </button>
@@ -1128,4 +1131,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=20250914-93"></script>
+    <script type="module" src="js/app.js?v=20250914-94"></script>
