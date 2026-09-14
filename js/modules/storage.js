@@ -2,7 +2,6 @@
 
 import AppState from './state.js';
 import { showNotification } from './ui/notifications.js';
-import { clearAdaptiveTDEECache } from './nutrition.js';
 
 export function getDateKey(date) {
     const year = date.getFullYear();
@@ -180,6 +179,7 @@ export function importData(event) {
             if (weightHist && weightHist.length > 0) {
                 AppState.config.weightHistory = weightHist;
                 localStorage.setItem('weight_history', JSON.stringify(weightHist));
+                const { clearAdaptiveTDEECache } = await import('./nutrition.js');
                 clearAdaptiveTDEECache();
             }
 
