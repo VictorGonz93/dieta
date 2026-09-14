@@ -99,6 +99,20 @@ function _getFormulaTMR(weightKg) {
 }
 
 /**
+ * Promedio de pesos en un radio alrededor de un índice (suavizado de 3 días).
+ * Filtra fluctuaciones diarias de agua/sodio.
+ * Referencia: ENHANCE Framework (Int J Obesity, 2026) ±3-day moving average.
+ */
+function _avgWeight(entries, index, halfWindow) {
+    if (!entries || entries.length === 0) return 0;
+    const start = Math.max(0, index - halfWindow);
+    const end = Math.min(entries.length - 1, index + halfWindow);
+    let sum = 0;
+    for (let i = start; i <= end; i++) sum += entries[i].weight;
+    return sum / (end - start + 1);
+}
+
+/**
  * Calcula el TDEE adaptativo para una fecha específica.
  * Solo usa datos de peso Y comida de FECHAS ANTERIORES a dateKey.
  * Resultados cacheados — llamar clearAdaptiveTDEECache() al modificar peso.
@@ -157,9 +171,9 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
         return result;
     }
 
-    // Calcular cambio de peso: primer vs último en la ventana
-    const firstWeight = window[0].weight;
-    const lastWeight = window[window.length - 1].weight;
+    // Calcular cambio de peso: primer vs último en la ventana (suavizado 3 días)
+    const firstWeight = _avgWeight(window, 0, 1);
+    const lastWeight = _avgWeight(window, window.length - 1, 1);
     const weightChangeKg = firstWeight - lastWeight;
 
     const firstDate = new Date(window[0].date);
@@ -173,25 +187,25 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     const CAP = 400;
     const cappedTDEE = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, adaptiveTDEE));
 
-    // EMA de 7 días (si hay suficientes datos)
-    const recent7 = historicalWeights.slice(-7);
-    if (recent7.length >= 7) {
-        let r7Calories = 0;
-        let r7Days = 0;
-        for (const entry of recent7) {
+    // EMA de 14 días (suavizado, media móvil de 3 días en pesos)
+    const recent14 = historicalWeights.slice(-14);
+    if (recent14.length >= 14) {
+        let r14Calories = 0;
+        let r14Days = 0;
+        for (const entry of recent14) {
             const dayKcal = _sumDayKcal(entry.date);
-            if (dayKcal > 500) { r7Calories += dayKcal; r7Days++; }
+            if (dayKcal > 500) { r14Calories += dayKcal; r14Days++; }
         }
-        if (r7Days >= 5) {
-            const r7W0 = recent7[0].weight;
-            const r7W1 = recent7[recent7.length - 1].weight;
-            const r7DaysSpan = Math.max(1, (new Date(recent7[recent7.length - 1].date) - new Date(recent7[0].date)) / (1000 * 60 * 60 * 24));
-            const r7AvgCals = r7Calories / r7Days;
-            const r7TDEE = r7AvgCals + ((r7W0 - r7W1) * 7700 / r7DaysSpan);
-            const r7Capped = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, r7TDEE));
+        if (r14Days >= 10) {
+            const r14W0 = _avgWeight(recent14, 0, 1);
+            const r14W1 = _avgWeight(recent14, recent14.length - 1, 1);
+            const r14DaysSpan = Math.max(1, (new Date(recent14[recent14.length - 1].date) - new Date(recent14[0].date)) / (1000 * 60 * 60 * 24));
+            const r14AvgCals = r14Calories / r14Days;
+            const r14TDEE = r14AvgCals + ((r14W0 - r14W1) * 7700 / r14DaysSpan);
+            const r14Capped = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, r14TDEE));
 
             // EMA: 0.70 reciente / 0.30 histórico (estabilidad vs responsividad)
-            const smoothedTDEE = r7Capped * 0.70 + cappedTDEE * 0.30;
+            const smoothedTDEE = r14Capped * 0.70 + cappedTDEE * 0.30;
 
             let confidence = 'medium';
             if (windowSize >= 21 && validDays >= 18) confidence = 'high';
