@@ -308,15 +308,19 @@ export function getDynamicDayTargets(dateKey) {
     const tdeeMode = AppState.config.tdeeMode || 'formula';
     let tdeeBase;
     let adaptiveResult = null;
+    const formulaTDEE = Math.round(tmr * 1.25);
+    const CAP = 300;
     if (tdeeMode === 'adaptive') {
         adaptiveResult = calculateAdaptiveTDEEForDate(dateKey);
         if (adaptiveResult.confidence !== 'none') {
             tdeeBase = Math.round(adaptiveResult.tdee - (adaptiveResult.avgWorkoutPerDay || 0));
+            // Proteger tdeeBase: no puede bajar de formulaTDEE - CAP
+            tdeeBase = Math.max(formulaTDEE - CAP, tdeeBase);
         } else {
-            tdeeBase = Math.round(tmr * 1.25);
+            tdeeBase = formulaTDEE;
         }
     } else {
-        tdeeBase = Math.round(tmr * 1.25);
+        tdeeBase = formulaTDEE;
     }
     const tdee = tdeeBase + workoutKcal;
 
