@@ -169,8 +169,8 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     const avgDailyCalories = totalCalories / validDays;
     const adaptiveTDEE = avgDailyCalories + (weightChangeKg * 7700 / daysBetween);
 
-    // Safety cap: ±300 (más conservador que ±500)
-    const CAP = 300;
+    // Safety cap: ±400 (evidence-based margin)
+    const CAP = 400;
     const cappedTDEE = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, adaptiveTDEE));
 
     // EMA de 7 días (si hay suficientes datos)
@@ -190,8 +190,8 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
             const r7TDEE = r7AvgCals + ((r7W0 - r7W1) * 7700 / r7DaysSpan);
             const r7Capped = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, r7TDEE));
 
-            // EMA: 0.85 reciente / 0.15 histórico
-            const smoothedTDEE = r7Capped * 0.85 + cappedTDEE * 0.15;
+            // EMA: 0.70 reciente / 0.30 histórico (estabilidad vs responsividad)
+            const smoothedTDEE = r7Capped * 0.70 + cappedTDEE * 0.30;
 
             let confidence = 'medium';
             if (windowSize >= 21 && validDays >= 18) confidence = 'high';
@@ -309,11 +309,12 @@ export function getDynamicDayTargets(dateKey) {
     let tdeeBase;
     let adaptiveResult = null;
     const formulaTDEE = Math.round(tmr * 1.25);
-    const CAP = 300;
+    const CAP = 400;
     if (tdeeMode === 'adaptive') {
         adaptiveResult = calculateAdaptiveTDEEForDate(dateKey);
         if (adaptiveResult.confidence !== 'none') {
-            tdeeBase = Math.round(adaptiveResult.tdee - (adaptiveResult.avgWorkoutPerDay || 0));
+            // Usar TDEE adaptativo directamente — ya incluye el efecto de workouts
+            tdeeBase = Math.round(adaptiveResult.tdee);
             // Proteger tdeeBase: no puede bajar de formulaTDEE - CAP
             tdeeBase = Math.max(formulaTDEE - CAP, tdeeBase);
         } else {
@@ -328,8 +329,10 @@ export function getDynamicDayTargets(dateKey) {
     const lossPace = AppState.config.lossPace || 'moderado';
     const deficitTarget = calculateAutoDeficit(dayWeight, lossPace);
 
-    // Calorías objetivo
-    const cals = Math.max(1200, tdee - deficitTarget);
+    // Calorías objetivo — piso según sexo (AHA/ACC guidelines)
+    const gender = AppState.config.gender || 'male';
+    const calorieFloor = gender === 'female' ? 1200 : 1500;
+    const cals = Math.max(calorieFloor, tdee - deficitTarget);
 
     // Macros
     const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
