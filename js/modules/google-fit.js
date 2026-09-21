@@ -69,12 +69,13 @@ function silentTokenRefresh() {
             return;
         }
 
+        const storedClientId = getFitCredentials().clientId;
         const client = google.accounts.oauth2.initTokenClient({
-            client_id: DEFAULT_CLIENT_ID,
+            client_id: storedClientId,
             scope: GOOGLE_FIT_SCOPE,
             callback: (tokenResponse) => {
                 if (tokenResponse && tokenResponse.access_token) {
-                    saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, DEFAULT_CLIENT_ID);
+                    saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, storedClientId);
                     resolve(tokenResponse.access_token);
                 } else {
                     reject(new Error('No token in silent refresh response'));
@@ -100,17 +101,20 @@ export function connectGoogleFit(silent = false) {
     }
 
     try {
+        const storedClientId = getFitCredentials().clientId;
         tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: DEFAULT_CLIENT_ID,
+            client_id: storedClientId,
             scope: GOOGLE_FIT_SCOPE,
             callback: async (tokenResponse) => {
                 if (tokenResponse && tokenResponse.access_token) {
                     console.log('[GoogleFit] Token obtenido correctamente, guardando...');
-                    saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, DEFAULT_CLIENT_ID);
+                    saveFitCredentials(tokenResponse.access_token, tokenResponse.expires_in, storedClientId);
                     if (!silent) {
                         showNotification('✅ ¡Conectado con Google Fit! Sincronizando pasos...', 'success');
                     }
                     renderGoogleFitStatusUI();
+                    // Arrancar sync periódica tras conectar (antes solo empezaba al recargar)
+                    try { initGoogleFitAutoSync(); } catch (_) { /* sin DOM en tests */ }
                     const syncResult = await syncTodayStepsFromGoogleFit(!silent);
                     console.log('[GoogleFit] Sync post-conexión resultado:', syncResult);
                     if (!syncResult && !silent) {
@@ -261,10 +265,11 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
     const sessions = getWorkoutSessions();
     let session = sessions[dateKey];
 
-    if (!session) {
+    if (!session || typeof session !== 'object') {
         session = { date: dateKey, exercises: [], duration: 0, restTimeMin: 3, notes: '', finalized: false };
         sessions[dateKey] = session;
     }
+    if (!Array.isArray(session.exercises)) session.exercises = [];
 
     // Buscar o añadir ejercicio de 'Caminar / Pasos Diarios' (ID 160)
     const allEx = getExercisesDB();
@@ -277,10 +282,22 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
         trackingType: 'steps'
     };
 
-    let exInSession = session.exercises.find(e => e.exerciseId == stepsExDB.id || (e.name && e.name.toLowerCase().includes('pasos')));
+    // Match estricto: mismo exerciseId, o (nombre con 'pasos' SOLO en ejercicios
+    // de tipo steps) — antes cualquier custom con "pasos" en el nombre era secuestrado.
+    let exInSession = session.exercises.find(e => e && (
+        e.exerciseId == stepsExDB.id ||
+        ((e.trackingType || '') === 'steps' && e.name && e.name.toLowerCase().includes('pasos'))
+    ));
 
     if (exInSession) {
-        exInSession.sets = [{ steps: steps, done: true }];
+        // Merge: actualizar el total de pasos conservando mins y bloques manuales.
+        // El set 0 es el sincronizado con Fit; los demás son manuales del usuario.
+        if (!Array.isArray(exInSession.sets) || exInSession.sets.length === 0) {
+            exInSession.sets = [{ steps: steps, mins: 0, done: true, synced: true }];
+        } else {
+            exInSession.sets[0] = { ...exInSession.sets[0], steps: steps, done: true, synced: true };
+        }
+        exInSession.trackingType = exInSession.trackingType || 'steps';
     } else {
         session.exercises.push({
             exerciseId: stepsExDB.id,
@@ -289,7 +306,7 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
             type: stepsExDB.type,
             category: stepsExDB.category,
             trackingType: 'steps',
-            sets: [{ steps: steps, done: true }]
+            sets: [{ steps: steps, mins: 0, done: true, synced: true }]
         });
     }
 
