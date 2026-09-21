@@ -207,7 +207,7 @@ export function getMealType(mealName, mealTime, dateKey) {
 
 export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppState.config.currentWeight) {
     const dayData = AppState.allDays[dateKey];
-    let totalKcal = 0, totalCarbs = 0, totalWaterRetention = 0, mealCount = 0;
+    let totalKcal = 0, totalCarbs = 0, mealCount = 0;
 
     if (dayData) {
         Object.values(dayData.meals).forEach(meal => {
@@ -215,8 +215,6 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
                 totalKcal += food.kcal;
                 totalCarbs += food.carbs;
                 mealCount++;
-                const foodWaterRetention = calculateWaterRetentionWithTiming(food.carbs, food.time, dateKey);
-                totalWaterRetention += foodWaterRetention;
             });
         });
     }
@@ -225,7 +223,6 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
     const dayDate = new Date(year, month - 1, day);
     const dayInfo = getDayType(dayDate);
 
-    // Targets dinámicos adaptativos
     const dynamic = getDynamicDayTargets(dateKey);
     const calorieTarget = dynamic ? dynamic.cals : 1800;
     const tdee = dynamic ? dynamic.tdee : calculateTDEE(dayInfo.type);
@@ -234,32 +231,22 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
     const deficitVsMeta = totalKcal - calorieTarget;
     const deficitVsTDEE = totalKcal - tdee;
 
-    // === MODELO DE GLUCÓGENO CON TECHO ===
-    // Máximo glucógeno: ~500g músculo + ~100g hígado = 600g total
-    // Cada gramo de glucógeno almacena ~3g de agua (ratio 3:1)
-    // Ejercicio intenso depleta ~30-50% del glucógeno
+    // === RETENCIÓN DE AGUA (UNA SOLA FUENTE) ===
+    // Glucógeno: max 600g → cada gramo almacena ~3g agua
     const MAX_GLYCOGEN_G = 600;
-    const WATER_PER_GLYCOGEN_G = 3;
     const cappedCarbs = Math.min(totalCarbs, MAX_GLYCOGEN_G);
-    const glycogenWaterRetention = (cappedCarbs / 1000) * WATER_PER_GLYCOGEN_G;
+    const glycogenWater = (cappedCarbs / 1000) * 3;
 
-    // === RETENCIÓN POR SODIO (estimada por número de comidas) ===
-    // Promedio ~800-1200mg sodio por comida → ~0.15 kg agua por comida
-    const sodiumWaterRetention = mealCount * 0.15;
+    // Sodio: ~800mg por comida → ~0.03 kg agua por comida (conservador)
+    const sodiumWater = mealCount * 0.03;
 
-    // Combinar retención de agua (glucógeno + sodio + timing de comidas)
-    // La retención por timing ya está en totalWaterRetention, ponderar con glucógeno
-    const baseWaterRetention = Math.min(
-        glycogenWaterRetention + sodiumWaterRetention,
-        glycogenWaterRetention * 1.5 + sodiumWaterRetention
-    );
-    const finalWaterRetention = baseWaterRetention + (totalWaterRetention * 0.3);
+    // Retención total = glucógeno + sodio
+    const finalWaterRetention = glycogenWater + sodiumWater;
 
     // === CAMBIO GRASO ===
     const fatChange = (deficitVsTDEE / 7700) * 0.75;
 
-    // === INFLAMACIÓN MUSCULAR (refinada) ===
-    // Depende de intensidad del entreno Y si es día de descanso previo
+    // === INFLAMACIÓN MUSCULAR ===
     let trainingInflammation = 0;
     if (workoutKcal > 500) {
         trainingInflammation = 0.30;
