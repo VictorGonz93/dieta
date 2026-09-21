@@ -20,7 +20,12 @@ export function loadWeightHistory() {
             saveWeightHistory();
         }
     } else {
-        AppState.config.weightHistory = JSON.parse(saved);
+        try {
+            AppState.config.weightHistory = JSON.parse(saved);
+        } catch (e) {
+            console.warn('Weight history corrupto, reiniciando:', e.message);
+            AppState.config.weightHistory = [];
+        }
         let migratedCount = 0;
         AppState.config.weightHistory.forEach((entry) => {
             if (entry.predictedWeight === undefined) {
@@ -350,7 +355,7 @@ export function saveDailyWeight() {
     displayNextDayPrediction();
     import('./meals.js').then(m => m.renderDay());
     import('./stats.js').then(m => m.updateGoalsDisplay());
-    import('../charts.js').then(m => m.renderWeightPredictionChart());
+    import('./charts.js').then(m => m.renderWeightPredictionChart());
 }
 
 export function renderWeightHistory() {
@@ -400,6 +405,16 @@ export function updateWeightEntry(date, newWeight) {
         AppState.config.weightHistory[index].predictedWeight = prediction?.predictedWeight || null;
         saveWeightHistory();
         clearAdaptiveTDEECache();
+        // Sync currentWeight if editing today's entry
+        const todayKey = getDateKey(new Date());
+        if (date === todayKey) {
+            AppState.config.currentWeight = weight;
+            const pace = AppState.config.lossPace || 'moderado';
+            const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
+            AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
+            AppState.config.proteinGoal = Math.round(weight * pFactor);
+            localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+        }
         renderWeightHistory();
         showNotification(`Peso actualizado: ${weight}kg`, 'success');
         import('./config-settings.js').then(m => m.updateHeaderInfo());
@@ -414,6 +429,21 @@ export function deleteWeightEntry(date) {
     AppState.config.weightHistory = AppState.config.weightHistory.filter(w => w.date !== date);
     saveWeightHistory();
     clearAdaptiveTDEECache();
+    // Sync currentWeight if deleting today's entry
+    const todayKey = getDateKey(new Date());
+    if (date === todayKey) {
+        const lastEntry = AppState.config.weightHistory.length > 0
+            ? AppState.config.weightHistory[AppState.config.weightHistory.length - 1]
+            : null;
+        AppState.config.currentWeight = lastEntry ? lastEntry.weight : null;
+        if (AppState.config.currentWeight) {
+            const pace = AppState.config.lossPace || 'moderado';
+            const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
+            AppState.config.deficitTarget = calculateAutoDeficit(AppState.config.currentWeight, pace);
+            AppState.config.proteinGoal = Math.round(AppState.config.currentWeight * pFactor);
+        }
+        localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+    }
     renderWeightHistory();
     showNotification('Registro eliminado', 'success');
     import('./config-settings.js').then(m => m.updateHeaderInfo());

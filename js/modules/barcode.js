@@ -261,6 +261,7 @@ async function stopCameraStream() {
         }
     }
     isScanning = false;
+    html5QrCode = null;
 }
 
 /**

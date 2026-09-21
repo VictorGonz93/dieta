@@ -10,6 +10,7 @@ const DEFAULT_CLIENT_ID = '188472915937-i8jb9ericnjehqut53q6j67q6detusk1.apps.go
 
 let tokenClient = null;
 let syncInterval = null;
+let _visibilityHandler = null;
 
 /**
  * Obtiene las credenciales guardadas
@@ -42,6 +43,10 @@ export function disconnectGoogleFit() {
     localStorage.removeItem('gfit_expires_at');
     localStorage.setItem('gfit_auto_sync', 'false');
     if (syncInterval) clearInterval(syncInterval);
+    if (_visibilityHandler) {
+        document.removeEventListener('visibilitychange', _visibilityHandler);
+        _visibilityHandler = null;
+    }
     showNotification('Conexión con Google Fit desactivada');
     renderGoogleFitStatusUI();
 }
@@ -231,7 +236,7 @@ export async function fetchTodayStepsFromGoogleFit() {
         if (totalSteps === 0) {
             console.log('[GoogleFit] Sin datos de pasos en Google Fit para hoy. Asegúrate de que Google Fit esté instalado y sincronizando en tu móvil.');
         }
-        return totalSteps > 0 ? Math.round(totalSteps) : null;
+        return totalSteps > 0 ? Math.round(totalSteps) : 0;
     } catch (err) {
         console.error('[GoogleFit] Error obteniendo pasos:', err.message || err);
         return null;
@@ -387,7 +392,10 @@ export function initGoogleFitAutoSync() {
         }, 10 * 60 * 1000);
 
         // Refrescar token silencioso cuando el usuario vuelve a la pestaña (funciona porque es interacción del usuario)
-        document.addEventListener('visibilitychange', () => {
+        if (_visibilityHandler) {
+            document.removeEventListener('visibilitychange', _visibilityHandler);
+        }
+        _visibilityHandler = () => {
             if (document.visibilityState === 'visible' && isGoogleFitConnected()) {
                 const currentCreds = getFitCredentials();
                 if (currentCreds.accessToken && Date.now() >= currentCreds.expiresAt) {
@@ -398,7 +406,8 @@ export function initGoogleFitAutoSync() {
                 }
                 syncTodayStepsFromGoogleFit(false);
             }
-        });
+        };
+        document.addEventListener('visibilitychange', _visibilityHandler);
     }
 }
 

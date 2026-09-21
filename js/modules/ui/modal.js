@@ -74,11 +74,15 @@ export function setupTabSearch() {
     }
 
     if (quantity) {
-        quantity.addEventListener('input', calculateMacros);
+        const newQuantity = quantity.cloneNode(true);
+        quantity.parentNode.replaceChild(newQuantity, quantity);
+        newQuantity.addEventListener('input', calculateMacros);
     }
 
     if (unit) {
-        unit.addEventListener('change', calculateMacros);
+        const newUnit = unit.cloneNode(true);
+        unit.parentNode.replaceChild(newUnit, unit);
+        newUnit.addEventListener('change', handleUnitChange);
     }
 }
 

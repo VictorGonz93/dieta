@@ -337,7 +337,10 @@ export function getDynamicDayTargets(dateKey) {
     } else {
         tdeeBase = formulaTDEE;
     }
-    const tdee = tdeeBase + workoutKcal;
+    // In adaptive mode, workoutKcal is already included in the TDEE estimate
+    // (historical workouts contribute to weight change → reflected in adaptive TDEE)
+    // In formula mode, we add today's workout kcal explicitly
+    const tdee = tdeeMode === 'adaptive' ? tdeeBase : tdeeBase + workoutKcal;
 
     // Déficit según peso del día
     const lossPace = AppState.config.lossPace || 'moderado';
@@ -352,10 +355,14 @@ export function getDynamicDayTargets(dateKey) {
     const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
     const protein = Math.round(dayWeight * pFactor);
     const fats = Math.max(Math.round(dayWeight * 0.8), 40);
-    const carbs = Math.max(0, Math.round((cals - protein * 4 - fats * 9) / 4));
+    const macroCals = protein * 4 + fats * 9;
+    // If macros exceed calorie target, adjust carbs (can go to 0)
+    const carbs = Math.max(0, Math.round((cals - macroCals) / 4));
+    // If macros still exceed target, report the actual achievable cals
+    const actualCals = macroCals + carbs * 4 > cals ? macroCals + carbs * 4 : cals;
 
     return {
-        cals,
+        cals: actualCals,
         protein,
         carbs,
         fats,

@@ -26,7 +26,12 @@ export const PRODUCTS_DB = [
 export function loadCustomProducts() {
     const saved = localStorage.getItem('custom_products');
     if (saved) {
-        AppState.customProducts = JSON.parse(saved);
+        try {
+            AppState.customProducts = JSON.parse(saved);
+        } catch (e) {
+            console.warn('Custom products corruptos, reiniciando:', e.message);
+            AppState.customProducts = [];
+        }
         const maxId = Math.max(...PRODUCTS_DB.map(p => p.id), 100);
         AppState.customProducts.forEach((p, index) => {
             if (!p.id) p.id = maxId + index + 1;
@@ -90,6 +95,13 @@ export function addNewProduct() {
 export function deleteProduct(productId) {
     const product = PRODUCTS_DB.find(p => p.id === productId);
     if (!product) return;
+
+    // Only allow deleting custom products, not built-in ones
+    const isCustom = AppState.customProducts.some(p => p.id === productId);
+    if (!isCustom) {
+        showNotification('No se pueden eliminar productos integrados', 'warning');
+        return;
+    }
 
     if (!confirm(`¿Eliminar "${product.name.replace(/^[^\w]+\s/, '').trim()}"?`)) return;
 
@@ -305,7 +317,7 @@ export function saveProductEdit(productId) {
     const customUnit = document.getElementById('editProdCustomUnit').value.trim();
     const customUnitWeight = parseFloat(document.getElementById('editProdCustomUnitWeight').value) || null;
 
-    if (!name || !portion || !unit || !kcal || protein === undefined || carbs === undefined || fats === undefined) {
+    if (!name || !portion || !unit || isNaN(kcal) || protein === undefined || carbs === undefined || fats === undefined) {
         showNotification('Por favor completa todos los campos requeridos', 'error');
         return;
     }

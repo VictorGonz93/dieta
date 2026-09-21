@@ -115,6 +115,7 @@ export function exportData() {
             workoutSessions: JSON.parse(localStorage.getItem('workoutSessions') || '{}'),
             workoutTemplates: JSON.parse(localStorage.getItem('workoutTemplates') || '{}'),
             exercisePRs: JSON.parse(localStorage.getItem('exercisePRs') || '{}'),
+            customExercises: JSON.parse(localStorage.getItem('custom_exercises') || '[]'),
             note: 'Backup completo de todos los datos de la app con resúmenes y estadísticas',
         };
 
@@ -167,6 +168,14 @@ export function importData(event) {
     reader.onload = async (e) => {
         try {
             const data = JSON.parse(e.target.result);
+
+            // Basic schema validation
+            if (!data || typeof data !== 'object') {
+                throw new Error('Formato de archivo no válido');
+            }
+            if (!data.config || typeof data.config !== 'object') {
+                throw new Error('Archivo no contiene configuración válida');
+            }
 
             if (data.config) {
                 Object.assign(AppState.config, data.config);
@@ -236,6 +245,9 @@ export function importData(event) {
             if (data.exercisePRs && Object.keys(data.exercisePRs).length > 0) {
                 localStorage.setItem('exercisePRs', JSON.stringify(data.exercisePRs));
             }
+            if (data.customExercises && Array.isArray(data.customExercises) && data.customExercises.length > 0) {
+                localStorage.setItem('custom_exercises', JSON.stringify(data.customExercises));
+            }
 
             const { loadConfig } = await import('./config-settings.js');
             const { renderProductsList } = await import('./ui/products-list.js');
@@ -279,8 +291,6 @@ export function autoBackup() {
         const now = Date.now();
         if (now - lastCheck < 24 * 60 * 60 * 1000) return;
 
-        localStorage.setItem(BACKUP_CHECK_KEY, String(now));
-
         const backup = {
             version: '1.0',
             backupDate: new Date().toISOString(),
@@ -292,10 +302,12 @@ export function autoBackup() {
             workoutSessions: JSON.parse(localStorage.getItem('workoutSessions') || '{}'),
             workoutTemplates: JSON.parse(localStorage.getItem('workoutTemplates') || '{}'),
             exercisePRs: JSON.parse(localStorage.getItem('exercisePRs') || '{}'),
+            customExercises: JSON.parse(localStorage.getItem('custom_exercises') || '[]'),
             darkModeEnabled: localStorage.getItem('darkModeEnabled') === 'true',
         };
 
         localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+        localStorage.setItem(BACKUP_CHECK_KEY, String(now));
         console.log('Backup automático guardado:', Object.keys(backup.days).length, 'días');
     } catch (e) {
         console.error('Error en backup automático:', e);

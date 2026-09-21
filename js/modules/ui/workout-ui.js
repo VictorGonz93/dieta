@@ -533,7 +533,7 @@ function _renderExerciseList() {
                             style="padding:4px 6px;background:${isDone ? 'var(--primary)' : 'var(--bg-card)'};color:${isDone ? '#FFF' : 'var(--text-2)'};border:1px solid ${isDone ? 'var(--primary)' : 'var(--border-base)'};border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                             <span class="material-icons" style="font-size:15px;">${isDone ? 'check_circle' : 'check'}</span>
                         </button>
-                        <button onclick="startRestTimer(90)" title="Iniciar descanso 90s"
+                        <button onclick="window._workoutStartRestTimer()" title="Iniciar descanso"
                             style="padding:4px 6px;background:var(--bg-card);color:var(--primary);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
                             <span class="material-icons" style="font-size:15px;">timer</span>
                         </button>
@@ -564,10 +564,15 @@ function _renderExerciseList() {
     window._workoutToggleSetDone = (id, i) => {
         const isDone = toggleSetDone(id, i);
         if (isDone) {
-            startRestTimer(90);
+            window._workoutStartRestTimer();
         }
         _renderExerciseList();
         _updateKcalDisplay();
+    };
+    window._workoutStartRestTimer = () => {
+        const workout = getTodayWorkout();
+        const restMin = workout?.restTimeMin || 3;
+        startRestTimer(restMin * 60);
     };
 }
 

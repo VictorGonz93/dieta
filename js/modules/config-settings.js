@@ -8,9 +8,13 @@ import { showNotification } from './ui/notifications.js';
 export function loadConfig() {
     const saved = localStorage.getItem('nutrition_config');
     if (saved) {
-        const parsed = JSON.parse(saved);
-        Object.assign(AppState.config, parsed);
-        if (parsed.startDate) AppState.config.startDate = new Date(parsed.startDate);
+        try {
+            const parsed = JSON.parse(saved);
+            Object.assign(AppState.config, parsed);
+            if (parsed.startDate) AppState.config.startDate = new Date(parsed.startDate);
+        } catch (e) {
+            console.warn('Config corrupta, usando valores por defecto:', e.message);
+        }
     }
     updateConfigUI();
 }
@@ -86,7 +90,7 @@ export function saveConfig() {
 
     import('./meals.js').then(m => m.renderDay());
     import('./stats.js').then(m => { m.updateGoalsDisplay(); });
-    import('../charts.js').then(m => m.initializeCharts());
+    import('./charts.js').then(m => m.initializeCharts());
     import('./ui/workout-ui.js').then(m => m.renderTodayWorkout());
     import('./ui/onboarding.js').then(m => {
         m.updateOnboardingProgress();

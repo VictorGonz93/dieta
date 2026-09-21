@@ -580,6 +580,7 @@ export function estimateWorkoutKcal(workout) {
     let strengthKcal = 0;
     let totalStrengthSets = 0;
     let cardioKcal = 0;
+    let cardioMins = 0;
 
     const allExercisesDB = getExercisesDB();
 
@@ -597,8 +598,10 @@ export function estimateWorkoutKcal(workout) {
                 if (steps > 0) {
                     const estMins = steps / 100;
                     cardioKcal += met * bodyWeight * (estMins / 60);
+                    cardioMins += estMins;
                 } else if (mins > 0) {
                     cardioKcal += met * bodyWeight * (mins / 60);
+                    cardioMins += mins;
                 }
             }
         } else if (trackingType === 'cardio_distance') {
@@ -618,6 +621,7 @@ export function estimateWorkoutKcal(workout) {
                 }
                 if (mins > 0) {
                     cardioKcal += met * bodyWeight * (mins / 60);
+                    cardioMins += mins;
                 }
             }
         } else if (trackingType === 'time_hold') {
@@ -670,12 +674,15 @@ export function estimateWorkoutKcal(workout) {
         return Math.round(cardioKcal + restKcal);
     }
 
+    // Only count transition time for time NOT already accounted for by strength sets
+    // Cardio time is already fully accounted for via MET-based cardioKcal calculation
     const countedMins = totalStrengthSets * (1.2 + REST_MIN);
-    const extraMins = Math.max(0, effectiveDuration - countedMins);
-    const transitionKcal = extraMins > 0 ? (2.0 * bodyWeight * extraMins / 60) : 0;
+    const transitionMins = Math.max(0, effectiveDuration - countedMins - cardioMins);
+    const transitionKcal = transitionMins > 0 ? (2.0 * bodyWeight * transitionMins / 60) : 0;
 
     const subtotal = strengthKcal + restKcal + transitionKcal + cardioKcal;
-    const epocFactor = (totalStrengthSets > 12 || effectiveDuration > 45) ? 1.08 : 1.05;
+    // EPOC only applies to high-intensity resistance training (>12 sets), not duration-based
+    const epocFactor = totalStrengthSets > 12 ? 1.08 : 1.05;
 
     return Math.round(subtotal * epocFactor);
 }
@@ -715,7 +722,11 @@ export function saveWorkoutTemplate(name) {
             exerciseId: ex.exerciseId,
             name: ex.name,
             muscle: ex.muscle,
-            sets: ex.sets.map(s => ({ reps: s.reps, kg: s.kg })),
+            trackingType: ex.trackingType,
+            sets: ex.sets.map(s => ({
+                reps: s.reps, kg: s.kg,
+                steps: s.steps, mins: s.mins, km: s.km, secs: s.secs,
+            })),
         })),
     };
     localStorage.setItem('workoutTemplates', JSON.stringify(templates));

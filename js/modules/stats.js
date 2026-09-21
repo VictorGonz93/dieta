@@ -24,10 +24,10 @@ export function getMacroSuggestions() {
     });
 
     const targets = getDynamicDayTargets(dateKey);
-    const targetCals    = targets?.cals    || getCalorieTarget();
-    const targetProtein = targets?.protein || AppState.config.proteinGoal;
-    const targetCarbs   = targets?.carbs   || AppState.config.carbsMax;
-    const targetFats    = targets?.fats    || AppState.config.fatsMax;
+    const targetCals    = targets?.cals    || getCalorieTarget() || 0;
+    const targetProtein = targets?.protein || AppState.config.proteinGoal || 0;
+    const targetCarbs   = targets?.carbs   || AppState.config.carbsMax || 0;
+    const targetFats    = targets?.fats    || AppState.config.fatsMax || 0;
 
     const missing = {
         kcal:    Math.max(0, targetCals    - sumKcal),
@@ -40,10 +40,10 @@ export function getMacroSuggestions() {
         consumido: { sumKcal, sumProtein, sumCarbs, sumFats },
         falta: missing,
         targetCarbs,
-        porcentajeCals:    Math.round((sumKcal    / targetCals)    * 100),
-        porcentajeProtein: Math.round((sumProtein / targetProtein) * 100),
-        porcentajeCarbos:  Math.round((sumCarbs   / targetCarbs)   * 100),
-        porcentajeFats:    Math.round((sumFats    / targetFats)    * 100),
+        porcentajeCals:    targetCals    > 0 ? Math.round((sumKcal    / targetCals)    * 100) : 0,
+        porcentajeProtein: targetProtein > 0 ? Math.round((sumProtein / targetProtein) * 100) : 0,
+        porcentajeCarbos:  targetCarbs   > 0 ? Math.round((sumCarbs   / targetCarbs)   * 100) : 0,
+        porcentajeFats:    targetFats    > 0 ? Math.round((sumFats    / targetFats)    * 100) : 0,
         targets,
     };
 }
@@ -91,7 +91,8 @@ export function calculateWeeklyStats() {
         const deficit = tdee - kcal;
 
         totalKcal += kcal;
-        totalDeficit += deficit;
+        // Only count deficit for days with actual food logged (otherwise deficit = TDEE, inflating average)
+        if (kcal > 0) totalDeficit += deficit;
 
         dailyStats.push({
             date: dateKey,
