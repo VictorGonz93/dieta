@@ -1,8 +1,8 @@
 // ==================== NUTRICIÓN Y CÁLCULOS ====================
 
 import AppState from './state.js';
-import { GYM_ROUTINE, UNIT_CONVERSIONS } from './constants.js';
-import { estimateWorkoutKcal, calculateWorkoutDuration } from './workout.js';
+import { GYM_ROUTINE, UNIT_CONVERSIONS, KCAL_PER_KG_FAT } from './constants.js';
+import { estimateWorkoutKcal, calculateWorkoutDuration, getWorkoutSessions, getWorkoutTemplates } from './workout.js';
 import { getDateKey } from './storage.js';
 
 export function getDayNumber(date) {
@@ -181,7 +181,7 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     const daysBetween = Math.max(1, (lastDate - firstDate) / (1000 * 60 * 60 * 24));
 
     const avgDailyCalories = totalCalories / validDays;
-    const adaptiveTDEE = avgDailyCalories + (weightChangeKg * 7700 / daysBetween);
+    const adaptiveTDEE = avgDailyCalories + (weightChangeKg * KCAL_PER_KG_FAT / daysBetween);
 
     // Safety cap: ±400 (evidence-based margin)
     const CAP = 400;
@@ -201,7 +201,7 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
             const r14W1 = _avgWeight(recent14, recent14.length - 1, 1);
             const r14DaysSpan = Math.max(1, (new Date(recent14[recent14.length - 1].date) - new Date(recent14[0].date)) / (1000 * 60 * 60 * 24));
             const r14AvgCals = r14Calories / r14Days;
-            const r14TDEE = r14AvgCals + ((r14W0 - r14W1) * 7700 / r14DaysSpan);
+            const r14TDEE = r14AvgCals + ((r14W0 - r14W1) * KCAL_PER_KG_FAT / r14DaysSpan);
             const r14Capped = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, r14TDEE));
 
             // EMA: 0.70 reciente / 0.30 histórico (estabilidad vs responsividad)
@@ -265,21 +265,21 @@ export function calculateAutoDeficit(weight = null, lossPace = null) {
     if (pace === 'suave') {
         // ~0.5% del peso corporal por semana
         const weeklyLossKg = w * 0.005;
-        return Math.round((weeklyLossKg * 7700) / 7);
+        return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
     } else if (pace === 'moderado') {
         // ~0.75% del peso corporal por semana (Recomendado)
         const weeklyLossKg = w * 0.0075;
-        return Math.round((weeklyLossKg * 7700) / 7);
+        return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
     } else if (pace === 'intenso') {
         // ~1.0% del peso corporal por semana
         const weeklyLossKg = w * 0.010;
-        return Math.round((weeklyLossKg * 7700) / 7);
+        return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
     } else if (pace === 'manual') {
         return AppState.config.deficitTarget || 500;
     }
 
     const weeklyLossKg = w * 0.0075;
-    return Math.round((weeklyLossKg * 7700) / 7);
+    return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
 }
 
 // ─── Targets dinámicos diarios ────────────────────────────────────────────────
@@ -302,14 +302,14 @@ export function getDynamicDayTargets(dateKey) {
     let isRealLoggedSession = false;
 
     try {
-        const sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}');
+        const sessions = getWorkoutSessions();
         const session = sessions[dateKey];
 
         if (session && session.exercises && session.exercises.length > 0) {
             workoutKcal = session.estimatedKcal || estimateWorkoutKcal(session) || 0;
             isRealLoggedSession = true;
         } else if (dayInfo.templateId) {
-            const templates = JSON.parse(localStorage.getItem('workoutTemplates') || '{}');
+            const templates = getWorkoutTemplates();
             const tmpl = templates[dayInfo.templateId];
             if (tmpl && tmpl.exercises && tmpl.exercises.length > 0) {
                 const estDuration = calculateWorkoutDuration({ exercises: tmpl.exercises, restTimeMin: 3 });

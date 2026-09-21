@@ -10,6 +10,42 @@ export function getDateKey(date) {
     return `${year}-${month}-${day}`;
 }
 
+// ─── Acceso seguro a localStorage ───────────────────────────────────────────
+// safeGet: nunca lanza; ante JSON corrupto pone en cuarentena y devuelve fallback.
+// safeSet: nunca lanza; ante falta de cuota avisa al usuario. Devuelve true/false.
+export function safeGet(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw === null || raw === undefined) return fallback;
+        return JSON.parse(raw);
+    } catch (e) {
+        console.warn(`[Storage] Clave corrupta '${key}', usando fallback:`, e.message);
+        try {
+            const raw = localStorage.getItem(key);
+            localStorage.setItem(`${key}:corrupt:${Date.now()}`, raw);
+            localStorage.removeItem(key);
+        } catch (_) { /* cuarentena best-effort */ }
+        return fallback;
+    }
+}
+
+export function safeSet(key, value) {
+    try {
+        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+        return true;
+    } catch (e) {
+        const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+        console.error(`[Storage] Error al guardar '${key}':`, e && e.message);
+        showNotification(
+            isQuota
+                ? 'Almacenamiento lleno: exporta tus datos y borra días antiguos'
+                : `Error al guardar datos (${key})`,
+            'error'
+        );
+        return false;
+    }
+}
+
 export function saveDays() {
     localStorage.setItem('nutrition_days', JSON.stringify(AppState.allDays));
 }

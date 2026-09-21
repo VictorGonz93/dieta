@@ -2,6 +2,7 @@
 
 import AppState from './state.js';
 import { GYM_ROUTINE } from './constants.js';
+import { safeGet, safeSet } from './storage.js';
 import { showNotification } from './ui/notifications.js';
 
 export function initWorkoutPlan() {
@@ -71,7 +72,7 @@ export function saveWorkoutPlan() {
     if (hasError) return;
 
     AppState.config.customGymRoutine = customRoutine;
-    localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+    safeSet('nutrition_config', AppState.config);
     showNotification('Plan de entrenamientos guardado correctamente', 'success');
 
     import('./meals.js').then(m => m.renderDay());
@@ -82,7 +83,7 @@ export function saveWorkoutPlan() {
 export function resetWorkoutPlan() {
     if (confirm('¿Seguro que deseas restaurar el plan por defecto?')) {
         AppState.config.customGymRoutine = null;
-        localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+        safeSet('nutrition_config', AppState.config);
         initWorkoutPlan();
         showNotification('Plan restaurado al valor por defecto', 'success');
 
@@ -232,8 +233,8 @@ export const BASE_EXERCISES_DB = [
  * Retorna la base de datos combinada de ejercicios predefinidos + personalizados del usuario
  */
 export function getExercisesDB() {
-    const custom = JSON.parse(localStorage.getItem('custom_exercises') || '[]');
-    return [...BASE_EXERCISES_DB, ...custom];
+    const custom = safeGet('custom_exercises', []);
+    return [...BASE_EXERCISES_DB, ...(Array.isArray(custom) ? custom : [])];
 }
 
 export const EXERCISES_DB = getExercisesDB();
@@ -243,7 +244,8 @@ export const EXERCISES_DB = getExercisesDB();
  */
 export function saveCustomExercise(exData) {
     if (!exData.name || !exData.muscle) return false;
-    const custom = JSON.parse(localStorage.getItem('custom_exercises') || '[]');
+    const custom = safeGet('custom_exercises', []);
+    if (!Array.isArray(custom)) return false;
     const newEx = {
         id: `custom-ex-${Date.now()}`,
         name: exData.name.trim(),
@@ -254,7 +256,7 @@ export function saveCustomExercise(exData) {
         isCustom: true
     };
     custom.push(newEx);
-    localStorage.setItem('custom_exercises', JSON.stringify(custom));
+    if (!safeSet('custom_exercises', custom)) return false;
     
     // Actualizar array reactivo en memoria
     EXERCISES_DB.push(newEx);
@@ -556,7 +558,7 @@ export function finalizeWorkout(dateKey) {
     _todayWorkout.finalized = true;
     const sessions = getWorkoutSessions();
     sessions[dateKey] = { ..._todayWorkout };
-    localStorage.setItem('workoutSessions', JSON.stringify(sessions));
+    safeSet('workoutSessions', sessions);
     // Actualizar PRs
     _todayWorkout.exercises.forEach(ex => {
         const best = ex.sets.reduce((b, s) => s.kg > b.kg ? s : b, { kg: 0, reps: 0 });
@@ -701,7 +703,8 @@ export function estimateWorkoutKcal(workout) {
 
 // ─── Persistencia ─────────────────────────────────────────────────────────────
 export function getWorkoutSessions() {
-    return JSON.parse(localStorage.getItem('workoutSessions') || '{}');
+    const sessions = safeGet('workoutSessions', {});
+    return (sessions && typeof sessions === 'object' && !Array.isArray(sessions)) ? sessions : {};
 }
 
 export function getTodaySession(dateKey) {
@@ -713,12 +716,13 @@ function _autoSave() {
     _todayWorkout.estimatedKcal = estimateWorkoutKcal(_todayWorkout);
     const sessions = getWorkoutSessions();
     sessions[_todayWorkout.date] = { ..._todayWorkout };
-    localStorage.setItem('workoutSessions', JSON.stringify(sessions));
+    safeSet('workoutSessions', sessions);
 }
 
 // ─── Plantillas ───────────────────────────────────────────────────────────────
 export function getWorkoutTemplates() {
-    return JSON.parse(localStorage.getItem('workoutTemplates') || '{}');
+    const templates = safeGet('workoutTemplates', {});
+    return (templates && typeof templates === 'object' && !Array.isArray(templates)) ? templates : {};
 }
 
 export function saveWorkoutTemplate(name) {
@@ -735,31 +739,41 @@ export function saveWorkoutTemplate(name) {
             name: ex.name,
             muscle: ex.muscle,
             trackingType: ex.trackingType,
+            type: ex.type,
+            category: ex.category,
+            met: ex.met,
             sets: ex.sets.map(s => ({
                 reps: s.reps, kg: s.kg,
                 steps: s.steps, mins: s.mins, km: s.km, secs: s.secs,
             })),
         })),
     };
-    localStorage.setItem('workoutTemplates', JSON.stringify(templates));
+    safeSet('workoutTemplates', templates);
     return id;
 }
 
 export function deleteWorkoutTemplate(id) {
     const templates = getWorkoutTemplates();
     delete templates[id];
-    localStorage.setItem('workoutTemplates', JSON.stringify(templates));
+    safeSet('workoutTemplates', templates);
 }
 
 export function loadWorkoutTemplate(id) {
     const templates = getWorkoutTemplates();
     const tmpl = templates[id];
-    if (!tmpl || !_todayWorkout) return false;
+    if (!tmpl || !Array.isArray(tmpl.exercises) || !_todayWorkout) return false;
     _todayWorkout.exercises = tmpl.exercises.map(ex => ({
         exerciseId: ex.exerciseId,
         name: ex.name,
         muscle: ex.muscle,
-        sets: ex.sets.map(s => ({ reps: s.reps, kg: s.kg })),
+        trackingType: ex.trackingType,
+        type: ex.type,
+        category: ex.category,
+        met: ex.met,
+        sets: Array.isArray(ex.sets) ? ex.sets.map(s => ({
+            reps: s.reps, kg: s.kg,
+            steps: s.steps, mins: s.mins, km: s.km, secs: s.secs,
+        })) : [],
     }));
     _autoSave();
     return true;
@@ -767,13 +781,14 @@ export function loadWorkoutTemplate(id) {
 
 // ─── PRs ─────────────────────────────────────────────────────────────────────
 export function getExercisePRs() {
-    return JSON.parse(localStorage.getItem('exercisePRs') || '{}');
+    const prs = safeGet('exercisePRs', {});
+    return (prs && typeof prs === 'object' && !Array.isArray(prs)) ? prs : {};
 }
 
 export function updateExercisePR(exerciseId, weight, reps, date) {
     const prs = getExercisePRs();
     if (!prs[exerciseId] || weight > prs[exerciseId].maxWeight) {
         prs[exerciseId] = { maxWeight: weight, reps, date };
-        localStorage.setItem('exercisePRs', JSON.stringify(prs));
+        safeSet('exercisePRs', prs);
     }
 }

@@ -1,6 +1,7 @@
 ﻿// ==================== PREDICCIÓN Y GESTIÓN DE PESO ====================
 
 import AppState from './state.js';
+import { KCAL_PER_KG_FAT } from './constants.js';
 import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, clearAdaptiveTDEECache } from './nutrition.js';
 import { getWorkoutSessions } from './workout.js';
 import { getDateKey, saveDays } from './storage.js';
@@ -205,16 +206,72 @@ export function getMealType(mealName, mealTime, dateKey) {
     return 'normal';
 }
 
+// Media de carbos de los últimos 14 días con comida registrada (excluye dateKey).
+// Es la basal contra la que se calcula el Δ de retención de glucógeno.
+function getCarbBaseline(dateKey) {
+    const parts = (dateKey || '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => !Number.isFinite(n))) return 150;
+    const [y, m, d] = parts;
+    let sum = 0, n = 0;
+    for (let i = 1; i <= 14; i++) {
+        const dt = new Date(y, m - 1, d);
+        dt.setDate(dt.getDate() - i);
+        const day = AppState.allDays[getDateKey(dt)];
+        if (!day || !day.meals || typeof day.meals !== 'object') continue;
+        let carbs = 0, hasFood = false;
+        Object.values(day.meals).forEach(meal => {
+            if (!Array.isArray(meal)) return;
+            meal.forEach(food => {
+                const c = parseFloat(food && food.carbs);
+                if (Number.isFinite(c)) { carbs += c; hasFood = true; }
+            });
+        });
+        if (hasFood) { sum += carbs; n++; }
+    }
+    if (n === 0) return 150; // fallback: ingesta moderada típica
+    return sum / n;
+}
+
+function _inflammationForKcal(kcal) {
+    if (kcal > 500) return 0.30;
+    if (kcal > 300) return 0.20;
+    if (kcal > 150) return 0.12;
+    if (kcal > 0) return 0.05;
+    return 0;
+}
+
+// Kcal del entreno de AYER (para el residuo inflamatorio con decaimiento 48h)
+function _getYesterdayWorkoutKcal(dateKey) {
+    try {
+        const parts = (dateKey || '').split('-').map(Number);
+        if (parts.length !== 3 || parts.some(n => !Number.isFinite(n))) return 0;
+        const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+        dt.setDate(dt.getDate() - 1);
+        const session = getWorkoutSessions()[getDateKey(dt)];
+        const kcal = parseFloat(session && session.estimatedKcal);
+        return Number.isFinite(kcal) ? kcal : 0;
+    } catch (e) { return 0; }
+}
+
 export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppState.config.currentWeight) {
     const dayData = AppState.allDays[dateKey];
-    let totalKcal = 0, totalCarbs = 0, mealCount = 0;
+    let totalKcal = 0, totalCarbs = 0, mealSlots = 0;
 
-    if (dayData) {
+    if (dayData && dayData.meals && typeof dayData.meals === 'object') {
         Object.values(dayData.meals).forEach(meal => {
+            if (!Array.isArray(meal)) return;
+            // Solo cuenta como comida si aporta macros (agua/café solo no retienen sodio)
+            const hasMacros = meal.some(food => {
+                food = food || {};
+                return (parseFloat(food.kcal) || 0) > 0 || (parseFloat(food.carbs) || 0) > 0 ||
+                    (parseFloat(food.protein) || 0) > 0 || (parseFloat(food.fats) || 0) > 0;
+            });
+            if (hasMacros) mealSlots++;
             meal.forEach(food => {
-                totalKcal += food.kcal;
-                totalCarbs += food.carbs;
-                mealCount++;
+                const k = parseFloat(food && food.kcal);
+                const c = parseFloat(food && food.carbs);
+                if (Number.isFinite(k)) totalKcal += k;
+                if (Number.isFinite(c)) totalCarbs += c;
             });
         });
     }
@@ -231,31 +288,26 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
     const deficitVsMeta = totalKcal - calorieTarget;
     const deficitVsTDEE = totalKcal - tdee;
 
-    // === RETENCIÓN DE AGUA (UNA SOLA FUENTE) ===
-    // Glucógeno: max 600g → cada gramo almacena ~3g agua
-    const MAX_GLYCOGEN_G = 600;
-    const cappedCarbs = Math.min(totalCarbs, MAX_GLYCOGEN_G);
-    const glycogenWater = (cappedCarbs / 1000) * 3;
+    // === RETENCIÓN DE AGUA (MODELO Δ vs basal) ===
+    // Solo el EXCESO de carbos sobre tu media retiene agua extra; comer tu
+    // basal mantiene stores estables (Δ≈0). Clamp ±1.0 kg anti-ruido.
+    const carbBaseline = getCarbBaseline(dateKey);
+    const glycogenDeltaWater = Math.max(-1.0, Math.min(1.0, ((totalCarbs - carbBaseline) / 1000) * 3));
 
-    // Sodio: ~800mg por comida → ~0.03 kg agua por comida (conservador)
-    const sodiumWater = mealCount * 0.03;
+    // Sodio: ~800mg por franja de comida → ~0.03 kg agua por slot (conservador)
+    const sodiumWater = mealSlots * 0.03;
 
-    // Retención total = glucógeno + sodio
-    const finalWaterRetention = glycogenWater + sodiumWater;
+    const finalWaterRetention = glycogenDeltaWater + sodiumWater;
 
     // === CAMBIO GRASO ===
-    const fatChange = (deficitVsTDEE / 7700) * 0.75;
+    // KCAL_PER_KG_FAT ya incluye la composición del tejido adiposo: sin factores extra
+    const fatChange = deficitVsTDEE / KCAL_PER_KG_FAT;
 
-    // === INFLAMACIÓN MUSCULAR ===
-    let trainingInflammation = 0;
-    if (workoutKcal > 500) {
-        trainingInflammation = 0.30;
-    } else if (workoutKcal > 300) {
-        trainingInflammation = 0.20;
-    } else if (workoutKcal > 150) {
-        trainingInflammation = 0.12;
-    } else if (workoutKcal > 0) {
-        trainingInflammation = 0.05;
+    // === INFLAMACIÓN MUSCULAR (con decaimiento 48h) ===
+    // Día de entreno: valor completo. Día siguiente sin entreno: residuo ×0.4.
+    let trainingInflammation = _inflammationForKcal(workoutKcal);
+    if (trainingInflammation === 0) {
+        trainingInflammation = _inflammationForKcal(_getYesterdayWorkoutKcal(dateKey)) * 0.4;
     }
 
     // === CALIBRACIÓN BAYESIANA ===
@@ -291,7 +343,8 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
         deficitVsMeta: Math.round(deficitVsMeta),
         deficitVsTDEE: Math.round(deficitVsTDEE),
         carbsConsumed: Math.round(totalCarbs),
-        mealCount,
+        carbBaseline: Math.round(carbBaseline),
+        mealCount: mealSlots,
         bayesianAdjustment: parseFloat(bayesianAdjustment.toFixed(3)),
         confidence: daysTracked > 28 ? 'high' : daysTracked > 14 ? 'medium' : 'low',
     };
@@ -319,7 +372,7 @@ export function calculateNextDayPrediction() {
         todayWeight,
         date: AppState.currentDate.toLocaleDateString('es-ES'),
         explanation: pred.deficitVsTDEE < 0
-            ? `Déficit REAL de ${Math.abs(pred.deficitVsTDEE)} kcal vs TDEE (${pred.carbsConsumed}g carbos, ${pred.mealCount} comidas = ${pred.waterRetention.toFixed(2)}kg retención)${calNote}`
+            ? `Déficit REAL de ${Math.abs(pred.deficitVsTDEE)} kcal vs TDEE (${pred.carbsConsumed}g carbos vs basal ${pred.carbBaseline}g = ${pred.waterRetention.toFixed(2)}kg retención)${calNote}`
             : `Superávit REAL de ${pred.deficitVsTDEE} kcal vs TDEE${calNote}`,
     };
 }

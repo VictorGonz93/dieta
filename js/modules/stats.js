@@ -1,6 +1,7 @@
 // ==================== ESTADÍSTICAS Y ANÁLISIS ====================
 
 import AppState from './state.js';
+import { KCAL_PER_KG_FAT } from './constants.js';
 import { getDateKey } from './storage.js';
 import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
@@ -151,12 +152,12 @@ export function getWeeklyProgress() {
     const lossPace = AppState.config.lossPace || 'moderado';
     // Derive expected weekly loss from the user's actual deficit setting
     const dailyDeficit = (() => {
-        if (lossPace === 'suave') return currentWeight * 0.005 * 7700 / 7;
-        if (lossPace === 'intenso') return currentWeight * 0.010 * 7700 / 7;
+        if (lossPace === 'suave') return currentWeight * 0.005 * KCAL_PER_KG_FAT / 7;
+        if (lossPace === 'intenso') return currentWeight * 0.010 * KCAL_PER_KG_FAT / 7;
         if (lossPace === 'manual') return (AppState.config.deficitTarget || 500);
-        return currentWeight * 0.0075 * 7700 / 7; // moderado
+        return currentWeight * 0.0075 * KCAL_PER_KG_FAT / 7; // moderado
     })();
-    const expectedWeeklyLoss = parseFloat(((dailyDeficit * 7) / 7700).toFixed(2));
+    const expectedWeeklyLoss = parseFloat(((dailyDeficit * 7) / KCAL_PER_KG_FAT).toFixed(2));
     const diff = parseFloat(stats.weeklyLoss) - expectedWeeklyLoss;
     const status = diff > -0.05 ? 'En camino' : diff > -0.2 ? 'Algo lento' : 'Muy lento';
 
@@ -358,7 +359,7 @@ export function updateGoalsDisplay() {
     const w = currentWeight || 75;
     const lossPace = AppState.config.lossPace || 'moderado';
     const deficitTarget = calculateAutoDeficit(w, lossPace);
-    const weeklyLossKg = (deficitTarget * 7) / 7700; // kg/semana equivalentes
+    const weeklyLossKg = (deficitTarget * 7) / KCAL_PER_KG_FAT; // kg/semana equivalentes
     const weeksRemaining = weeklyLossKg > 0 && stillToLose > 0 ? Math.ceil(stillToLose / weeklyLossKg) : 0;
     const daysRemaining = weeksRemaining * 7;
 
@@ -438,7 +439,7 @@ window._onLossPaceChange = function() {
     const w = AppState.config.currentWeight || 75;
     import('./nutrition.js').then(m => {
         const def = m.calculateAutoDeficit(w, pace);
-        const weeklyLoss = (def * 7) / 7700;
+        const weeklyLoss = (def * 7) / KCAL_PER_KG_FAT;
         _updateLossPaceExplanation(w, pace, def, weeklyLoss);
     });
 };

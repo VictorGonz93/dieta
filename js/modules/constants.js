@@ -1,6 +1,11 @@
 // ==================== CONSTANTES GLOBALES ====================
 
-export const CURRENT_APP_VERSION = 105;
+export const CURRENT_APP_VERSION = 106;
+
+// Energía por kg de tejido adiposo (~87% lípidos a ~9400 kcal/kg).
+// Usar este valor COMPLETO: ya incluye la composición del tejido.
+// No aplicar factores adicionales (el antiguo *0.75 era un doble descuento).
+export const KCAL_PER_KG_FAT = 7700;
 
 export const UNIT_CONVERSIONS = {
     'g': 1,
