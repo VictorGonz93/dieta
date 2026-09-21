@@ -34,6 +34,11 @@ if ('serviceWorker' in navigator) {
     }).catch(error => {
         console.log('❌ Error al registrar Service Worker:', error);
     });
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'UPDATE_AVAILABLE') {
+            showNotification('Nueva versión disponible. Recarga para actualizar.', 'info');
+        }
+    });
 }
 
 // ==================== INICIALIZACIÓN ====================
@@ -71,6 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const categorySelect = document.getElementById('categoryFilter');
     if (searchInput) searchInput.addEventListener('input', () => renderProductsList(true));
     if (categorySelect) categorySelect.addEventListener('change', () => renderProductsList(true));
+
+    // Refrescar UI al volver a la app
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            renderDay();
+            updateHeaderInfo();
+        }
+    });
 });
 
 // ==================== EXPOSICIÓN A WINDOW (onclick en HTML) ====================

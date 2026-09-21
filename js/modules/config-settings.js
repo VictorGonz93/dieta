@@ -86,6 +86,8 @@ export function saveConfig() {
 
     import('./meals.js').then(m => m.renderDay());
     import('./stats.js').then(m => { m.updateGoalsDisplay(); });
+    import('../charts.js').then(m => m.initializeCharts());
+    import('./ui/workout-ui.js').then(m => m.renderTodayWorkout());
     import('./ui/onboarding.js').then(m => {
         m.updateOnboardingProgress();
         if (m.isConfigComplete()) m.closeOnboarding();
@@ -167,7 +169,7 @@ export function updateHeaderInfo() {
 
     // getDayNumber sin importar el módulo nutrition (evitar circular en carga)
     const start = new Date(startDate);
-    const diff = new Date() - start;
+    const diff = AppState.currentDate - start;
     const dayNumber = Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
 
     const totalToLose = startWeight - targetWeight;

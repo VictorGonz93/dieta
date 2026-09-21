@@ -63,6 +63,9 @@ export function initializeToday() {
         saveDays();
     }
     renderDay();
+    if (document.getElementById('workoutContainer')) {
+        import('./ui/workout-ui.js').then(m => m.renderTodayWorkout());
+    }
 }
 
 export function renderDay() {

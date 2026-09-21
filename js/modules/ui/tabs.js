@@ -30,7 +30,9 @@ export function showTab(tabId) {
     if (btn) btn.classList.add('active');
 
     if (tabId === 'hoy') {
+        import('../meals.js').then(m => m.renderDay());
         import('../stats.js').then(m => m.displayWeeklyProgress());
+        import('../config-settings.js').then(m => m.updateHeaderInfo());
     } else if (tabId === 'objetivos') {
         import('../stats.js').then(m => m.displayGoalsTracking());
     } else if (tabId === 'planteamiento') {

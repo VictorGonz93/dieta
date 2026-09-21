@@ -134,6 +134,7 @@ export async function applyComboToCurrentMeal(comboId) {
         closeModal();
         renderDay();
         updateDaySummary(AppState.allDays[dateKey]);
+        import('./weight.js').then(m => m.displayNextDayPrediction());
 
         showNotification(`Combo "${combo.name}" (${combo.items.length} alimentos) añadido`);
     } catch (err) {

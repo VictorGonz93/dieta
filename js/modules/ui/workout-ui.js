@@ -321,6 +321,11 @@ export function renderTodayWorkout() {
         const dateKey = getDateKey(AppState.currentDate);
         if (finalizeWorkout(dateKey)) {
             renderTodayWorkout();
+            import('../meals.js').then(m => {
+                m.renderDay();
+                m.updateDaySummary();
+            });
+            import('../weight.js').then(m => m.displayNextDayPrediction());
         }
     };
     // Handlers plantillas

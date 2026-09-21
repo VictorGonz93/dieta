@@ -350,6 +350,7 @@ export function saveDailyWeight() {
     displayNextDayPrediction();
     import('./meals.js').then(m => m.renderDay());
     import('./stats.js').then(m => m.updateGoalsDisplay());
+    import('../charts.js').then(m => m.renderWeightPredictionChart());
 }
 
 export function renderWeightHistory() {
