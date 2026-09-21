@@ -325,22 +325,14 @@ export function deleteFood(meal, index) {
 // ==================== NAVEGACIÓN DE DÍAS ====================
 
 export function previousDay() {
-    const prev = new Date(AppState.currentDate);
-    prev.setDate(prev.getDate() - 1);
-    // Don't navigate before startDate
-    if (AppState.config.startDate && prev < new Date(AppState.config.startDate)) return;
-    AppState.currentDate = prev;
+    AppState.currentDate.setDate(AppState.currentDate.getDate() - 1);
+    AppState.currentDate = new Date(AppState.currentDate);
     initializeToday();
 }
 
 export function nextDay() {
-    const next = new Date(AppState.currentDate);
-    next.setDate(next.getDate() + 1);
-    // Don't navigate more than 1 day into the future
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (next > tomorrow) return;
-    AppState.currentDate = next;
+    AppState.currentDate.setDate(AppState.currentDate.getDate() + 1);
+    AppState.currentDate = new Date(AppState.currentDate);
     initializeToday();
 }
 
