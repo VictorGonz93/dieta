@@ -1,7 +1,8 @@
 ﻿// ==================== GESTIÓN DE COMIDAS Y DÍAS ====================
 
 import AppState from './state.js';
-import { getDateKey, saveDays } from './storage.js';
+import { escapeHTML } from './utils.js';
+import { getDateKey, saveDays, safeSet } from './storage.js';
 import { getDayNumber, getDayType, getCalorieTarget, getDynamicDayTargets } from './nutrition.js';
 import { getWorkoutSessions } from './workout.js';
 import {
@@ -26,7 +27,7 @@ export function loadMealHistory() {
 }
 
 export function saveMealHistory() {
-    localStorage.setItem('meal_history', JSON.stringify(AppState.mealHistory.slice(0, 50)));
+    return safeSet('meal_history', AppState.mealHistory.slice(0, 50));
 }
 
 export function addToMealHistory(mealData) {
@@ -94,7 +95,7 @@ export function renderDay() {
 
     if (document.getElementById('dayTitle')) {
         document.getElementById('dayTitle').innerHTML =
-            `Día ${dayNumber} <span class="day-type-badge ${dayTypeClass} ml-2"><span class="material-icons">${dayTypeIcon}</span>${dayName}</span>`;
+            `Día ${dayNumber} <span class="day-type-badge ${dayTypeClass} ml-2"><span class="material-icons">${dayTypeIcon}</span>${escapeHTML(dayName)}</span>`;
     }
     if (document.getElementById('dayDate')) {
         document.getElementById('dayDate').textContent = formattedDate;
@@ -133,10 +134,10 @@ export function renderMealSection(mealName, foods) {
     foods.forEach((food, index) => {
         const foodEl = document.createElement('div');
         foodEl.className = 'food-item';
-        const timeDisplay = food.time ? ` <span class="food-time"><span class="material-icons" style="font-size:11px;vertical-align:middle">schedule</span> ${food.time}</span>` : '';
+        const timeDisplay = food.time ? ` <span class="food-time"><span class="material-icons" style="font-size:11px;vertical-align:middle">schedule</span> ${escapeHTML(food.time)}</span>` : '';
         const quantityDisplay = `${food.quantity} ${food.unit}`.replace(/^\s+|\s+$/g, '');
         foodEl.innerHTML = `
-            <span class="food-item-name">${food.name} (${quantityDisplay})${timeDisplay}</span>
+            <span class="food-item-name">${escapeHTML(food.name)} (${escapeHTML(quantityDisplay)})${timeDisplay}</span>
             <span class="food-item-macros">
                 <span class="food-macro kcal">${food.kcal.toFixed(0)} kcal</span>
                 <span class="food-macro protein">${food.protein.toFixed(1)}g P</span>

@@ -1,6 +1,7 @@
 // ==================== ESCÁNER DE CÓDIGO DE BARRAS ====================
 
 import AppState from './state.js';
+import { escapeHTML } from './utils.js';
 import { PRODUCTS_DB, saveCustomProducts } from './products.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -282,7 +283,7 @@ async function onBarcodeDetected(decodedText) {
         try { navigator.vibrate(80); } catch (e) { /* ignore */ }
     }
 
-    updateStatus(`🔍 Código detectado: <strong>${decodedText}</strong>. Buscando en Open Food Facts...`, 'loading');
+    updateStatus(`🔍 Código detectado: <strong>${escapeHTML(decodedText)}</strong>. Buscando en Open Food Facts...`, 'loading');
 
     await processBarcode(decodedText.trim());
 }
@@ -304,7 +305,7 @@ async function processBarcode(barcode) {
     const existingProduct = PRODUCTS_DB.find(p => p.barcode === barcode || p.id == barcode);
 
     if (existingProduct) {
-        updateStatus(`✅ Producto encontrado en tu base de datos: <strong>${existingProduct.name}</strong>`, 'success');
+        updateStatus(`✅ Producto encontrado en tu base de datos: <strong>${escapeHTML(existingProduct.name)}</strong>`, 'success');
         showNotification(`Producto "${existingProduct.name}" encontrado localmente`);
 
         setTimeout(async () => {
@@ -375,7 +376,7 @@ async function processBarcode(barcode) {
             // Actualizar lista de productos en la UI si está presente
             import('./ui/products-list.js').then(m => m.renderProductsList());
 
-            updateStatus(`🎉 ¡Producto encontrado!: <strong>${cleanName}</strong> (${newProduct.kcal} kcal/100g)`, 'success');
+            updateStatus(`🎉 ¡Producto encontrado!: <strong>${escapeHTML(cleanName)}</strong> (${newProduct.kcal} kcal/100g)`, 'success');
             showNotification(`Producto "${cleanName}" añadido a tu base de datos`);
 
             setTimeout(async () => {
@@ -385,7 +386,7 @@ async function processBarcode(barcode) {
 
         } else {
             // Producto no encontrado en Open Food Facts
-            updateStatus(`⚠️ Producto no encontrado en Open Food Facts (Código: ${barcode}). Puedes crearlo manualmente abajo.`, 'warning');
+            updateStatus(`⚠️ Producto no encontrado en Open Food Facts (Código: ${escapeHTML(barcode)}). Puedes crearlo manualmente abajo.`, 'warning');
             
             // Re-activar escáner por si quiere volver a intentar
             if (html5QrCode) {

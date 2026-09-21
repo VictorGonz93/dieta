@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { GYM_ROUTINE } from './constants.js';
-import { safeGet, safeSet } from './storage.js';
+import { safeGet, safeSet, notifyNutritionChanged } from './storage.js';
 import { showNotification } from './ui/notifications.js';
 
 export function initWorkoutPlan() {
@@ -559,6 +559,7 @@ export function finalizeWorkout(dateKey) {
     const sessions = getWorkoutSessions();
     sessions[dateKey] = { ..._todayWorkout };
     safeSet('workoutSessions', sessions);
+    notifyNutritionChanged();
     // Actualizar PRs
     _todayWorkout.exercises.forEach(ex => {
         const best = ex.sets.reduce((b, s) => s.kg > b.kg ? s : b, { kg: 0, reps: 0 });
@@ -717,6 +718,7 @@ function _autoSave() {
     const sessions = getWorkoutSessions();
     sessions[_todayWorkout.date] = { ..._todayWorkout };
     safeSet('workoutSessions', sessions);
+    notifyNutritionChanged();
 }
 
 // ─── Plantillas ───────────────────────────────────────────────────────────────

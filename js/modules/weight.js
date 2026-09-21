@@ -2,14 +2,15 @@
 
 import AppState from './state.js';
 import { KCAL_PER_KG_FAT } from './constants.js';
+import { escapeHTML } from './utils.js';
 import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, clearAdaptiveTDEECache } from './nutrition.js';
 import { getWorkoutSessions } from './workout.js';
-import { getDateKey, saveDays } from './storage.js';
+import { getDateKey, saveDays, safeGet, safeSet } from './storage.js';
 import { showNotification } from './ui/notifications.js';
 
 export function loadWeightHistory() {
     const saved = localStorage.getItem('weight_history');
-    if (!saved) {
+    if (saved === null || saved === undefined) {
         AppState.config.weightHistory = [];
         if (AppState.config.startDate && AppState.config.startWeight) {
             AppState.config.weightHistory.push({
@@ -21,12 +22,8 @@ export function loadWeightHistory() {
             saveWeightHistory();
         }
     } else {
-        try {
-            AppState.config.weightHistory = JSON.parse(saved);
-        } catch (e) {
-            console.warn('Weight history corrupto, reiniciando:', e.message);
-            AppState.config.weightHistory = [];
-        }
+        const parsed = safeGet('weight_history', []);
+        AppState.config.weightHistory = Array.isArray(parsed) ? parsed : [];
         let migratedCount = 0;
         AppState.config.weightHistory.forEach((entry) => {
             if (entry.predictedWeight === undefined) {
@@ -43,7 +40,7 @@ export function loadWeightHistory() {
 }
 
 export function saveWeightHistory() {
-    localStorage.setItem('weight_history', JSON.stringify(AppState.config.weightHistory || []));
+    return safeSet('weight_history', AppState.config.weightHistory || []);
 }
 
 export function recordWeight(date, weight) {
@@ -167,29 +164,20 @@ export function calculateWaterRetentionWithTiming(carbs, mealTime, dateKey) {
 }
 
 function getBayesianCalibration() {
-    try {
-        const saved = localStorage.getItem('prediction_calibration');
-        if (saved) {
-            const cal = JSON.parse(saved);
-            if (cal.errors && cal.errors.length > 5) {
-                const recent = cal.errors.slice(-20);
-                const meanError = recent.reduce((a, b) => a + b, 0) / recent.length;
-                return { meanError, count: recent.length };
-            }
-        }
-    } catch (e) { /* ignore */ }
+    const cal = safeGet('prediction_calibration', null);
+    if (cal && Array.isArray(cal.errors) && cal.errors.length > 5) {
+        const recent = cal.errors.slice(-20);
+        const meanError = recent.reduce((a, b) => a + b, 0) / recent.length;
+        if (Number.isFinite(meanError)) return { meanError, count: recent.length };
+    }
     return { meanError: 0, count: 0 };
 }
 
 function storePredictionError(actualWeight, predictedWeight) {
-    try {
-        const saved = localStorage.getItem('prediction_calibration');
-        const cal = saved ? JSON.parse(saved) : { errors: [] };
-        cal.errors = cal.errors || [];
-        cal.errors.push(actualWeight - predictedWeight);
-        if (cal.errors.length > 60) cal.errors = cal.errors.slice(-60);
-        localStorage.setItem('prediction_calibration', JSON.stringify(cal));
-    } catch (e) { /* ignore */ }
+    const cal = safeGet('prediction_calibration', null);
+    const errors = (cal && Array.isArray(cal.errors) ? cal.errors : []);
+    errors.push(actualWeight - predictedWeight);
+    safeSet('prediction_calibration', { errors: errors.slice(-60) });
 }
 
 export function getMealType(mealName, mealTime, dateKey) {
@@ -470,7 +458,7 @@ export function saveDailyWeight() {
     AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
     AppState.config.proteinGoal = Math.round(weight * pFactor);
 
-    localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+    safeSet('nutrition_config', AppState.config);
     showNotification(`Peso registrado: ${weight}kg`, 'success');
 
     import('./config-settings.js').then(m => m.updateHeaderInfo());
@@ -505,10 +493,10 @@ export function renderWeightHistory() {
                     <div class="flex items-center gap-2">
                         <input type="number" step="0.1" value="${entry.weight}"
                                class="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-right focus:outline-none focus:border-accent smooth-transition"
-                               onchange="window.updateWeightEntry('${entry.date}', this.value)"
+                               onchange="window.updateWeightEntry('${escapeHTML(entry.date)}', this.value)"
                                onkeyup="if(event.key === 'Enter') this.onchange()">
                         <span class="text-slate-400 font-medium">kg</span>
-                        <button onclick="window.deleteWeightEntry('${entry.date}')" class="ml-2 p-2 hover:bg-red-600/20 text-red-400 rounded-lg smooth-transition" title="Eliminar">
+                        <button onclick="window.deleteWeightEntry('${escapeHTML(entry.date)}')" class="ml-2 p-2 hover:bg-red-600/20 text-red-400 rounded-lg smooth-transition" title="Eliminar">
                             <span class="material-icons text-lg">delete</span>
                         </button>
                     </div>
@@ -536,7 +524,7 @@ export function updateWeightEntry(date, newWeight) {
             const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
             AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
             AppState.config.proteinGoal = Math.round(weight * pFactor);
-            localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+            safeSet('nutrition_config', AppState.config);
         }
         renderWeightHistory();
         showNotification(`Peso actualizado: ${weight}kg`, 'success');
@@ -565,7 +553,7 @@ export function deleteWeightEntry(date) {
             AppState.config.deficitTarget = calculateAutoDeficit(AppState.config.currentWeight, pace);
             AppState.config.proteinGoal = Math.round(AppState.config.currentWeight * pFactor);
         }
-        localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+        safeSet('nutrition_config', AppState.config);
     }
     renderWeightHistory();
     showNotification('Registro eliminado', 'success');

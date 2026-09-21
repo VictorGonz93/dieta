@@ -1,6 +1,7 @@
 ﻿// ==================== CONFIGURACIÓN ====================
 
 import AppState from './state.js';
+import { safeSet } from './storage.js';
 import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget, calculateAutoDeficit, calculateAdaptiveTDEE, clearAdaptiveTDEECache } from './nutrition.js';
 import { recordWeight, updateWeightPrediction, displayNextDayPrediction } from './weight.js';
 import { showNotification } from './ui/notifications.js';
@@ -80,7 +81,7 @@ export function saveConfig() {
         recordWeight(new Date(), newWeight);
     }
 
-    localStorage.setItem('nutrition_config', JSON.stringify(AppState.config));
+    safeSet('nutrition_config', AppState.config);
     clearAdaptiveTDEECache();
     showNotification('Configuración y Objetivos guardados correctamente', 'success');
     updateHeaderInfo();

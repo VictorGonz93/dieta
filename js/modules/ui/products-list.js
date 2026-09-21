@@ -1,6 +1,7 @@
 // ==================== LISTA DE PRODUCTOS ====================
 
 import AppState from '../state.js';
+import { escapeHTML } from '../utils.js';
 import { PRODUCTS_DB } from '../products.js';
 
 // customProducts se accede desde AppState.customProducts
@@ -35,7 +36,7 @@ export function renderProductsList(resetPage = false) {
         const isCustom = AppState.customProducts.some(cp => cp.id == p.id);
 
         const customUnitDisplay = isCustom && p.customUnit && p.customUnitWeight
-            ? `<div class="product-custom-unit" style="color: #A78BFA; font-size: 0.85rem; margin-top: 4px;">1 ${p.customUnit} = ${p.customUnitWeight}g</div>`
+            ? `<div class="product-custom-unit" style="color: #A78BFA; font-size: 0.85rem; margin-top: 4px;">1 ${escapeHTML(p.customUnit)} = ${escapeHTML(p.customUnitWeight)}g</div>`
             : '';
 
         const bgColor = isCustom ? 'rgba(59,130,246,0.1)' : 'rgba(107,114,128,0.1)';
@@ -44,8 +45,8 @@ export function renderProductsList(resetPage = false) {
         return `
             <div class="product-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: ${bgColor}; border-left: 3px solid ${borderColor}; border-radius: 6px;">
                 <div class="product-info" style="flex: 1;">
-                    <div class="product-name">${cleanName}</div>
-                    <div class="product-portion">${p.portion}${p.unit}</div>
+                    <div class="product-name">${escapeHTML(cleanName)}</div>
+                    <div class="product-portion">${escapeHTML(p.portion)}${escapeHTML(p.unit)}</div>
                     ${customUnitDisplay}
                     <div class="product-macros">
                         <span class="macro-badge kcal">${p.kcal}kcal</span>

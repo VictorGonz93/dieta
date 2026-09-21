@@ -1,7 +1,7 @@
 // ==================== SINCRONIZACIÓN AUTOMÁTICA CON GOOGLE FIT ====================
 
 import AppState from './state.js';
-import { getDateKey } from './storage.js';
+import { getDateKey, safeSet, notifyNutritionChanged } from './storage.js';
 import { getTodayWorkout, estimateWorkoutKcal, getWorkoutSessions, getExercisesDB } from './workout.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -296,7 +296,8 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
     // Recalcular gasto calórico de la sesión
     session.estimatedKcal = estimateWorkoutKcal(session);
     sessions[dateKey] = session;
-    localStorage.setItem('workoutSessions', JSON.stringify(sessions));
+    safeSet('workoutSessions', sessions);
+    notifyNutritionChanged();
 
     // Actualizar UI
     import('./meals.js').then(m => {

@@ -1,6 +1,7 @@
 ﻿// ==================== BASE DE PRODUCTOS ====================
 
 import AppState from './state.js';
+import { safeGet, safeSet } from './storage.js';
 import { showNotification } from './ui/notifications.js';
 
 export const PRODUCTS_DB = [
@@ -24,26 +25,20 @@ export const PRODUCTS_DB = [
 ];
 
 export function loadCustomProducts() {
-    const saved = localStorage.getItem('custom_products');
-    if (saved) {
-        try {
-            AppState.customProducts = JSON.parse(saved);
-        } catch (e) {
-            console.warn('Custom products corruptos, reiniciando:', e.message);
-            AppState.customProducts = [];
+    const parsed = safeGet('custom_products', []);
+    AppState.customProducts = Array.isArray(parsed) ? parsed : [];
+    const maxId = Math.max(...PRODUCTS_DB.map(p => p.id), 100);
+    AppState.customProducts.forEach((p, index) => {
+        if (!p || typeof p !== 'object') return;
+        if (!p.id) p.id = maxId + index + 1;
+        if (!PRODUCTS_DB.find(db => db.id === p.id)) {
+            PRODUCTS_DB.push(p);
         }
-        const maxId = Math.max(...PRODUCTS_DB.map(p => p.id), 100);
-        AppState.customProducts.forEach((p, index) => {
-            if (!p.id) p.id = maxId + index + 1;
-            if (!PRODUCTS_DB.find(db => db.id === p.id)) {
-                PRODUCTS_DB.push(p);
-            }
-        });
-    }
+    });
 }
 
 export function saveCustomProducts() {
-    localStorage.setItem('custom_products', JSON.stringify(AppState.customProducts));
+    return safeSet('custom_products', AppState.customProducts);
 }
 
 export function addNewProduct() {

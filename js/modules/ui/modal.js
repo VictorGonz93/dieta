@@ -2,6 +2,7 @@
 
 import AppState from '../state.js';
 import { UNIT_CONVERSIONS } from '../constants.js';
+import { escapeHTML } from '../utils.js';
 import { getDateKey } from '../storage.js';
 
 export function openModal(mealType) {
@@ -60,7 +61,7 @@ export function setupTabSearch() {
             suggested.innerHTML = matches.map(p => `
                 <div class="suggested-product-item" onclick="selectProduct(${p.id})">
                     <div class="suggested-product-info">
-                        <div class="suggested-product-name">${getDisplayProductName(p.name)}</div>
+                        <div class="suggested-product-name">${escapeHTML(getDisplayProductName(p.name))}</div>
                         <div class="suggested-product-macros">
                             <span class="macro-badge">🔥 ${p.kcal}kcal</span>
                             <span class="macro-badge">💪 ${p.protein}g</span>
@@ -125,7 +126,7 @@ export function renderCombosInModal() {
                     ${combos.map(c => `
                         <div style="display: flex; align-items: center; background: #1E293B; border: 1px solid #334155; border-radius: 8px; overflow: hidden;">
                             <button onclick="window.applyComboToCurrentMeal(${c.id})" style="padding: 6px 10px; background: transparent; border: none; color: #F8FAFC; cursor: pointer; text-align: left; font-size: 0.82rem; display: flex; flex-direction: column;">
-                                <span style="font-weight: 600; color: #38BDF8;">${c.name}</span>
+                                <span style="font-weight: 600; color: #38BDF8;">${escapeHTML(c.name)}</span>
                                 <span style="font-size: 0.72rem; color: #94A3B8;">${c.totalKcal} kcal · ${c.totalProtein}g P (${c.items.length} prod)</span>
                             </button>
                             <button onclick="window._confirmDeleteCombo(${c.id})" title="Eliminar combo" style="padding: 6px 8px; background: transparent; border: none; border-left: 1px solid #334155; color: #64748B; cursor: pointer;">
