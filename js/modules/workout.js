@@ -134,13 +134,15 @@ export const BASE_EXERCISES_DB = [
     { id: 18, name: 'Peso Muerto Sumo',                muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 6.5 },
     { id: 19, name: 'Dominadas Pronas',               muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 6.5 },
     { id: 20, name: 'Dominadas Supinas / Chin-ups',    muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 6.5 },
-    { id: 21, name: 'Remo con Barra (90°)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5 },
-    { id: 22, name: 'Remo con Mancuerna Unilateral',  muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.0 },
-    { id: 23, name: 'Remo en T (T-Bar Row)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5 },
+    { id: 21, name: 'Remo con Barra (90°)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5, trackingType: 'weight_reps' },
+    { id: 22, name: 'Remo con Mancuerna Unilateral',  muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.0, trackingType: 'weight_reps' },
+    { id: 23, name: 'Remo en T (T-Bar Row)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5, trackingType: 'weight_reps' },
     { id: 24, name: 'Jalón al Pecho Agarre Ancho',     muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5 },
     { id: 25, name: 'Jalón Agarre Neutro / Cerrado',   muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5 },
-    { id: 26, name: 'Remo Gironda / Polea Baja',       muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5 },
-    { id: 27, name: 'Remo en Máquina Asistida',        muscle: 'Espalda',  type: 'maquina', category: 'compuesto', met: 4.5 },
+    { id: 26, name: 'Remo Gironda / Polea Baja',       muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, trackingType: 'weight_reps' },
+    { id: 27, name: 'Remo en Máquina Asistida',        muscle: 'Espalda',  type: 'maquina', category: 'compuesto', met: 4.5, trackingType: 'weight_reps' },
+    { id: 162, name: 'Remo Sentado en Polea',          muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, trackingType: 'weight_reps' },
+    { id: 163, name: 'Remo Pull (TRX/Suspensión)',     muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 5.5, trackingType: 'calisthenics' },
     { id: 28, name: 'Pullover con Brazo Recto (Polea)',muscle: 'Espalda',  type: 'polea',   category: 'aislamiento', met: 4.0 },
     { id: 29, name: 'Hiperextensiones Lumbar',         muscle: 'Espalda',  type: 'cuerpo',  category: 'aislamiento', met: 3.5 },
     { id: 31, name: 'Buenos Días (Good Mornings)',     muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 4.5 },
@@ -367,7 +369,12 @@ export function getExerciseTrackingType(ex) {
     if (name.includes('plancha') || name.includes('hold') || name.includes('dead hang') || name.includes('l-sit') || name.includes('isométrico')) {
         return 'time_hold';
     }
-    if (type === 'cardio' || muscle === 'Cardio' || name.includes('correr') || name.includes('cinta') || name.includes('bici') || name.includes('remo') || name.includes('natación') || name.includes('pádel') || name.includes('fútbol') || name.includes('hiit') || name.includes('boxeo')) {
+    // 'remo' a secas es fuerza (barra, mancuerna, polea...): solo el ergómetro
+    // es cardio. Se detecta por type/muscle Cardio o por nombre de ergómetro.
+    const isRemoErgometro = name.includes('ergómetr') || name.includes('ergometr')
+        || name.includes('máquina de remo') || name.includes('maquina de remo')
+        || name.includes('remo indoor') || name.includes('concept2') || name.includes('remoerg');
+    if (type === 'cardio' || muscle === 'Cardio' || name.includes('correr') || name.includes('cinta') || name.includes('bici') || isRemoErgometro || name.includes('natación') || name.includes('pádel') || name.includes('fútbol') || name.includes('hiit') || name.includes('boxeo')) {
         return 'cardio_distance';
     }
     if (type === 'cuerpo' || name.includes('flexion') || name.includes('dominada') || name.includes('fondo') || name.includes('crunch')) {
