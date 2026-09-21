@@ -190,7 +190,7 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
     // Targets dinámicos adaptativos
     const dynamic = getDynamicDayTargets(dateKey);
     const calorieTarget = dynamic ? dynamic.cals : 1800;
-    const tdee = dynamic ? dynamic.tdee : calculateTDEE('descanso');
+    const tdee = dynamic ? dynamic.tdee : calculateTDEE(dayInfo.type);
     const workoutKcal = dynamic ? dynamic.workoutKcal : 0;
 
     const deficitVsMeta = totalKcal - calorieTarget;
@@ -242,6 +242,7 @@ export function calculateNextDayPrediction() {
 
     return {
         ...pred,
+        todayWeight,
         date: AppState.currentDate.toLocaleDateString('es-ES'),
         explanation: pred.deficitVsTDEE < 0
             ? `Déficit REAL de ${Math.abs(pred.deficitVsTDEE)} kcal vs TDEE (${pred.carbsConsumed}g carbos = ${pred.waterRetention}kg retención)`
@@ -283,14 +284,7 @@ export function displayNextDayPrediction() {
     const predictionEl = document.getElementById('nextDayPrediction');
     if (!predictionEl || !nextPred) return;
 
-    const today = getDateKey(AppState.currentDate);
-    let todayWeight = null;
-    if (AppState.config.weightHistory && AppState.config.weightHistory.length > 0) {
-        const exactWeight = AppState.config.weightHistory.find(w => w.date === today);
-        if (exactWeight) todayWeight = exactWeight.weight;
-    }
-    if (todayWeight === null) return;
-
+    const todayWeight = nextPred.todayWeight;
     const sign = nextPred.deficitVsTDEE < 0 ? '&#8600;' : '&#8599;';
     const weightChange = nextPred.predictedWeight - todayWeight;
     const weightChangeSign = weightChange > 0 ? '+' : '';

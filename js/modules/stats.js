@@ -108,9 +108,32 @@ export function calculateWeeklyStats() {
     }
 
     const avgWeight = daysWithWeight > 0 ? totalWeight / daysWithWeight : AppState.config.currentWeight;
-    const firstW = dailyStats.find(d => d.weight)?.weight;
-    const lastW = [...dailyStats].reverse().find(d => d.weight)?.weight;
-    const weeklyLoss = (firstW && lastW && firstW !== lastW) ? (firstW - lastW) : 0;
+
+    // Calculate weeklyLoss using linear regression on weight entries within the week
+    // This is more accurate than first/last when entries are sparse or irregular
+    const weightEntries = dailyStats.filter(d => d.weight && d.weight !== AppState.config.currentWeight || d === dailyStats.find(dd => dd.weight));
+    let weeklyLoss = 0;
+    if (weightEntries.length >= 2) {
+        // Simple linear regression: y = a + b*x where x = day index, y = weight
+        const n = weightEntries.length;
+        const firstDate = new Date(weekStart);
+        const xs = weightEntries.map(d => {
+            const [y, m, dd] = d.date.split('-').map(Number);
+            return (new Date(y, m - 1, dd) - firstDate) / 86400000;
+        });
+        const ys = weightEntries.map(d => d.weight);
+        const sumX = xs.reduce((a, b) => a + b, 0);
+        const sumY = ys.reduce((a, b) => a + b, 0);
+        const sumXY = xs.reduce((a, x, i) => a + x * ys[i], 0);
+        const sumX2 = xs.reduce((a, x) => a + x * x, 0);
+        const denom = n * sumX2 - sumX * sumX;
+        if (denom !== 0) {
+            const slope = (n * sumXY - sumX * sumY) / denom; // kg per day
+            weeklyLoss = Math.abs(slope * 7);
+        }
+    } else if (weightEntries.length === 1) {
+        weeklyLoss = 0;
+    }
 
     return {
         daysRecorded: daysWithFood,
@@ -124,7 +147,16 @@ export function calculateWeeklyStats() {
 
 export function getWeeklyProgress() {
     const stats = calculateWeeklyStats();
-    const expectedWeeklyLoss = 0.5;
+    const currentWeight = AppState.config.currentWeight || 75;
+    const lossPace = AppState.config.lossPace || 'moderado';
+    // Derive expected weekly loss from the user's actual deficit setting
+    const dailyDeficit = (() => {
+        if (lossPace === 'suave') return currentWeight * 0.005 * 7700 / 7;
+        if (lossPace === 'intenso') return currentWeight * 0.010 * 7700 / 7;
+        if (lossPace === 'manual') return (AppState.config.deficitTarget || 500);
+        return currentWeight * 0.0075 * 7700 / 7; // moderado
+    })();
+    const expectedWeeklyLoss = parseFloat(((dailyDeficit * 7) / 7700).toFixed(2));
     const diff = parseFloat(stats.weeklyLoss) - expectedWeeklyLoss;
     const status = diff > -0.05 ? 'En camino' : diff > -0.2 ? 'Algo lento' : 'Muy lento';
 
