@@ -95,8 +95,8 @@ export function resetWorkoutPlan() {
 
 // ==================== BASE DE DATOS DE EJERCICIOS ====================
 
-// Músculos principales
-export const MUSCLES = ['Todos', 'Pecho', 'Espalda', 'Piernas', 'Glúteos', 'Hombros', 'Bíceps', 'Tríceps', 'Antebrazos', 'Core', 'Cardio'];
+// Músculos principales ('Otros' = sin clasificar, ej. imports Wger ambiguos)
+export const MUSCLES = ['Todos', 'Pecho', 'Espalda', 'Piernas', 'Glúteos', 'Hombros', 'Bíceps', 'Tríceps', 'Antebrazos', 'Core', 'Cardio', 'Otros'];
 
 // Equipamiento disponible
 export const EQUIPMENT_TYPES = {
@@ -247,8 +247,8 @@ export function saveCustomExercise(exData) {
     const custom = safeGet('custom_exercises', []);
     if (!Array.isArray(custom)) return false;
     const newEx = {
-        id: `custom-ex-${Date.now()}`,
-        name: exData.name.trim(),
+        id: `custom-ex-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+        name: String(exData.name).trim().slice(0, 80),
         muscle: exData.muscle,
         type: exData.type || 'libre',
         category: exData.category || 'aislamiento',
@@ -262,6 +262,21 @@ export function saveCustomExercise(exData) {
     EXERCISES_DB.push(newEx);
     showNotification(`Ejercicio "${newEx.name}" creado correctamente`);
     return newEx;
+}
+
+// Elimina un ejercicio personalizado. Los predefinidos (id numérico / sin
+// prefijo custom-ex-) están protegidos y no se pueden borrar.
+export function deleteCustomExercise(id) {
+    if (typeof id !== 'string' || !id.startsWith('custom-ex-')) return false;
+    const custom = safeGet('custom_exercises', []);
+    if (!Array.isArray(custom)) return false;
+    const idx = custom.findIndex(e => e && e.id === id);
+    if (idx < 0) return false;
+    custom.splice(idx, 1);
+    if (!safeSet('custom_exercises', custom)) return false;
+    const memIdx = EXERCISES_DB.findIndex(e => e && e.id === id);
+    if (memIdx >= 0) EXERCISES_DB.splice(memIdx, 1);
+    return true;
 }
 
 /**
@@ -286,7 +301,7 @@ export async function searchWgerExercises(query) {
                 }
 
                 const categoryName = item.category?.name || '';
-                let muscle = 'Pecho';
+                let muscle = 'Otros';
                 if (/chest|pecho/i.test(categoryName)) muscle = 'Pecho';
                 else if (/back|espalda|lats/i.test(categoryName)) muscle = 'Espalda';
                 else if (/legs|pierna|thighs|calves|quad/i.test(categoryName)) muscle = 'Piernas';
@@ -521,6 +536,7 @@ export function calculateWorkoutDuration(workout) {
     let cardioMins = 0;
 
     for (const ex of workout.exercises) {
+        if (!ex || typeof ex !== 'object') continue;
         const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
         if (!dbEx) continue;
         const trackingType = ex.trackingType || dbEx.trackingType || getExerciseTrackingType(dbEx);
@@ -537,8 +553,12 @@ export function calculateWorkoutDuration(workout) {
                 cardioMins += parseFloat(set.mins) || 0;
             }
         } else {
-            // weight_reps, calisthenics, time_hold
-            strengthSets += ex.sets.length;
+            // weight_reps, calisthenics, time_hold: solo series con trabajo real.
+            // El estimador ignora reps==0/secs==0; contarlas aquí generaba
+            // minutos fantasma → transitionKcal de la nada.
+            for (const set of (Array.isArray(ex.sets) ? ex.sets : [])) {
+                if ((parseFloat(set.reps) || 0) > 0 || (parseFloat(set.secs) || 0) > 0) strengthSets++;
+            }
         }
     }
 
@@ -600,8 +620,9 @@ export function estimateWorkoutKcal(workout) {
     const allExercisesDB = getExercisesDB();
 
     for (const ex of workout.exercises) {
+        if (!ex || typeof ex !== 'object') continue;
         const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
-        if (!dbEx) continue;
+        if (!Array.isArray(ex.sets) || ex.sets.length === 0) continue;
 
         const trackingType = ex.trackingType || dbEx.trackingType || getExerciseTrackingType(dbEx);
 
@@ -686,7 +707,7 @@ export function estimateWorkoutKcal(workout) {
     const effectiveDuration = workout.duration || calculateWorkoutDuration(workout);
 
     if (effectiveDuration <= 0) {
-        return Math.round(cardioKcal + restKcal);
+        return Math.round(strengthKcal + restKcal + cardioKcal);
     }
 
     // Only count transition time for time NOT already accounted for by strength sets
@@ -696,8 +717,8 @@ export function estimateWorkoutKcal(workout) {
     const transitionKcal = transitionMins > 0 ? (2.0 * bodyWeight * transitionMins / 60) : 0;
 
     const subtotal = strengthKcal + restKcal + transitionKcal + cardioKcal;
-    // EPOC only applies to high-intensity resistance training (>12 sets), not duration-based
-    const epocFactor = totalStrengthSets > 12 ? 1.08 : 1.05;
+    // EPOC solo con trabajo de fuerza: >12 series → 1.08, 1-12 → 1.05, cardio puro → 1.0
+    const epocFactor = totalStrengthSets > 12 ? 1.08 : totalStrengthSets > 0 ? 1.05 : 1.0;
 
     return Math.round(subtotal * epocFactor);
 }
@@ -710,6 +731,30 @@ export function getWorkoutSessions() {
 
 export function getTodaySession(dateKey) {
     return getWorkoutSessions()[dateKey] || null;
+}
+
+// Recalcula estimatedKcal de la sesión de una fecha con el peso vigente.
+// Usar tras corregir un peso histórico (el estimado guardado usaba el erróneo).
+export function recomputeSessionKcal(dateKey) {
+    const sessions = getWorkoutSessions();
+    const session = sessions[dateKey];
+    if (!session || !Array.isArray(session.exercises) || session.exercises.length === 0) return false;
+    session.estimatedKcal = estimateWorkoutKcal(session);
+    sessions[dateKey] = session;
+    const ok = safeSet('workoutSessions', sessions);
+    if (ok) notifyNutritionChanged();
+    return ok;
+}
+
+// Elimina la sesión de una fecha (los targets nutricionales se recalculan
+// solos porque se leen en vivo desde workoutSessions).
+export function deleteWorkoutSession(dateKey) {
+    const sessions = getWorkoutSessions();
+    if (!sessions[dateKey]) return false;
+    delete sessions[dateKey];
+    const ok = safeSet('workoutSessions', sessions);
+    if (ok) notifyNutritionChanged();
+    return ok;
 }
 
 function _autoSave() {

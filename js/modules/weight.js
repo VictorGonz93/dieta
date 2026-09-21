@@ -4,7 +4,7 @@ import AppState from './state.js';
 import { KCAL_PER_KG_FAT } from './constants.js';
 import { escapeHTML } from './utils.js';
 import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, clearAdaptiveTDEECache } from './nutrition.js';
-import { getWorkoutSessions } from './workout.js';
+import { getWorkoutSessions, recomputeSessionKcal } from './workout.js';
 import { getDateKey, saveDays, safeGet, safeSet } from './storage.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -75,6 +75,8 @@ export function recordWeight(date, weight) {
     AppState.config.weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
     saveWeightHistory();
     clearAdaptiveTDEECache();
+    // El estimado de la sesión de ese día usaba el peso anterior: recalcular
+    try { recomputeSessionKcal(dateStr); } catch (_) { /* sin sesión, nada que hacer */ }
 }
 
 // Helper síncrono para getDayNumber (evitar circular import)

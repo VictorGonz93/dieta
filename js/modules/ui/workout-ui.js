@@ -7,10 +7,12 @@ import {
     addSetToExercise, removeSetFromExercise, updateSet, toggleSetDone, getFrequentExercises,
     setWorkoutDuration, setWorkoutNotes, setWorkoutRestTime, calculateWorkoutDuration,
     finalizeWorkout, estimateWorkoutKcal,
-    getWorkoutSessions, getExercisePRs,
+    getWorkoutSessions, getExercisePRs, deleteWorkoutSession, deleteCustomExercise,
     getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate, loadWorkoutTemplate,
 } from '../workout.js';
 import { getDateKey } from '../storage.js';
+import { GYM_ROUTINE } from '../constants.js';
+import { escapeHTML } from '../utils.js';
 import AppState from '../state.js';
 
 // ─── Temporizador de Descanso ────────────────────────────────────────────────
@@ -20,11 +22,18 @@ let _restTimeTotal = 90;
 let _restTimerActive = false;
 let _restTimerEndTime = 0;
 
+let _restAudioCtx = null;
+
 function _playRestBeep() {
     try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
-        const ctx = new AudioCtx();
+        // Reutilizar un único contexto (antes se creaba uno por beep sin cerrarlo)
+        if (!_restAudioCtx || _restAudioCtx.state === 'closed') {
+            _restAudioCtx = new AudioCtx();
+        }
+        const ctx = _restAudioCtx;
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
@@ -39,8 +48,15 @@ function _playRestBeep() {
     } catch (e) { /* ignore */ }
 }
 
+function _clearRestTimerInterval() {
+    if (_restTimerInterval) {
+        clearInterval(_restTimerInterval);
+        _restTimerInterval = null;
+    }
+}
+
 export function startRestTimer(seconds) {
-    if (_restTimerInterval) clearInterval(_restTimerInterval);
+    _clearRestTimerInterval();
     _restTimeTotal = seconds;
     _restTimeRemaining = seconds;
     _restTimerEndTime = Date.now() + seconds * 1000;
@@ -51,7 +67,8 @@ export function startRestTimer(seconds) {
         const now = Date.now();
         _restTimeRemaining = Math.max(0, Math.ceil((_restTimerEndTime - now) / 1000));
         if (_restTimeRemaining <= 0) {
-            clearInterval(_restTimerInterval);
+            _clearRestTimerInterval();
+            _restTimerEndTime = 0;
             _restTimerActive = false;
             _restTimeRemaining = 0;
             _playRestBeep();
@@ -79,7 +96,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 export function stopRestTimer() {
-    if (_restTimerInterval) clearInterval(_restTimerInterval);
+    _clearRestTimerInterval();
+    _restTimerEndTime = 0;
     _restTimerActive = false;
     _restTimeRemaining = 0;
     _updateRestTimerUI();
@@ -153,7 +171,7 @@ export function renderTodayWorkout() {
     let workout = getTodayWorkout();
 
     const dayName = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][AppState.currentDate.getDay()];
-    const routine = AppState.config.customGymRoutine || {};
+    const routine = AppState.config.customGymRoutine || GYM_ROUTINE;
     const dayPlan = routine[dayName];
     const planLabel = dayPlan?.label || (dayPlan?.type === 'entreno' ? 'Entrenamiento' : 'Descanso');
 
@@ -801,22 +819,23 @@ function _updateExercisesCardsHTML() {
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-base);border-left:3px solid ${equipInfo.color};border-radius:8px;gap:12px;">
                     <div style="flex:1;">
                         <div style="font-weight:600;color:var(--text-1);margin-bottom:3px;">
-                            ${e.name} ${e.isCustom ? '<span style="font-size:0.68rem;color:#FBBF24;background:rgba(251,191,36,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">Personalizado</span>' : ''}
+                            ${escapeHTML(e.name)} ${e.isCustom ? '<span style="font-size:0.68rem;color:#FBBF24;background:rgba(251,191,36,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">Personalizado</span>' : ''}
                         </div>
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                            <span style="font-size:0.75rem;color:${equipInfo.color};background:rgba(0,0,0,0.2);padding:1px 7px;border-radius:20px;">${equipInfo.label}</span>
-                            <span style="font-size:0.75rem;color:var(--text-3);">${e.muscle} · ${e.category || 'aislamiento'}</span>
+                            <span style="font-size:0.75rem;color:${equipInfo.color};background:rgba(0,0,0,0.2);padding:1px 7px;border-radius:20px;">${escapeHTML(equipInfo.label)}</span>
+                            <span style="font-size:0.75rem;color:var(--text-3);">${escapeHTML(e.muscle)} · ${escapeHTML(e.category || 'aislamiento')}</span>
                         </div>
                     </div>
                     ${pr ? `
                     <div style="text-align:right;min-width:80px;">
                         <div style="font-size:0.7rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">PR</div>
-                        <div style="font-size:1rem;font-weight:700;color:#FBBF24;">${pr.maxWeight} kg</div>
-                        <div style="font-size:0.72rem;color:var(--text-3);">${pr.reps} reps · ${pr.date}</div>
+                        <div style="font-size:1rem;font-weight:700;color:#FBBF24;">${escapeHTML(pr.maxWeight)} kg</div>
+                        <div style="font-size:0.72rem;color:var(--text-3);">${escapeHTML(pr.reps)} reps · ${escapeHTML(pr.date)}</div>
                     </div>` : `<div style="min-width:80px;text-align:right;color:var(--text-3);font-size:0.8rem;">Sin PR</div>`}
+                    ${e.isCustom ? `<button data-id="${escapeHTML(e.id)}" onclick="window._deleteCustomExercise(this.dataset.id)" title="Eliminar ejercicio personalizado" style="padding:6px;background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.35);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;"><span class="material-icons" style="font-size:16px">delete</span></button>` : ''}
                 </div>`;
             }).join('')}
-            ${filtered.length === 0 ? '<div style="text-align:center;color:var(--text-3);padding:30px;">Sin resultados locales para "' + _exSearch + '"</div>' : ''}
+            ${filtered.length === 0 ? `<div style="text-align:center;color:var(--text-3);padding:30px;">Sin resultados locales para "${escapeHTML(_exSearch)}"</div>` : ''}
         </div>
 
         <!-- Paginación -->
@@ -859,8 +878,21 @@ window._promptCreateCustomExercise = function () {
     const categoryPrompt = prompt('Categoría (compuesto o aislamiento):', 'compuesto');
     const category = categoryPrompt === 'compuesto' ? 'compuesto' : 'aislamiento';
 
-    saveCustomExercise({ name, muscle, type, category, met: category === 'compuesto' ? 6.0 : 4.0 });
+    const defaultMet = category === 'compuesto' ? 6.0 : 4.0;
+    const metPrompt = prompt('Intensidad MET (3-12, mayor = más kcal):', String(defaultMet));
+    const met = Math.min(12, Math.max(3, parseFloat(metPrompt) || defaultMet));
+
+    saveCustomExercise({ name, muscle, type, category, met });
     renderExercisesDB(true);
+};
+
+window._deleteCustomExercise = function (id) {
+    if (!id) return;
+    const allEx = getExercisesDB();
+    const ex = allEx.find(e => e && String(e.id) === String(id));
+    if (!ex || !ex.isCustom) return;
+    if (!confirm(`¿Eliminar el ejercicio personalizado "${ex.name}"?`)) return;
+    if (deleteCustomExercise(id)) renderExercisesDB(true);
 };
 
 window._searchCloudExercises = async function () {
@@ -880,7 +912,7 @@ window._searchCloudExercises = async function () {
     if (!container) return;
 
     if (!results || results.length === 0) {
-        container.innerHTML = `<div style="color:var(--text-3);padding:10px;font-size:0.85rem;">No se encontraron resultados en Wger para "${query}". Intenta con un término general (ej: press, squat, curl, bench).</div>`;
+        container.innerHTML = `<div style="color:var(--text-3);padding:10px;font-size:0.85rem;">No se encontraron resultados en Wger para "${escapeHTML(query)}". Intenta con un término general (ej: press, squat, curl, bench).</div>`;
         return;
     }
 
@@ -893,10 +925,10 @@ window._searchCloudExercises = async function () {
             ${results.map(r => `
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;gap:10px;">
                     <div style="flex:1;">
-                        <div style="font-weight:600;color:var(--text-1);font-size:0.9rem;">${r.name}</div>
-                        <div style="font-size:0.75rem;color:var(--text-3);">${r.muscle} ${r.equipmentName ? '· ' + r.equipmentName : ''}</div>
+                        <div style="font-weight:600;color:var(--text-1);font-size:0.9rem;">${escapeHTML(r.name)}</div>
+                        <div style="font-size:0.75rem;color:var(--text-3);">${escapeHTML(r.muscle)}${r.equipmentName ? ' · ' + escapeHTML(r.equipmentName) : ''}</div>
                     </div>
-                    <button onclick="window._importWgerExercise('${r.name.replace(/'/g, "\\'")}', '${r.muscle}', '${r.type}')"
+                    <button data-name="${escapeHTML(r.name)}" data-muscle="${escapeHTML(r.muscle)}" data-type="${escapeHTML(r.type)}" onclick="window._importWgerExercise(this.dataset.name, this.dataset.muscle, this.dataset.type)"
                         style="padding:5px 10px;background:#38BDF8;color:#0F172A;border:none;border-radius:6px;font-weight:700;font-size:0.78rem;cursor:pointer;white-space:nowrap;">
                         + Añadir
                     </button>
@@ -912,6 +944,44 @@ window._importWgerExercise = function (name, muscle, type = 'libre') {
 };
 
 // ─── Historial de entrenos ────────────────────────────────────────────────────
+// Formatea una serie según su tipo de seguimiento (pasos, distancia, tiempo, fuerza)
+function _formatWorkoutSet(set, trackingType, index) {
+    const r = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+    const label = `${index + 1}: `;
+    switch (trackingType) {
+        case 'steps': {
+            const steps = r(set.steps), mins = r(set.mins);
+            if (steps > 0) return label + `${steps} pasos`;
+            if (mins > 0) return label + `${mins} min`;
+            return label + '—';
+        }
+        case 'cardio_distance': {
+            const km = r(set.km), mins = r(set.mins);
+            const parts = [];
+            if (km > 0) parts.push(`${km} km`);
+            if (mins > 0) parts.push(`${mins} min`);
+            return label + (parts.length > 0 ? parts.join(' en ') : '—');
+        }
+        case 'time_hold': {
+            const secs = r(set.secs), kg = r(set.kg);
+            return label + `${secs}s` + (kg > 0 ? ` +${kg}kg` : '');
+        }
+        default: {
+            return label + `${r(set.reps)}×${r(set.kg)}kg`;
+        }
+    }
+}
+
+window._deleteWorkoutSession = function (dateKey) {
+    if (!confirm(`¿Eliminar el entreno del ${dateKey}? Las calorías se recalcularán.`)) return;
+    if (!deleteWorkoutSession(dateKey)) return;
+    renderWorkoutHistory();
+    // Si era el entreno de hoy, refrescar también la vista de hoy y los targets
+    if (dateKey === getDateKey(AppState.currentDate)) renderTodayWorkout();
+    import('../meals.js').then(m => m.renderDay()).catch(() => {});
+    import('../config-settings.js').then(m => m.updateHeaderInfo()).catch(() => {});
+};
+
 export function renderWorkoutHistory() {
     const container = document.getElementById('sport-historial-entrenos');
     if (!container) return;
@@ -927,38 +997,42 @@ export function renderWorkoutHistory() {
     container.innerHTML = `
         <div class="max-w-2xl mx-auto space-y-4">
             ${dates.map(date => {
-                const s = sessions[date];
-                const exCount = s.exercises?.length || 0;
-                const totalSets = s.exercises?.reduce((t, e) => t + e.sets.length, 0) || 0;
-                const kcal = s.estimatedKcal || 0;
+                const s = sessions[date] || {};
+                const exercises = Array.isArray(s.exercises) ? s.exercises : [];
+                const exCount = exercises.length;
+                const totalSets = exercises.reduce((t, e) => t + (Array.isArray(e.sets) ? e.sets.length : 0), 0);
+                const kcal = parseFloat(s.estimatedKcal) || 0;
 
                 const displayDuration = s.duration > 0 ? s.duration : calculateWorkoutDuration(s);
                 return `
                 <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;overflow:hidden;">
                     <div style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;user-select:none;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
                         <div>
-                            <div style="font-weight:600;color:var(--text-1);">${date}</div>
+                            <div style="font-weight:600;color:var(--text-1);">${escapeHTML(date)}</div>
                             <div style="font-size:0.8rem;color:var(--text-2);">${exCount} ejercicios · ${totalSets} series · ~${displayDuration} min</div>
                         </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:0.75rem;color:var(--text-3);">Kcal</div>
-                            <div style="font-size:1.1rem;font-weight:700;color:var(--primary-text);">${kcal || '—'}</div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="text-align:right;">
+                                <div style="font-size:0.75rem;color:var(--text-3);">Kcal</div>
+                                <div style="font-size:1.1rem;font-weight:700;color:var(--primary-text);">${kcal || '—'}</div>
+                            </div>
+                            <button onclick="event.stopPropagation();window._deleteWorkoutSession('${escapeHTML(date)}')" title="Eliminar entreno" style="padding:6px;background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.35);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"><span class="material-icons" style="font-size:16px">delete</span></button>
                         </div>
                     </div>
                     <div style="display:none;padding:0 18px 14px;border-top:1px solid var(--border-dim);">
-                        ${s.exercises?.map(ex => `
+                        ${exercises.map(ex => `
                             <div style="padding:8px 0;border-bottom:1px solid var(--border-dim);">
-                                <div style="font-size:0.85rem;font-weight:600;color:var(--text-1);margin-bottom:4px;">${ex.name}</div>
+                                <div style="font-size:0.85rem;font-weight:600;color:var(--text-1);margin-bottom:4px;">${escapeHTML(ex.name || 'Ejercicio')}</div>
                                 <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                                    ${ex.sets.map((set, i) => `
+                                    ${(Array.isArray(ex.sets) ? ex.sets : []).map((set, i) => `
                                         <span style="font-size:0.78rem;color:var(--text-2);background:var(--bg-elevated);padding:2px 8px;border-radius:6px;">
-                                            ${i + 1}: ${set.reps}×${set.kg}kg
+                                            ${escapeHTML(_formatWorkoutSet(set || {}, ex.trackingType, i))}
                                         </span>
                                     `).join('')}
                                 </div>
                             </div>
-                        `).join('') || ''}
-                        ${s.notes ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--text-2);font-style:italic;">"${s.notes}"</div>` : ''}
+                        `).join('')}
+                        ${s.notes ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--text-2);font-style:italic;">"${escapeHTML(s.notes)}"</div>` : ''}
                     </div>
                 </div>`;
             }).join('')}

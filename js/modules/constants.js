@@ -1,6 +1,6 @@
 // ==================== CONSTANTES GLOBALES ====================
 
-export const CURRENT_APP_VERSION = 108;
+export const CURRENT_APP_VERSION = 109;
 
 // Energía por kg de tejido adiposo (~87% lípidos a ~9400 kcal/kg).
 // Usar este valor COMPLETO: ya incluye la composición del tejido.
@@ -26,7 +26,7 @@ export const GYM_ROUTINE = {
     'Jueves': { type: 'descanso', label: 'Descanso' },
     'Viernes': { type: 'entreno', label: 'Hombro + Brazos' },
     'Sábado': { type: 'entreno', label: 'Pecho + Espalda (fuerte)' },
-    'Domingo': { type: 'entreno', label: 'Core + Antebrazo' },
+    'Domingo': { type: 'descanso', label: 'Descanso' },
 };
 
 export const REQUIRED_FIELDS = [
