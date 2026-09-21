@@ -68,7 +68,7 @@ export function initializeToday() {
         saveDays();
     }
     renderDay();
-    if (document.getElementById('workoutContainer')) {
+    if (document.getElementById('sport-entreno-hoy')) {
         import('./ui/workout-ui.js').then(m => m.renderTodayWorkout());
     }
 }

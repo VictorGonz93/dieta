@@ -361,7 +361,7 @@ export function renderTodayWorkout() {
         const d = new Date(AppState.currentDate);
         d.setDate(d.getDate() + offset);
         AppState.currentDate = d;
-        import('../meals.js').then(m => m.initializeToday());
+        renderTodayWorkout();
         import('../config-settings.js').then(m => m.updateHeaderInfo());
     };
 }
