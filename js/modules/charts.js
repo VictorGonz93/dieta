@@ -387,18 +387,23 @@ export function renderWeightPredictionChart() {
     }
     const filteredWH = wh.slice(predStartIdx);
 
-    filteredWH.forEach((entry, idx) => {
-        labels.push(entry.date);
+    // Ventana de 30 + alineación correcta: el predictedWeight guardado en la
+    // entrada[i] predice el día i+1, así que se grafica desplazado a la derecha.
+    // idx 0 siempre null (sin día previo en la ventana).
+    const startIdx = Math.max(0, filteredWH.length - 30);
+    const recentWH = filteredWH.slice(startIdx);
+    recentWH.forEach((entry, idx) => {
+        labels.push(new Date(entry.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
         realWeights.push(entry.weight);
 
-        if (entry.predictedWeight !== undefined && entry.predictedWeight !== null) {
-            predictedWeights.push(entry.predictedWeight);
-        } else if (idx > 0) {
-            const pred = calculateNextDayPredictionForDate(
-                filteredWH[idx - 1].date,
-                filteredWH[idx - 1].weight
-            );
-            if (pred) predictedWeights.push(pred.predictedWeight);
+        const prevEntry = filteredWH[startIdx + idx - 1];
+        if (!prevEntry) {
+            predictedWeights.push(null);
+        } else if (prevEntry.predictedWeight !== undefined && prevEntry.predictedWeight !== null) {
+            predictedWeights.push(prevEntry.predictedWeight);
+        } else {
+            const pred = calculateNextDayPredictionForDate(prevEntry.date, prevEntry.weight);
+            predictedWeights.push(pred ? pred.predictedWeight : null);
         }
     });
 

@@ -15,3 +15,10 @@ const _ESCAPE_MAP = {
 export function escapeHTML(value) {
     return String(value ?? '').replace(/[&<>"'`]/g, (ch) => _ESCAPE_MAP[ch]);
 }
+
+// Número finito o fallback. Evita que un dato corrupto (undefined/"x")
+// propague NaN por sumas y promedios.
+export function num(value, fallback = 0) {
+    const n = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(n) ? n : fallback;
+}

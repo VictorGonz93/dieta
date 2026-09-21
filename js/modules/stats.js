@@ -2,6 +2,7 @@
 
 import AppState from './state.js';
 import { KCAL_PER_KG_FAT } from './constants.js';
+import { num } from './utils.js';
 import { getDateKey } from './storage.js';
 import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
@@ -15,14 +16,17 @@ export function getMacroSuggestions() {
     if (!dayData) return null;
 
     let sumKcal = 0, sumProtein = 0, sumCarbs = 0, sumFats = 0;
-    Object.values(dayData.meals).forEach(meal => {
-        meal.forEach(food => {
-            sumKcal += food.kcal;
-            sumProtein += food.protein;
-            sumCarbs += food.carbs;
-            sumFats += food.fats;
+    if (dayData.meals && typeof dayData.meals === 'object') {
+        Object.values(dayData.meals).forEach(meal => {
+            if (!Array.isArray(meal)) return;
+            meal.forEach(food => {
+                sumKcal += num(food && food.kcal);
+                sumProtein += num(food && food.protein);
+                sumCarbs += num(food && food.carbs);
+                sumFats += num(food && food.fats);
+            });
         });
-    });
+    }
 
     const targets = getDynamicDayTargets(dateKey);
     const targetCals    = targets?.cals    || getCalorieTarget() || 0;
@@ -64,8 +68,9 @@ export function calculateWeeklyStats() {
         const dateKey = getDateKey(date);
 
         const weightEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
-        const currentWeight = weightEntry?.weight || AppState.config.currentWeight;
-        if (weightEntry) {
+        const hasWeighIn = !!(weightEntry && Number.isFinite(parseFloat(weightEntry.weight)));
+        const currentWeight = hasWeighIn ? weightEntry.weight : AppState.config.currentWeight;
+        if (hasWeighIn) {
             daysWithWeight++;
             totalWeight += weightEntry.weight;
         }
@@ -73,13 +78,14 @@ export function calculateWeeklyStats() {
         const dayData = AppState.allDays[dateKey];
         let kcal = 0, protein = 0, carbs = 0, fats = 0;
 
-        if (dayData) {
+        if (dayData && dayData.meals && typeof dayData.meals === 'object') {
             Object.values(dayData.meals).forEach(meal => {
+                if (!Array.isArray(meal)) return;
                 meal.forEach(food => {
-                    kcal += food.kcal;
-                    protein += food.protein;
-                    carbs += food.carbs;
-                    fats += food.fats;
+                    kcal += num(food && food.kcal);
+                    protein += num(food && food.protein);
+                    carbs += num(food && food.carbs);
+                    fats += num(food && food.fats);
                 });
             });
         }
@@ -98,6 +104,7 @@ export function calculateWeeklyStats() {
         dailyStats.push({
             date: dateKey,
             weight: currentWeight,
+            hasWeighIn,
             kcal,
             protein,
             carbs,
@@ -110,30 +117,32 @@ export function calculateWeeklyStats() {
 
     const avgWeight = daysWithWeight > 0 ? totalWeight / daysWithWeight : AppState.config.currentWeight;
 
-    // Calculate weeklyLoss using linear regression on weight entries within the week
-    // This is more accurate than first/last when entries are sparse or irregular
-    const weightEntries = dailyStats.filter(d => d.weight && d.weight !== AppState.config.currentWeight || d === dailyStats.find(dd => dd.weight));
+    // weeklyLoss con signo vía regresión lineal sobre pesajes REALES de la semana
+    // (positivo = perdiendo, negativo = ganando). Más robusto que primero/último
+    // con entradas dispersas. Solo cuentan días con pesaje registrado.
+    const weightEntries = dailyStats.filter(d => d.hasWeighIn && Number.isFinite(parseFloat(d.weight)));
     let weeklyLoss = 0;
     if (weightEntries.length >= 2) {
-        // Simple linear regression: y = a + b*x where x = day index, y = weight
+        // Regresión simple: y = a + b*x con x = día (fecha real), y = peso
         const n = weightEntries.length;
         const firstDate = new Date(weekStart);
         const xs = weightEntries.map(d => {
             const [y, m, dd] = d.date.split('-').map(Number);
             return (new Date(y, m - 1, dd) - firstDate) / 86400000;
         });
-        const ys = weightEntries.map(d => d.weight);
-        const sumX = xs.reduce((a, b) => a + b, 0);
-        const sumY = ys.reduce((a, b) => a + b, 0);
-        const sumXY = xs.reduce((a, x, i) => a + x * ys[i], 0);
-        const sumX2 = xs.reduce((a, x) => a + x * x, 0);
-        const denom = n * sumX2 - sumX * sumX;
-        if (denom !== 0) {
-            const slope = (n * sumXY - sumX * sumY) / denom; // kg per day
-            weeklyLoss = Math.abs(slope * 7);
+        const ys = weightEntries.map(d => parseFloat(d.weight));
+        if (xs.every(Number.isFinite) && ys.every(Number.isFinite)) {
+            const sumX = xs.reduce((a, b) => a + b, 0);
+            const sumY = ys.reduce((a, b) => a + b, 0);
+            const sumXY = xs.reduce((a, x, i) => a + x * ys[i], 0);
+            const sumX2 = xs.reduce((a, x) => a + x * x, 0);
+            const denom = n * sumX2 - sumX * sumX;
+            if (denom !== 0) {
+                const slope = (n * sumXY - sumX * sumY) / denom; // kg por día
+                const loss = -slope * 7; // positivo = pérdida semanal
+                if (Number.isFinite(loss)) weeklyLoss = loss;
+            }
         }
-    } else if (weightEntries.length === 1) {
-        weeklyLoss = 0;
     }
 
     return {
@@ -141,7 +150,7 @@ export function calculateWeeklyStats() {
         avgWeight,
         avgKcal: Math.round(totalKcal / Math.max(daysWithFood, 1)),
         avgDeficit: Math.round(totalDeficit / Math.max(daysWithFood, 1)),
-        weeklyLoss: weeklyLoss?.toFixed(2) || 0,
+        weeklyLoss: Number.isFinite(weeklyLoss) ? weeklyLoss.toFixed(2) : '0.00',
         dailyStats,
     };
 }
@@ -158,8 +167,12 @@ export function getWeeklyProgress() {
         return currentWeight * 0.0075 * KCAL_PER_KG_FAT / 7; // moderado
     })();
     const expectedWeeklyLoss = parseFloat(((dailyDeficit * 7) / KCAL_PER_KG_FAT).toFixed(2));
-    const diff = parseFloat(stats.weeklyLoss) - expectedWeeklyLoss;
-    const status = diff > -0.05 ? 'En camino' : diff > -0.2 ? 'Algo lento' : 'Muy lento';
+    const actualLoss = parseFloat(stats.weeklyLoss) || 0;
+    const diff = actualLoss - expectedWeeklyLoss;
+    // weeklyLoss con signo: positivo = perdiendo, negativo = ganando
+    const status = actualLoss < -0.05 ? 'Ganando peso'
+        : diff > -0.05 ? 'En camino'
+        : diff > -0.2 ? 'Algo lento' : 'Muy lento';
 
     const daysToGoal = AppState.config.currentWeight > AppState.config.targetWeight
         ? Math.round((AppState.config.currentWeight - AppState.config.targetWeight) / (expectedWeeklyLoss / 7))
@@ -259,7 +272,7 @@ export function displayWeeklyProgress() {
                 <div class="progress-indicator">
                     <div class="indicator-status">${progress.status}</div>
                     <div class="indicator-details">
-                        <small>Pérdida actual: <strong>${progress.weeklyLoss} kg</strong> / Esperado: <strong>${progress.expectedWeeklyLoss} kg</strong></small>
+                        <small>${parseFloat(progress.weeklyLoss) < 0 ? 'Ganancia' : 'Pérdida'} actual: <strong>${Math.abs(parseFloat(progress.weeklyLoss) || 0).toFixed(2)} kg</strong> / Esperado: <strong>${progress.expectedWeeklyLoss} kg</strong></small>
                         <br><small>Diferencia: <strong>${progress.diff} kg</strong></small>
                     </div>
                 </div>
@@ -288,7 +301,7 @@ export function displayWeeklyStats() {
             <div class="stats-content">
                 <div class="stat-item"><span>Días registrados:</span><strong>${stats.daysRecorded} / 7</strong></div>
                 <div class="stat-item"><span>Peso promedio:</span><strong>${(stats.avgWeight || 0).toFixed(1)} kg</strong></div>
-                <div class="stat-item"><span>Pérdida semanal:</span><strong>${stats.weeklyLoss} kg</strong></div>
+                <div class="stat-item"><span>${parseFloat(stats.weeklyLoss) < 0 ? 'Ganancia' : 'Pérdida'} semanal:</span><strong>${Math.abs(parseFloat(stats.weeklyLoss) || 0).toFixed(2)} kg</strong></div>
                 <div class="stat-item"><span>Calorías promedio:</span><strong>${stats.avgKcal} kcal/día</strong></div>
                 <div class="stat-item"><span>Déficit promedio:</span><strong>${stats.avgDeficit} kcal/día</strong></div>
             </div>
@@ -470,10 +483,11 @@ export function updateWeekStats() {
     let weekCals = 0, weekProtein = 0, weekDaysLogged = 0;
     weekDays.forEach(day => {
         const dayData = AppState.allDays[day];
-        if (dayData) {
+        if (dayData && dayData.meals && typeof dayData.meals === 'object') {
             let dayKcal = 0, dayProtein = 0;
             Object.values(dayData.meals).forEach(meal => {
-                meal.forEach(food => { dayKcal += food.kcal; dayProtein += food.protein; });
+                if (!Array.isArray(meal)) return;
+                meal.forEach(food => { dayKcal += num(food && food.kcal); dayProtein += num(food && food.protein); });
             });
             if (dayKcal > 0) { weekCals += dayKcal; weekProtein += dayProtein; weekDaysLogged++; }
         }
@@ -498,9 +512,11 @@ export function updateAverageStats() {
 
     dates.forEach(date => {
         const day = AppState.allDays[date];
+        if (!day || !day.meals || typeof day.meals !== 'object') return;
         let dayKcal = 0, dayProtein = 0;
         Object.values(day.meals).forEach(meal => {
-            meal.forEach(food => { dayKcal += food.kcal; dayProtein += food.protein; });
+            if (!Array.isArray(meal)) return;
+            meal.forEach(food => { dayKcal += num(food && food.kcal); dayProtein += num(food && food.protein); });
         });
         if (dayKcal > 0) { totalKcal += dayKcal; totalProtein += dayProtein; count++; }
     });
@@ -521,9 +537,11 @@ export function updateBestDayStats() {
 
     dates.forEach(dateKey => {
         const day = AppState.allDays[dateKey];
+        if (!day || !day.meals || typeof day.meals !== 'object') return;
         let dayKcal = 0, dayProtein = 0;
         Object.values(day.meals).forEach(meal => {
-            meal.forEach(food => { dayKcal += food.kcal; dayProtein += food.protein; });
+            if (!Array.isArray(meal)) return;
+            meal.forEach(food => { dayKcal += num(food && food.kcal); dayProtein += num(food && food.protein); });
         });
 
         if (dayKcal > 200) {
@@ -566,7 +584,8 @@ export function updateHistoryList(resetPage = false) {
     const dates = Object.keys(AppState.allDays).sort().reverse();
     const datesWithData = dates.filter(date => {
         const day = AppState.allDays[date];
-        return Object.values(day.meals).some(meal => meal.length > 0);
+        if (!day || !day.meals || typeof day.meals !== 'object') return false;
+        return Object.values(day.meals).some(meal => Array.isArray(meal) && meal.length > 0);
     });
 
     const totalPages = Math.max(1, Math.ceil(datesWithData.length / HISTORY_PER_PAGE));
@@ -577,14 +596,17 @@ export function updateHistoryList(resetPage = false) {
     const itemsHTML = paged.map(date => {
         const day = AppState.allDays[date];
         let dayKcal = 0, dayProtein = 0, dayCarbs = 0, dayFats = 0;
-        Object.values(day.meals).forEach(meal => {
-            meal.forEach(food => {
-                dayKcal += food.kcal;
-                dayProtein += food.protein;
-                dayCarbs += food.carbs;
-                dayFats += food.fats;
+        if (day && day.meals && typeof day.meals === 'object') {
+            Object.values(day.meals).forEach(meal => {
+                if (!Array.isArray(meal)) return;
+                meal.forEach(food => {
+                    dayKcal += num(food && food.kcal);
+                    dayProtein += num(food && food.protein);
+                    dayCarbs += num(food && food.carbs);
+                    dayFats += num(food && food.fats);
+                });
             });
-        });
+        }
         return `
             <div class="history-item">
                 <div class="history-item-header">

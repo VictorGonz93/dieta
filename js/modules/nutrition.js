@@ -79,10 +79,14 @@ function _getWorkoutKcalForDate(dateKey, sessions) {
 
 function _sumDayKcal(dateKey) {
     const dayData = AppState.allDays[dateKey];
-    if (!dayData || !dayData.meals) return 0;
+    if (!dayData || !dayData.meals || typeof dayData.meals !== 'object') return 0;
     let total = 0;
     Object.values(dayData.meals).forEach(meal => {
-        meal.forEach(food => { total += food.kcal; });
+        if (!Array.isArray(meal)) return;
+        meal.forEach(food => {
+            const k = parseFloat(food && food.kcal);
+            if (Number.isFinite(k)) total += k;
+        });
     });
     return total;
 }
@@ -99,17 +103,49 @@ function _getFormulaTMR(weightKg) {
 }
 
 /**
- * Promedio de pesos en un radio alrededor de un índice (suavizado de 3 días).
- * Filtra fluctuaciones diarias de agua/sodio.
- * Referencia: ENHANCE Framework (Int J Obesity, 2026) ±3-day moving average.
+ * Promedio de pesos alrededor de un índice (suavizado ±halfWindow PESAJES).
+ * Solo incluye vecinos a ≤4 días: evita arrastrar valores a través de gaps
+ * semanales (antes promediaba por índice sin mirar fechas).
+ * Ignora pesos no numéricos (imports corruptos).
  */
 function _avgWeight(entries, index, halfWindow) {
     if (!entries || entries.length === 0) return 0;
-    const start = Math.max(0, index - halfWindow);
-    const end = Math.min(entries.length - 1, index + halfWindow);
-    let sum = 0;
-    for (let i = start; i <= end; i++) sum += entries[i].weight;
-    return sum / (end - start + 1);
+    const anchor = entries[index];
+    const anchorW = parseFloat(anchor && anchor.weight);
+    if (!Number.isFinite(anchorW)) return 0;
+    const anchorT = new Date(anchor.date).getTime();
+    let sum = anchorW, n = 1;
+    for (let k = 1; k <= halfWindow; k++) {
+        for (const j of [index - k, index + k]) {
+            if (j < 0 || j >= entries.length) continue;
+            const w = parseFloat(entries[j] && entries[j].weight);
+            if (!Number.isFinite(w)) continue;
+            const gapDays = Math.abs(new Date(entries[j].date).getTime() - anchorT) / 86400000;
+            if (gapDays <= 4) { sum += w; n++; }
+        }
+    }
+    return sum / n;
+}
+
+// Estima TDEE sobre un subconjunto de pesajes con su propio sub-rango de fechas:
+// promedio de ingesta de TODOS los días del rango + Δ peso × KCAL_PER_KG_FAT / días.
+// Devuelve null si no hay suficientes días válidos (evita estimaciones ruidosas).
+function _tdeeFromEntries(entries, minValidDays) {
+    if (!entries || entries.length < 2) return null;
+    const first = new Date(entries[0].date);
+    const last = new Date(entries[entries.length - 1].date);
+    const span = Math.max(1, (last - first) / 86400000);
+    if (span < 3) return null;
+    let cals = 0, days = 0;
+    for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+        const k = _sumDayKcal(getDateKey(d));
+        if (k > 500) { cals += k; days++; }
+    }
+    if (days < minValidDays) return null;
+    const w0 = _avgWeight(entries, 0, 1);
+    const w1 = _avgWeight(entries, entries.length - 1, 1);
+    if (w0 === 0 || w1 === 0) return null;
+    return { tdee: cals / days + ((w0 - w1) * KCAL_PER_KG_FAT / span), validDays: days };
 }
 
 /**
@@ -137,105 +173,96 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     const formulaTDEE = Math.round(_getFormulaTMR(lastHistoricalWeight) * 1.25);
 
     if (historicalWeights.length < 14) {
-        const result = { tdee: formulaTDEE, confidence: 'none', daysUsed: 0, formulaTDEE, avgWorkoutPerDay: 0 };
+        const result = { tdee: formulaTDEE, confidence: 'none', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
 
-    let sessions = {};
-    try { sessions = JSON.parse(localStorage.getItem('workoutSessions') || '{}'); } catch {}
+    const sessions = getWorkoutSessions();
 
     const windowSize = Math.min(21, historicalWeights.length);
     const window = historicalWeights.slice(-windowSize);
 
+    const firstDate = new Date(window[0].date);
+    const lastDate = new Date(window[window.length - 1].date);
+    const daysBetween = Math.max(1, (lastDate - firstDate) / (1000 * 60 * 60 * 24));
+
+    // Ventana demasiado dispersa: el Δ de peso no representa el periodo
+    if (daysBetween > 45) {
+        const result = { tdee: formulaTDEE, confidence: 'low', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
+        _adaptiveTDEECache.set(dateKey, result);
+        return result;
+    }
+
+    // Ingesta sobre TODOS los días del rango (no solo fechas con pesaje):
+    // alinea el promedio diario con el Δ de peso del mismo periodo.
     let totalCalories = 0;
     let validDays = 0;
     let validWorkoutKcal = 0;
 
-    for (const entry of window) {
-        const dayKcal = _sumDayKcal(entry.date);
+    for (let d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
+        const key = getDateKey(d);
+        const dayKcal = _sumDayKcal(key);
         if (dayKcal > 500) {
             totalCalories += dayKcal;
             validDays++;
-            // BUG FIX 2: solo contar workout de días válidos (con comida registrada)
-            validWorkoutKcal += _getWorkoutKcalForDate(entry.date, sessions);
+            // Solo contar workout de días válidos (con comida registrada)
+            validWorkoutKcal += _getWorkoutKcalForDate(key, sessions);
         }
     }
 
     const avgWorkoutPerDay = validDays > 0 ? validWorkoutKcal / validDays : 0;
 
-    // BUG FIX 2b: fallback con validDays < 10 no debe restar workouts del TDEE fórmula
+    // Fallback con validDays < 10 no debe restar workouts del TDEE fórmula
     if (validDays < 10) {
         const result = { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay: 0 };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
 
-    // Calcular cambio de peso: primer vs último en la ventana (suavizado 3 días)
+    // Cambio de peso: primer vs último en la ventana (suavizado ±1 pesaje ≤4d)
     const firstWeight = _avgWeight(window, 0, 1);
     const lastWeight = _avgWeight(window, window.length - 1, 1);
     const weightChangeKg = firstWeight - lastWeight;
 
-    const firstDate = new Date(window[0].date);
-    const lastDate = new Date(window[window.length - 1].date);
-    const daysBetween = Math.max(1, (lastDate - firstDate) / (1000 * 60 * 60 * 24));
-
     const avgDailyCalories = totalCalories / validDays;
     const adaptiveTDEE = avgDailyCalories + (weightChangeKg * KCAL_PER_KG_FAT / daysBetween);
 
-    // Safety cap: ±400 (evidence-based margin)
-    const CAP = 400;
-    const cappedTDEE = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, adaptiveTDEE));
+    // CAP escalado por confianza: menos días válidos → margen más estrecho
+    const CAP = validDays < 12 ? 250 : 400;
+    const clampFn = (v) => Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, v));
+    const cappedTDEE = clampFn(adaptiveTDEE);
 
-    // EMA de 14 días (suavizado, media móvil de 3 días en pesos)
-    const recent14 = historicalWeights.slice(-14);
-    if (recent14.length >= 14) {
-        let r14Calories = 0;
-        let r14Days = 0;
-        for (const entry of recent14) {
-            const dayKcal = _sumDayKcal(entry.date);
-            if (dayKcal > 500) { r14Calories += dayKcal; r14Days++; }
-        }
-        if (r14Days >= 10) {
-            const r14W0 = _avgWeight(recent14, 0, 1);
-            const r14W1 = _avgWeight(recent14, recent14.length - 1, 1);
-            const r14DaysSpan = Math.max(1, (new Date(recent14[recent14.length - 1].date) - new Date(recent14[0].date)) / (1000 * 60 * 60 * 24));
-            const r14AvgCals = r14Calories / r14Days;
-            const r14TDEE = r14AvgCals + ((r14W0 - r14W1) * KCAL_PER_KG_FAT / r14DaysSpan);
-            const r14Capped = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, r14TDEE));
+    // Blend con ventanas DISJUNTAS: recientes (últimas 14) vs antiguas (resto).
+    // Ponderación 0.65/0.35 honesta: la versión anterior mezclaba recent14 ⊂
+    // window21, dando peso efectivo ~0.90 a lo reciente bajo etiqueta "EMA".
+    const recent14 = window.slice(-14);
+    const older = window.slice(0, Math.max(0, window.length - 14));
+    const r14 = _tdeeFromEntries(recent14, 10);
+    const oldEst = older.length >= 5 ? _tdeeFromEntries(older, 4) : null;
 
-            // EMA: 0.70 reciente / 0.30 histórico (estabilidad vs responsividad)
-            const smoothedTDEE = r14Capped * 0.70 + cappedTDEE * 0.30;
-
-            let confidence = 'medium';
-            if (windowSize >= 21 && validDays >= 18) confidence = 'high';
-            else if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
-            else confidence = 'low';
-
-            const result = {
-                tdee: Math.round(smoothedTDEE),
-                confidence,
-                daysUsed: validDays,
-                formulaTDEE,
-                rawAdaptive: Math.round(adaptiveTDEE),
-                smoothedAdaptive: Math.round(smoothedTDEE),
-                avgWorkoutPerDay,
-            };
-            _adaptiveTDEECache.set(dateKey, result);
-            return result;
-        }
+    let smoothedTDEE, confidence;
+    if (r14 && oldEst) {
+        smoothedTDEE = clampFn(r14.tdee * 0.65 + oldEst.tdee * 0.35);
+        if (windowSize >= 21 && validDays >= 18) confidence = 'high';
+        else if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
+        else confidence = 'low';
+    } else if (r14) {
+        smoothedTDEE = clampFn(r14.tdee);
+        confidence = validDays >= 12 ? 'medium' : 'low';
+    } else {
+        // Sin ventana reciente válida: estimación de ventana completa
+        smoothedTDEE = cappedTDEE;
+        confidence = 'low';
     }
 
-    let confidence = 'low';
-    if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
-
     const result = {
-        tdee: Math.round(cappedTDEE),
+        tdee: Math.round(smoothedTDEE),
         confidence,
         daysUsed: validDays,
         formulaTDEE,
         rawAdaptive: Math.round(adaptiveTDEE),
-        smoothedAdaptive: Math.round(cappedTDEE),
+        smoothedAdaptive: Math.round(smoothedTDEE),
         avgWorkoutPerDay,
     };
     _adaptiveTDEECache.set(dateKey, result);
