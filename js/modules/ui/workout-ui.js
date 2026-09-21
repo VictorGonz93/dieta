@@ -3,7 +3,7 @@
 import {
     EXERCISES_DB, MUSCLES, EQUIPMENT_TYPES, getExercisesDB, saveCustomExercise, calculate1RM, getExerciseTrackingType,
     initTodayWorkout, getTodayWorkout,
-    addExerciseToWorkout, removeExerciseFromWorkout,
+    addExerciseToWorkout, removeExerciseFromWorkout, moveExercise,
     addSetToExercise, removeSetFromExercise, updateSet, toggleSetDone, getFrequentExercises,
     setWorkoutDuration, setWorkoutNotes, setWorkoutRestTime, calculateWorkoutDuration,
     finalizeWorkout, estimateWorkoutKcal,
@@ -18,6 +18,7 @@ let _restTimerInterval = null;
 let _restTimeRemaining = 0;
 let _restTimeTotal = 90;
 let _restTimerActive = false;
+let _restTimerEndTime = 0;
 
 function _playRestBeep() {
     try {
@@ -42,14 +43,17 @@ export function startRestTimer(seconds) {
     if (_restTimerInterval) clearInterval(_restTimerInterval);
     _restTimeTotal = seconds;
     _restTimeRemaining = seconds;
+    _restTimerEndTime = Date.now() + seconds * 1000;
     _restTimerActive = true;
     _updateRestTimerUI();
 
     _restTimerInterval = setInterval(() => {
-        _restTimeRemaining--;
+        const now = Date.now();
+        _restTimeRemaining = Math.max(0, Math.ceil((_restTimerEndTime - now) / 1000));
         if (_restTimeRemaining <= 0) {
             clearInterval(_restTimerInterval);
             _restTimerActive = false;
+            _restTimeRemaining = 0;
             _playRestBeep();
             if (navigator.vibrate) {
                 try { navigator.vibrate([200, 100, 200, 100, 200]); } catch (e) { }
@@ -57,8 +61,22 @@ export function startRestTimer(seconds) {
             import('./notifications.js').then(m => m.showNotification('⏱️ ¡Tiempo de descanso terminado! A por la siguiente serie 💪'));
         }
         _updateRestTimerUI();
-    }, 1000);
+    }, 250);
 }
+
+function _onRestTimerVisibilityFix() {
+    if (!_restTimerActive || _restTimerEndTime <= 0) return;
+    const now = Date.now();
+    const remaining = Math.max(0, Math.ceil((_restTimerEndTime - now) / 1000));
+    _restTimeRemaining = remaining;
+    _updateRestTimerUI();
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && _restTimerActive) {
+        _onRestTimerVisibilityFix();
+    }
+});
 
 export function stopRestTimer() {
     if (_restTimerInterval) clearInterval(_restTimerInterval);
@@ -509,10 +527,20 @@ function _renderExerciseList() {
                         ${prevPerf ? `<span>Anterior (${prevPerf.date}): <strong style="color:#60A5FA;">${prevPerf.setsText}</strong></span>` : ''}
                     </div>
                 </div>
-                <button onclick="window._workoutRemoveEx('${ex.exerciseId}')" title="Eliminar ejercicio"
-                    style="padding:4px 8px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.3);border-radius:6px;cursor:pointer;font-size:0.8rem;">
-                    <span class="material-icons" style="font-size:14px;vertical-align:middle;">close</span>
-                </button>
+                <div style="display:flex;gap:4px;flex-shrink:0;">
+                    <button onclick="window._workoutMoveEx('${ex.exerciseId}',-1)" title="Subir"
+                        style="padding:4px 6px;background:var(--bg-elevated);color:var(--text-2);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;font-size:0.8rem;">
+                        <span class="material-icons" style="font-size:14px;vertical-align:middle;">keyboard_arrow_up</span>
+                    </button>
+                    <button onclick="window._workoutMoveEx('${ex.exerciseId}',1)" title="Bajar"
+                        style="padding:4px 6px;background:var(--bg-elevated);color:var(--text-2);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;font-size:0.8rem;">
+                        <span class="material-icons" style="font-size:14px;vertical-align:middle;">keyboard_arrow_down</span>
+                    </button>
+                    <button onclick="window._workoutRemoveEx('${ex.exerciseId}')" title="Eliminar ejercicio"
+                        style="padding:4px 8px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.3);border-radius:6px;cursor:pointer;font-size:0.8rem;">
+                        <span class="material-icons" style="font-size:14px;vertical-align:middle;">close</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Cabecera series -->
@@ -571,6 +599,7 @@ function _renderExerciseList() {
     }).join('');
 
     window._workoutRemoveEx = (id) => { removeExerciseFromWorkout(id); _renderExerciseList(); _updateKcalDisplay(); };
+    window._workoutMoveEx = (id, dir) => { moveExercise(id, dir); _renderExerciseList(); _updateKcalDisplay(); };
     window._workoutAddSet = (id) => { addSetToExercise(id); _renderExerciseList(); _updateKcalDisplay(); };
     window._workoutRemoveSet = (id, i) => { removeSetFromExercise(id, i); _renderExerciseList(); _updateKcalDisplay(); };
     window._workoutUpdateSet = (id, i, field, val) => {

@@ -110,6 +110,11 @@ export function renderDay() {
     renderMealSection('snack', dayData.meals.snack);
     renderMealSection('dinner', dayData.meals.dinner);
 
+    const notesInput = document.getElementById('dayNotesInput');
+    if (notesInput) {
+        notesInput.value = dayData.notes || '';
+    }
+
     updateDaySummary(dayData);
     displayNextDayPrediction();
 
@@ -301,7 +306,7 @@ export function addFood() {
 
 export function deleteFood(meal, index) {
     const dateKey = getDateKey(AppState.currentDate);
-    AppState.allDays[dateKey].meals[meal].splice(index, 1);
+    const removed = AppState.allDays[dateKey].meals[meal].splice(index, 1)[0];
     saveDays();
 
     if (AppState.config.weightHistory && AppState.config.currentWeight) {
@@ -319,7 +324,19 @@ export function deleteFood(meal, index) {
     updateDaySummary(AppState.allDays[dateKey]);
     displayNextDayPrediction();
     import('./charts.js').then(m => m.renderWeightPredictionChart());
-    showNotification('Comida eliminada', 'success');
+
+    let undone = false;
+    showNotification(`"${removed.name}" eliminado · Deshacer`, 'warning', () => {
+        if (undone) return;
+        undone = true;
+        AppState.allDays[dateKey].meals[meal].splice(index, 0, removed);
+        saveDays();
+        renderDay();
+        updateDaySummary(AppState.allDays[dateKey]);
+        displayNextDayPrediction();
+        import('./charts.js').then(m => m.renderWeightPredictionChart());
+        showNotification('Comida restaurada', 'success');
+    }, 5000);
 }
 
 // ==================== NAVEGACIÓN DE DÍAS ====================
@@ -363,3 +380,10 @@ export function copyYesterdayMeals() {
     renderDay();
     showNotification('Comidas copiadas del día anterior');
 }
+
+window._saveDayNotes = (value) => {
+    const dateKey = getDateKey(AppState.currentDate);
+    if (!AppState.allDays[dateKey]) return;
+    AppState.allDays[dateKey].notes = value;
+    saveDays();
+};

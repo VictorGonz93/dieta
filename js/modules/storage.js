@@ -274,7 +274,16 @@ export function importData(event) {
 
 export function clearAllData() {
     if (!confirm('¿Estás seguro? Esto eliminará TODOS los datos.')) return;
-    localStorage.clear();
+    const appKeys = [
+        'nutrition_config', 'nutrition_days', 'weight_history',
+        'custom_products', 'meal_history', 'meal_combos',
+        'workoutSessions', 'workoutTemplates', 'exercisePRs',
+        'custom_exercises', 'darkModeEnabled',
+        'gfit_access_token', 'gfit_expires_at', 'gfit_client_id', 'gfit_auto_sync',
+        'nutrition_auto_backup', 'nutrition_backup_last_check',
+        'app_installed_version', 'last_update_check',
+    ];
+    appKeys.forEach(k => localStorage.removeItem(k));
     AppState.allDays = {};
     showNotification('Todos los datos fueron eliminados');
     location.reload();

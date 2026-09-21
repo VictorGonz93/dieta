@@ -406,6 +406,18 @@ export function removeExerciseFromWorkout(exerciseId) {
     _autoSave();
 }
 
+export function moveExercise(exerciseId, direction) {
+    if (!_todayWorkout) return;
+    const idx = _todayWorkout.exercises.findIndex(e => e.exerciseId == exerciseId);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= _todayWorkout.exercises.length) return;
+    const temp = _todayWorkout.exercises[idx];
+    _todayWorkout.exercises[idx] = _todayWorkout.exercises[newIdx];
+    _todayWorkout.exercises[newIdx] = temp;
+    _autoSave();
+}
+
 export function addSetToExercise(exerciseId) {
     if (!_todayWorkout) return;
     const ex = _todayWorkout.exercises.find(e => e.exerciseId == exerciseId);
