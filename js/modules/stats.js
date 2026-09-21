@@ -29,10 +29,10 @@ export function getMacroSuggestions() {
     }
 
     const targets = getDynamicDayTargets(dateKey);
-    const targetCals    = targets?.cals    || getCalorieTarget() || 0;
-    const targetProtein = targets?.protein || AppState.config.proteinGoal || 0;
-    const targetCarbs   = targets?.carbs   || AppState.config.carbsMax || 0;
-    const targetFats    = targets?.fats    || AppState.config.fatsMax || 0;
+    const targetCals    = targets?.cals    ?? getCalorieTarget() ?? 0;
+    const targetProtein = targets?.protein ?? AppState.config.proteinGoal ?? 0;
+    const targetCarbs   = targets?.carbs   ?? AppState.config.carbsMax ?? 0;
+    const targetFats    = targets?.fats    ?? AppState.config.fatsMax ?? 0;
 
     const missing = {
         kcal:    Math.max(0, targetCals    - sumKcal),
@@ -159,13 +159,13 @@ export function getWeeklyProgress() {
     const stats = calculateWeeklyStats();
     const currentWeight = AppState.config.currentWeight || 75;
     const lossPace = AppState.config.lossPace || 'moderado';
-    // Derive expected weekly loss from the user's actual deficit setting
-    const dailyDeficit = (() => {
-        if (lossPace === 'suave') return currentWeight * 0.005 * KCAL_PER_KG_FAT / 7;
-        if (lossPace === 'intenso') return currentWeight * 0.010 * KCAL_PER_KG_FAT / 7;
-        if (lossPace === 'manual') return (AppState.config.deficitTarget || 500);
-        return currentWeight * 0.0075 * KCAL_PER_KG_FAT / 7; // moderado
-    })();
+    // Fuente única: calculateAutoDeficit (con clamps de piso y 30% TDEE).
+    // Si el día actual tiene actualDeficit calculado, ese manda (déficit real).
+    const todayKey = getDateKey(AppState.currentDate);
+    const todayTargets = getDynamicDayTargets(todayKey);
+    const dailyDeficit = (todayTargets && Number.isFinite(todayTargets.actualDeficit) && todayTargets.actualDeficit > 0)
+        ? todayTargets.actualDeficit
+        : calculateAutoDeficit(currentWeight, lossPace);
     const expectedWeeklyLoss = parseFloat(((dailyDeficit * 7) / KCAL_PER_KG_FAT).toFixed(2));
     const actualLoss = parseFloat(stats.weeklyLoss) || 0;
     const diff = actualLoss - expectedWeeklyLoss;
@@ -372,17 +372,24 @@ export function updateGoalsDisplay() {
     const w = currentWeight || 75;
     const lossPace = AppState.config.lossPace || 'moderado';
     const deficitTarget = calculateAutoDeficit(w, lossPace);
-    const weeklyLossKg = (deficitTarget * 7) / KCAL_PER_KG_FAT; // kg/semana equivalentes
-    const weeksRemaining = weeklyLossKg > 0 && stillToLose > 0 ? Math.ceil(stillToLose / weeklyLossKg) : 0;
-    const daysRemaining = weeksRemaining * 7;
 
     const dateKey = getDateKey(AppState.currentDate);
     const dynamic = getDynamicDayTargets(dateKey);
 
-    const calsTarget    = dynamic?.cals    || 1550;
-    const proteinTarget = dynamic?.protein || Math.round((currentWeight || 75) * 2.0);
-    const carbsTarget   = dynamic?.carbs   || 130;
-    const fatsTarget    = dynamic?.fats    || 60;
+    // ETA con el déficit REAL del día (piso calórico / macros mínimas pueden
+    // recortarlo respecto al teórico). Fallback al objetivo si no hay dato.
+    const effectiveDeficit = (dynamic && Number.isFinite(dynamic.actualDeficit) && dynamic.actualDeficit > 0)
+        ? dynamic.actualDeficit
+        : deficitTarget;
+    const weeklyLossKg = (effectiveDeficit * 7) / KCAL_PER_KG_FAT; // kg/semana equivalentes
+    const weeksRemaining = weeklyLossKg > 0 && stillToLose > 0 ? Math.ceil(stillToLose / weeklyLossKg) : 0;
+    const daysRemaining = weeksRemaining * 7;
+
+    // ?? (no ||): carbs puede ser 0 legítimo y || lo convertiría en 130
+    const calsTarget    = dynamic?.cals    ?? 1550;
+    const proteinTarget = dynamic?.protein ?? Math.round((currentWeight || 75) * 2.0);
+    const carbsTarget   = dynamic?.carbs   ?? 130;
+    const fatsTarget    = dynamic?.fats    ?? 60;
 
     const el = (id) => document.getElementById(id);
     if (el('goalStartWeight')) el('goalStartWeight').textContent = startWeight ? `${startWeight} kg` : '-';
@@ -546,7 +553,7 @@ export function updateBestDayStats() {
 
         if (dayKcal > 200) {
             const targets = getDynamicDayTargets(dateKey);
-            const targetCals = targets?.cals || getCalorieTarget() || 1800;
+            const targetCals = targets?.cals ?? getCalorieTarget() ?? 1800;
             const targetProtein = targets?.protein || AppState.config.proteinGoal || 150;
 
             const kcalDiff = Math.abs(dayKcal - targetCals);

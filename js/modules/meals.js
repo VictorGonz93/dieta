@@ -173,10 +173,11 @@ export function updateDaySummary(dayData, dateKey) {
     const w = AppState.config.currentWeight || 75;
     const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
 
-    const targetCals    = targets?.cals    || 1800;
-    const targetProtein = targets?.protein || Math.round(w * pFactor);
-    const targetCarbs   = targets?.carbs   || 130;
-    const targetFats    = targets?.fats    || Math.round(w * 0.8);
+    // ?? (no ||): carbs puede ser 0 legítimo y || lo convertiría en 130
+    const targetCals    = targets?.cals    ?? 1800;
+    const targetProtein = targets?.protein ?? Math.round(w * pFactor);
+    const targetCarbs   = targets?.carbs   ?? 130;
+    const targetFats    = targets?.fats    ?? Math.round(w * 0.8);
     const targetFatsMin = Math.round(targetFats * 0.85); // ±15% rango
     const targetCarbsMin = Math.round(targetCarbs * 0.85);
 

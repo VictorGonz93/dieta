@@ -23,7 +23,7 @@ export function getCalorieTarget() {
     const dateKey = AppState.currentDate ? getDateKey(AppState.currentDate) : '';
     const dynamic = getDynamicDayTargets(dateKey);
     if (dynamic) return dynamic.cals;
-    return AppState.config.calsDescanso || 1800;
+    return AppState.config.calsDescanso ?? 1800;
 }
 
 export function getTDEE() {
@@ -289,24 +289,30 @@ export function calculateAutoDeficit(weight = null, lossPace = null) {
     const w = parseFloat(weight || AppState.config.currentWeight) || 75;
     const pace = lossPace || AppState.config.lossPace || 'moderado';
 
+    // Techo de seguridad: el déficit no puede dejar las kcal bajo el piso
+    // (1500H/1200M, AHA/ACC) ni superar el 30% del TDEE fórmula estimado.
+    // Sin esto, 'intenso' o 'manual' podían prometer ritmos físicamente
+    // imposibles (el campo deficitTarget mentía respecto al déficit real).
+    const gender = AppState.config.gender || 'male';
+    const calorieFloor = gender === 'female' ? 1200 : 1500;
+    const tdeeEst = _getFormulaTMR(w) * 1.25;
+    const maxDeficit = Math.max(0, Math.min(tdeeEst - calorieFloor, tdeeEst * 0.30));
+    const clampDeficit = (d) => Math.round(Math.min(Math.max(0, d), maxDeficit));
+
     if (pace === 'suave') {
         // ~0.5% del peso corporal por semana
-        const weeklyLossKg = w * 0.005;
-        return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
+        return clampDeficit((w * 0.005 * KCAL_PER_KG_FAT) / 7);
     } else if (pace === 'moderado') {
         // ~0.75% del peso corporal por semana (Recomendado)
-        const weeklyLossKg = w * 0.0075;
-        return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
+        return clampDeficit((w * 0.0075 * KCAL_PER_KG_FAT) / 7);
     } else if (pace === 'intenso') {
         // ~1.0% del peso corporal por semana
-        const weeklyLossKg = w * 0.010;
-        return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
+        return clampDeficit((w * 0.010 * KCAL_PER_KG_FAT) / 7);
     } else if (pace === 'manual') {
-        return AppState.config.deficitTarget || 500;
+        return clampDeficit(AppState.config.deficitTarget || 500);
     }
 
-    const weeklyLossKg = w * 0.0075;
-    return Math.round((weeklyLossKg * KCAL_PER_KG_FAT) / 7);
+    return clampDeficit((w * 0.0075 * KCAL_PER_KG_FAT) / 7);
 }
 
 // ─── Targets dinámicos diarios ────────────────────────────────────────────────
@@ -387,6 +393,9 @@ export function getDynamicDayTargets(dateKey) {
     const carbs = Math.max(0, Math.round((cals - macroCals) / 4));
     // If macros still exceed target, report the actual achievable cals
     const actualCals = macroCals + carbs * 4 > cals ? macroCals + carbs * 4 : cals;
+    // Déficit REAL respecto al TDEE (puede ser menor que deficitTarget por el
+    // piso calórico o por macros mínimas). Usar este en ETAs y comparativas.
+    const actualDeficit = tdee - actualCals;
 
     return {
         cals: actualCals,
@@ -397,6 +406,7 @@ export function getDynamicDayTargets(dateKey) {
         tdeeBase,
         workoutKcal,
         deficitTarget,
+        actualDeficit,
         isRealLoggedSession,
         dayType: dayInfo.type || 'descanso',
         dayLabel: dayInfo.label || '',
