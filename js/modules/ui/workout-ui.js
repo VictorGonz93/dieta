@@ -151,13 +151,23 @@ export function renderTodayWorkout() {
 
     container.innerHTML = `
         <div class="max-w-2xl mx-auto space-y-5">
-            <!-- Header día -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;">
-                <div>
-                    <div style="font-size:0.8rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">${dayName} · ${dateKey}</div>
-                    <div style="font-size:1.1rem;font-weight:600;color:var(--text-1);">${planLabel}</div>
+            <!-- Header día con navegación -->
+            <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:16px 20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <button onclick="window._workoutNavDay(-1)" title="Día anterior"
+                        style="padding:6px;background:var(--bg-elevated);color:var(--text-2);border:1px solid var(--border-base);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <span class="material-icons" style="font-size:20px;">chevron_left</span>
+                    </button>
+                    <div style="flex:1;min-width:0;text-align:center;">
+                        <div style="font-size:0.8rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">${dayName} · ${dateKey}</div>
+                        <div style="font-size:1.1rem;font-weight:600;color:var(--text-1);">${planLabel}</div>
+                    </div>
+                    <button onclick="window._workoutNavDay(1)" title="Día siguiente"
+                        style="padding:6px;background:var(--bg-elevated);color:var(--text-2);border:1px solid var(--border-base);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <span class="material-icons" style="font-size:20px;">chevron_right</span>
+                    </button>
                 </div>
-                <div style="text-align:right;">
+                <div style="text-align:center;margin-top:8px;">
                     <div style="font-size:0.75rem;color:var(--text-2);">Kcal estimadas</div>
                     <div style="font-size:1.4rem;font-weight:700;color:var(--primary-text);">${kcalEst > 0 ? kcalEst : '—'}</div>
                 </div>
@@ -346,6 +356,13 @@ export function renderTodayWorkout() {
         if (!confirm('¿Eliminar esta plantilla?')) return;
         deleteWorkoutTemplate(id);
         renderTodayWorkout();
+    };
+    window._workoutNavDay = (offset) => {
+        const d = new Date(AppState.currentDate);
+        d.setDate(d.getDate() + offset);
+        AppState.currentDate = d;
+        import('../meals.js').then(m => m.initializeToday());
+        import('../config-settings.js').then(m => m.updateHeaderInfo());
     };
 }
 
