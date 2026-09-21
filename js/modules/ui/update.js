@@ -43,11 +43,20 @@ export async function checkForUpdates() {
         }
 
         const remoteVersion = parseInt(versionMatch[1]);
-        const installedVersion = parseInt(localStorage.getItem('appInstalledVersion') || CURRENT_APP_VERSION);
+        const storedInstalled = parseInt(localStorage.getItem('appInstalledVersion'));
+        // Valor corrupto (NaN) = caer a la versión compilada, nunca bloquear updates
+        const installedVersion = Number.isFinite(storedInstalled) ? storedInstalled : CURRENT_APP_VERSION;
+        if (!Number.isFinite(remoteVersion)) {
+            console.warn('CACHE_VERSION remoto no numérico');
+            return;
+        }
 
         if (remoteVersion > installedVersion) {
             console.log(`📦 Nueva versión detectada: ${remoteVersion} (instalada: ${installedVersion})`);
             AppState.latestRemoteVersion = remoteVersion;
+            // Snooze por versión: si el usuario cerró el aviso para ESTA versión, no insistir
+            const dismissed = parseInt(localStorage.getItem('updateDismissedVersion'));
+            if (dismissed === remoteVersion) return;
             if (!document.getElementById('updateModal')) {
                 showUpdateAvailableModal(remoteVersion);
             }
@@ -94,12 +103,26 @@ export function showUpdateAvailableModal(remoteVersion = null) {
 
     document.body.appendChild(modal);
 
-    document.getElementById('updateModalCancel').addEventListener('click', () => modal.remove());
+    document.getElementById('updateModalCancel').addEventListener('click', () => {
+        // Recordar el descarte para no re-preguntar cada 5 min (una versión nueva sí avisará)
+        try {
+            const v = remoteVersion || AppState.latestRemoteVersion;
+            if (v) localStorage.setItem('updateDismissedVersion', String(v));
+        } catch (_) { /* ignore */ }
+        modal.remove();
+    });
     document.getElementById('updateModalConfirm').addEventListener('click', () => performUpdate(remoteVersion));
 }
 
 export function performUpdate(version) {
     console.log('🔄 Iniciando actualización...');
+
+    // Sin red, borrar cachés + desregistrar SW dejaría la app colgada: abortar
+    if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+        import('./notifications.js').then(m =>
+            m.showNotification('Sin conexión: reconecta para actualizar', 'warning')).catch(() => {});
+        return;
+    }
 
     // Marcar en sessionStorage para que el próximo checkForUpdates no muestre modal
     sessionStorage.setItem('justUpdated', '1');

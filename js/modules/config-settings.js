@@ -158,6 +158,26 @@ export function updateCalculatedValues() {
             el('tdeeAdaptiveDetail').style.display = 'none';
         }
     }
+    updateStorageInfo();
+    }
+}
+
+export function updateStorageInfo() {
+    const el = document.getElementById('storageInfo');
+    if (!el) return;
+    const fmt = (bytes) => bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    if (navigator.storage && navigator.storage.estimate) {
+        navigator.storage.estimate().then(({ usage, quota }) => {
+            el.innerHTML = `<strong>Almacenamiento utilizado:</strong> ${fmt(usage || 0)} de ${fmt(quota || 0)}`;
+        }).catch(() => { el.innerHTML = '<strong>Almacenamiento utilizado:</strong> no disponible'; });
+    } else {
+        let bytes = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            bytes += (k ? k.length : 0) + ((localStorage.getItem(k) || '').length);
+        }
+        el.innerHTML = `<strong>Almacenamiento utilizado:</strong> ≈${fmt(bytes * 2)} (localStorage)`;
+    }
 }
 
 export function updateHeaderInfo() {

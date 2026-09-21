@@ -55,7 +55,7 @@ export function showTab(tabId) {
                 gf.renderGoogleFitStatusUI(steps);
             });
         });
-    } else if (tabId === 'historial' || tabId === 'graficos') {
+    } else if (tabId === 'historial') {
         setTimeout(() => {
             import('../charts.js').then(m => {
                 m.initializeCharts();

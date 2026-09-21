@@ -178,23 +178,9 @@ export function updateDaySummary(dayData, dateKey) {
     const targetProtein = targets?.protein ?? Math.round(w * pFactor);
     const targetCarbs   = targets?.carbs   ?? 130;
     const targetFats    = targets?.fats    ?? Math.round(w * 0.8);
-    const targetFatsMin = Math.round(targetFats * 0.85); // ±15% rango
-    const targetCarbsMin = Math.round(targetCarbs * 0.85);
 
-    if (document.getElementById('sumCals'))     document.getElementById('sumCals').textContent     = sumKcal.toFixed(0);
-    if (document.getElementById('calsGoal'))    document.getElementById('calsGoal').textContent    = `/ ${targetCals}`;
-    if (document.getElementById('sumProtein'))  document.getElementById('sumProtein').textContent  = sumProtein.toFixed(1) + 'g';
-    if (document.getElementById('proteinGoal')) document.getElementById('proteinGoal').textContent = `/ ${targetProtein}g`;
-    if (document.getElementById('sumCarbs'))    document.getElementById('sumCarbs').textContent    = sumCarbs.toFixed(1) + 'g';
-    if (document.getElementById('carbsGoal'))   document.getElementById('carbsGoal').textContent   = `/ ${targetCarbsMin}-${targetCarbs}g`;
-    if (document.getElementById('sumFats'))     document.getElementById('sumFats').textContent     = sumFats.toFixed(1) + 'g';
-    if (document.getElementById('fatsGoal'))    document.getElementById('fatsGoal').textContent    = `/ ${targetFatsMin}-${targetFats}g`;
-
-    if (document.getElementById('statusCals'))     document.getElementById('statusCals').textContent     = getStatusTarget(sumKcal, targetCals);
-    if (document.getElementById('statusProtein'))  document.getElementById('statusProtein').textContent  = getStatusTarget(sumProtein, targetProtein);
-    if (document.getElementById('statusCarbs'))    document.getElementById('statusCarbs').textContent    = getStatusRange(sumCarbs, targetCarbsMin, targetCarbs);
-    if (document.getElementById('statusFats'))     document.getElementById('statusFats').textContent     = getStatusRange(sumFats, targetFatsMin, targetFats);
-
+    // (Bloque sum*/status* eliminado: esos IDs no existen en index.html;
+    // el resumen vive en updateQuickMacros.)
     updateQuickMacros(sumKcal, sumProtein, sumCarbs, sumFats, targetCals, targetProtein, targetCarbs, targetFats);
     updateStepsDisplay();
 }
@@ -383,9 +369,37 @@ export function copyYesterdayMeals() {
     showNotification('Comidas copiadas del día anterior');
 }
 
-window._saveDayNotes = (value) => {
-    const dateKey = getDateKey(AppState.currentDate);
+// Notas con debounce (400ms trailing): escribir a disco en cada tecla con
+// historiales grandes causa jank. flushDayNotes() vuelca lo pendiente.
+let _notesTimer = null;
+let _pendingNotes = null;
+
+export function flushDayNotes() {
+    if (_pendingNotes === null) return;
+    if (_notesTimer) { clearTimeout(_notesTimer); _notesTimer = null; }
+    const { dateKey, value } = _pendingNotes;
+    _pendingNotes = null;
     if (!AppState.allDays[dateKey]) return;
     AppState.allDays[dateKey].notes = value;
     saveDays();
+}
+
+if (typeof document !== 'undefined' && document.addEventListener) {
+    // No perder la última edición si se cierra/oculta la pestaña <400ms después
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushDayNotes();
+    });
+    if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('pagehide', flushDayNotes);
+    }
+}
+
+window._saveDayNotes = (value) => {
+    const dateKey = getDateKey(AppState.currentDate);
+    if (!AppState.allDays[dateKey]) return;
+    // Memoria inmediata (la UI lee de aquí), disco con debounce
+    AppState.allDays[dateKey].notes = value;
+    _pendingNotes = { dateKey, value };
+    if (_notesTimer) clearTimeout(_notesTimer);
+    _notesTimer = setTimeout(flushDayNotes, 400);
 };

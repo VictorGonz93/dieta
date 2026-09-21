@@ -36,6 +36,14 @@ if ('serviceWorker' in navigator) {
     });
     navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'UPDATE_AVAILABLE') {
+            // El SW emite en cada activate, incluida la primera instalación:
+            // solo avisar a usuarios que ya tenían una versión instalada.
+            try {
+                if (!localStorage.getItem('appInstalledVersion')) {
+                    localStorage.setItem('appInstalledVersion', String(event.data.version || CURRENT_APP_VERSION));
+                    return;
+                }
+            } catch (_) { /* ignore */ }
             showNotification('Nueva versión disponible. Recarga para actualizar.', 'info');
         }
     });

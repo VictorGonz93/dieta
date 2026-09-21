@@ -1,4 +1,4 @@
-const CACHE_VERSION = 111; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 112; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -64,19 +64,8 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
-// Escuchar mensajes del cliente (app.js)
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'CHECK_UPDATE') {
-        event.ports[0].postMessage({ version: CACHE_VERSION });
-    }
-    if (event.data && event.data.type === 'SKIP_WAITING') {
-        self.skipWaiting();
-    }
-    if (event.data && event.data.type === 'GET_VERSION') {
-        // Enviar versión actual del SW al cliente
-        event.ports[0].postMessage({ version: CACHE_VERSION });
-    }
-});
+// (Protocolo de mensajes eliminado: CHECK_UPDATE/SKIP_WAITING/GET_VERSION no
+// tenían ningún emisor en js/. El aviso de update va por broadcast UPDATE_AVAILABLE.)
 
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);

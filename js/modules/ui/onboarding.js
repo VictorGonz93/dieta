@@ -94,7 +94,8 @@ export function startOnboarding() {
     closeOnboarding();
     import('./tabs.js').then(m => m.showTab('config'));
     setTimeout(() => {
-        const personalAccordion = document.querySelector('[data-step="personal"]');
+        const personalAccordion = document.querySelector('[data-step="personal"]')
+            || document.getElementById('tab-personal');
         if (personalAccordion) {
             personalAccordion.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
