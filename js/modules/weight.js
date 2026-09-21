@@ -56,6 +56,17 @@ export function recordWeight(date, weight) {
     const prediction = calculateNextDayPredictionForDate(dateStr, weight);
     const predictedWeight = prediction?.predictedWeight || null;
 
+    // Bayesian: store prediction error if we have yesterday's prediction vs today's actual
+    if (AppState.config.weightHistory.length > 0) {
+        const yesterdayDate = new Date(date);
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayKey = getDateKey(yesterdayDate);
+        const yesterdayEntry = AppState.config.weightHistory.find(w => w.date === yesterdayKey);
+        if (yesterdayEntry && yesterdayEntry.predictedWeight) {
+            storePredictionError(weight, yesterdayEntry.predictedWeight);
+        }
+    }
+
     if (existingIndex >= 0) {
         AppState.config.weightHistory[existingIndex].weight = weight;
         AppState.config.weightHistory[existingIndex].predictedWeight = predictedWeight;
@@ -154,6 +165,32 @@ export function calculateWaterRetentionWithTiming(carbs, mealTime, dateKey) {
     return baseRetention;
 }
 
+function getBayesianCalibration() {
+    try {
+        const saved = localStorage.getItem('prediction_calibration');
+        if (saved) {
+            const cal = JSON.parse(saved);
+            if (cal.errors && cal.errors.length > 5) {
+                const recent = cal.errors.slice(-20);
+                const meanError = recent.reduce((a, b) => a + b, 0) / recent.length;
+                return { meanError, count: recent.length };
+            }
+        }
+    } catch (e) { /* ignore */ }
+    return { meanError: 0, count: 0 };
+}
+
+function storePredictionError(actualWeight, predictedWeight) {
+    try {
+        const saved = localStorage.getItem('prediction_calibration');
+        const cal = saved ? JSON.parse(saved) : { errors: [] };
+        cal.errors = cal.errors || [];
+        cal.errors.push(actualWeight - predictedWeight);
+        if (cal.errors.length > 60) cal.errors = cal.errors.slice(-60);
+        localStorage.setItem('prediction_calibration', JSON.stringify(cal));
+    } catch (e) { /* ignore */ }
+}
+
 export function getMealType(mealName, mealTime, dateKey) {
     if (!mealTime) return 'normal';
     const trainingTime = getTrainingTime(dateKey);
@@ -170,13 +207,14 @@ export function getMealType(mealName, mealTime, dateKey) {
 
 export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppState.config.currentWeight) {
     const dayData = AppState.allDays[dateKey];
-    let totalKcal = 0, totalCarbs = 0, totalWaterRetention = 0;
+    let totalKcal = 0, totalCarbs = 0, totalWaterRetention = 0, mealCount = 0;
 
     if (dayData) {
         Object.values(dayData.meals).forEach(meal => {
             meal.forEach(food => {
                 totalKcal += food.kcal;
                 totalCarbs += food.carbs;
+                mealCount++;
                 const foodWaterRetention = calculateWaterRetentionWithTiming(food.carbs, food.time, dateKey);
                 totalWaterRetention += foodWaterRetention;
             });
@@ -195,15 +233,59 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
 
     const deficitVsMeta = totalKcal - calorieTarget;
     const deficitVsTDEE = totalKcal - tdee;
+
+    // === MODELO DE GLUCÓGENO CON TECHO ===
+    // Máximo glucógeno: ~500g músculo + ~100g hígado = 600g total
+    // Cada gramo de glucógeno almacena ~3g de agua (ratio 3:1)
+    // Ejercicio intenso depleta ~30-50% del glucógeno
+    const MAX_GLYCOGEN_G = 600;
+    const WATER_PER_GLYCOGEN_G = 3;
+    const cappedCarbs = Math.min(totalCarbs, MAX_GLYCOGEN_G);
+    const glycogenWaterRetention = (cappedCarbs / 1000) * WATER_PER_GLYCOGEN_G;
+
+    // === RETENCIÓN POR SODIO (estimada por número de comidas) ===
+    // Promedio ~800-1200mg sodio por comida → ~0.15 kg agua por comida
+    const sodiumWaterRetention = mealCount * 0.15;
+
+    // Combinar retención de agua (glucógeno + sodio + timing de comidas)
+    // La retención por timing ya está en totalWaterRetention, ponderar con glucógeno
+    const baseWaterRetention = Math.min(
+        glycogenWaterRetention + sodiumWaterRetention,
+        glycogenWaterRetention * 1.5 + sodiumWaterRetention
+    );
+    const finalWaterRetention = baseWaterRetention + (totalWaterRetention * 0.3);
+
+    // === CAMBIO GRASO ===
     const fatChange = (deficitVsTDEE / 7700) * 0.75;
-    // Inflamación muscular proporcional a la intensidad del entreno
-    const trainingInflammation = workoutKcal > 400 ? 0.25 : workoutKcal > 150 ? 0.15 : workoutKcal > 0 ? 0.08 : 0;
-    const predictedWeight = parseFloat((nextDayWeight + fatChange + totalWaterRetention + trainingInflammation).toFixed(2));
+
+    // === INFLAMACIÓN MUSCULAR (refinada) ===
+    // Depende de intensidad del entreno Y si es día de descanso previo
+    let trainingInflammation = 0;
+    if (workoutKcal > 500) {
+        trainingInflammation = 0.30;
+    } else if (workoutKcal > 300) {
+        trainingInflammation = 0.20;
+    } else if (workoutKcal > 150) {
+        trainingInflammation = 0.12;
+    } else if (workoutKcal > 0) {
+        trainingInflammation = 0.05;
+    }
+
+    // === CALIBRACIÓN BAYESIANA ===
+    const cal = getBayesianCalibration();
+    const bayesianAdjustment = cal.count >= 10 ? cal.meanError * 0.3 : 0;
+
+    const predictedWeight = parseFloat((
+        nextDayWeight + fatChange + finalWaterRetention + trainingInflammation + bayesianAdjustment
+    ).toFixed(2));
 
     const daysTracked = AppState.config.weightHistory?.length || 1;
     let confidenceRange = 0.8;
     if (daysTracked > 28) confidenceRange = 0.4;
     else if (daysTracked > 14) confidenceRange = 0.6;
+
+    // Reducir rango de confianza si hay calibración bayesiana
+    if (cal.count >= 20) confidenceRange *= 0.8;
 
     return {
         date: dateKey,
@@ -212,9 +294,9 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
         predictedWeightHigh: parseFloat((predictedWeight + confidenceRange).toFixed(2)),
         confidenceRange,
         fatChange: parseFloat(fatChange.toFixed(3)),
-        waterRetention: parseFloat(totalWaterRetention.toFixed(2)),
+        waterRetention: parseFloat(finalWaterRetention.toFixed(2)),
         trainingInflammation,
-        totalRetention: parseFloat((totalWaterRetention + trainingInflammation).toFixed(2)),
+        totalRetention: parseFloat((finalWaterRetention + trainingInflammation).toFixed(2)),
         caloriesConsumed: Math.round(totalKcal),
         calorieTarget,
         tdee,
@@ -222,6 +304,8 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
         deficitVsMeta: Math.round(deficitVsMeta),
         deficitVsTDEE: Math.round(deficitVsTDEE),
         carbsConsumed: Math.round(totalCarbs),
+        mealCount,
+        bayesianAdjustment: parseFloat(bayesianAdjustment.toFixed(3)),
         confidence: daysTracked > 28 ? 'high' : daysTracked > 14 ? 'medium' : 'low',
     };
 }
@@ -240,13 +324,16 @@ export function calculateNextDayPrediction() {
     const pred = calculateNextDayPredictionForDate(today, todayWeight);
     if (!pred) return null;
 
+    const cal = getBayesianCalibration();
+    const calNote = cal.count >= 10 ? ` (Bayes: ${cal.meanError > 0 ? '+' : ''}${(cal.meanError * 1000).toFixed(0)}g ajuste)` : '';
+
     return {
         ...pred,
         todayWeight,
         date: AppState.currentDate.toLocaleDateString('es-ES'),
         explanation: pred.deficitVsTDEE < 0
-            ? `Déficit REAL de ${Math.abs(pred.deficitVsTDEE)} kcal vs TDEE (${pred.carbsConsumed}g carbos = ${pred.waterRetention}kg retención)`
-            : `Superávit REAL de ${pred.deficitVsTDEE} kcal vs TDEE`,
+            ? `Déficit REAL de ${Math.abs(pred.deficitVsTDEE)} kcal vs TDEE (${pred.carbsConsumed}g carbos, ${pred.mealCount} comidas = ${pred.waterRetention.toFixed(2)}kg retención)${calNote}`
+            : `Superávit REAL de ${pred.deficitVsTDEE} kcal vs TDEE${calNote}`,
     };
 }
 
@@ -313,8 +400,10 @@ export function displayNextDayPrediction() {
                     <div class="factor"><span class="factor-label">Déficit real vs TDEE</span><span class="factor-value">${nextPred.deficitVsTDEE} kcal</span></div>
                     <div class="factor"><span class="factor-label">Déficit diario estructural</span><span class="factor-value">${structuralDeficit} kcal/día</span></div>
                     <div class="factor"><span class="factor-label">Carbohidratos</span><span class="factor-value">${nextPred.carbsConsumed}g</span></div>
+                    <div class="factor"><span class="factor-label">Comidas</span><span class="factor-value">${nextPred.mealCount || '-'}</span></div>
                     <div class="factor"><span class="factor-label">${nextPred.fatChange < 0 ? 'Pérdida de grasa' : 'Ganancia de grasa'}</span><span class="factor-value">${Math.abs(nextPred.fatChange).toFixed(2)} kg</span></div>
-                    <div class="factor"><span class="factor-label">Retención de agua</span><span class="factor-value">+${nextPred.waterRetention.toFixed(2)} kg</span></div>
+                    <div class="factor"><span class="factor-label">Retención agua (glucógeno+sodio)</span><span class="factor-value">+${nextPred.waterRetention.toFixed(2)} kg</span></div>
+                    ${nextPred.bayesianAdjustment !== 0 ? `<div class="factor"><span class="factor-label">↳ Ajuste Bayes</span><span class="factor-value">${nextPred.bayesianAdjustment > 0 ? '+' : ''}${(nextPred.bayesianAdjustment * 1000).toFixed(0)}g</span></div>` : ''}
                 </div>
                 <div class="next-day-explanation"><small>${nextPred.explanation}</small></div>
             </div>
