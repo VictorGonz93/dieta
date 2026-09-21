@@ -159,7 +159,6 @@ export function updateCalculatedValues() {
         }
     }
     updateStorageInfo();
-    }
 }
 
 export function updateStorageInfo() {
