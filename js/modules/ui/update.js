@@ -80,22 +80,22 @@ export function showUpdateAvailableModal(remoteVersion = null) {
     const versionInfo = remoteVersion ? `(v${remoteVersion})` : '';
 
     modal.innerHTML = `
-        <div style="background: white; border-radius: 12px; padding: 24px; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideUp 0.3s ease-out;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 12px; padding: 24px; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out;">
             <div style="text-align: center; margin-bottom: 16px;">
                 <div style="font-size: 14px; color: var(--primary); font-weight:600; letter-spacing:.05em; text-transform:uppercase; margin-bottom: 8px;">Actualización disponible</div>
-                <h2 style="margin: 0; font-size: 20px; color: #1a202c; font-weight: 600;">
+                <h2 style="margin: 0; font-size: 20px; color: var(--text-1); font-weight: 600;">
                     Nueva versión disponible ${versionInfo}
                 </h2>
             </div>
             <div style="display: flex; gap: 12px; margin-top: 24px;">
-                <button id="updateModalCancel" style="flex: 1; padding: 10px 16px; border: 1px solid #cbd5e0; border-radius: 8px; background: white; color: #4a5568; font-weight: 500; cursor: pointer;">
+                <button id="updateModalCancel" style="flex: 1; padding: 10px 16px; border: 1px solid var(--border-base); border-radius: 8px; background: transparent; color: var(--text-2); font-weight: 500; cursor: pointer;">
                     Cerrar
                 </button>
                 <button id="updateModalConfirm" style="flex: 1; padding: 10px 16px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: 600; cursor: pointer;">
                     Actualizar
                 </button>
             </div>
-            <div style="font-size: 12px; color: #a0aec0; margin-top: 16px; text-align: center; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+            <div style="font-size: 12px; color: var(--text-3); margin-top: 16px; text-align: center; padding-top: 12px; border-top: 1px solid var(--border-dim);">
                 Tus datos se preservan. Sin perder nada.
             </div>
         </div>

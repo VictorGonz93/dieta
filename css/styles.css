@@ -54,6 +54,9 @@ body {
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
@@ -396,8 +399,8 @@ canvas { max-width: 100%; }
 /* ==================== NOTIFICATION TOAST ==================== */
 .notification {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: max(24px, env(safe-area-inset-right, 0px));
   padding: 12px 18px 12px 16px;
   border-radius: var(--r-md);
   background: var(--bg-elevated);
@@ -501,10 +504,14 @@ canvas { max-width: 100%; }
 
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
-  .tab-btn { padding: 10px 12px; font-size: 12px; gap: 4px; }
-  .tab-btn span:not(.material-icons) { display: none; }
+  /* Targets táctiles ≥44px (WCAG 2.5.8). Se eliminó la antigua regla que
+     ocultaba spans no-icono en móvil: nunca casaba porque las etiquetas
+     de los tabs son nodos de texto, no spans. */
+  .tab-btn { padding: 12px 14px; font-size: 12px; gap: 4px; min-height: 44px; }
   .stat-card, .meal-card { padding: 1rem; }
   .weight-value { font-size: 1.75rem; }
+  .food-item-delete { min-width: 44px; min-height: 44px; font-size: 1.2rem; }
+  .notification { left: 12px; right: 12px; max-width: none; }
 }
 
 /* ==================== ANIMATIONS ==================== */
@@ -806,6 +813,33 @@ html:not(.dark-mode) #onboardingModal > div { background: var(--bg-card); border
 html:not(.dark-mode) .onboarding-step { background: var(--bg-elevated); border-color: var(--border-dim); }
 html:not(.dark-mode) .onboarding-step h3 { color: var(--text-1); }
 html:not(.dark-mode) .onboarding-step p { color: var(--text-2); }
+
+/* ============ LIGHT MODE: remap de utilidades Tailwind slate-* ============
+   La app es dark-first con slate hardcodeado en HTML/JS. Este bloque los
+   traduce a superficies claras (especificidad 0-2-1 > 0-1-0 de Tailwind). */
+html:not(.dark-mode) .bg-slate-950 { background-color: var(--bg-base); }
+html:not(.dark-mode) .bg-slate-900 { background-color: var(--bg-card); }
+html:not(.dark-mode) .bg-slate-800 { background-color: var(--bg-card); }
+html:not(.dark-mode) .bg-slate-800\/50 { background-color: var(--bg-card); }
+html:not(.dark-mode) .bg-slate-700 { background-color: var(--bg-card); }
+html:not(.dark-mode) .bg-slate-700\/50 { background-color: var(--bg-elevated); }
+html:not(.dark-mode) .bg-slate-700\/30 { background-color: var(--bg-elevated); }
+html:not(.dark-mode) .bg-slate-600 { background-color: var(--border-base); }
+html:not(.dark-mode) .from-slate-800 { --tw-gradient-from: var(--bg-card); }
+html:not(.dark-mode) .to-slate-900 { --tw-gradient-to: var(--bg-surface); }
+html:not(.dark-mode) .text-slate-300 { color: var(--text-1); }
+html:not(.dark-mode) .text-slate-400 { color: var(--text-2); }
+html:not(.dark-mode) .text-slate-500 { color: var(--text-2); }
+html:not(.dark-mode) .placeholder-slate-500::placeholder { color: var(--text-3); }
+html:not(.dark-mode) .border-slate-600 { border-color: var(--border-base); }
+html:not(.dark-mode) .border-slate-700 { border-color: var(--border-base); }
+html:not(.dark-mode) .border-slate-700\/50 { border-color: var(--border-dim); }
+html:not(.dark-mode) .border-slate-700\/60 { border-color: var(--border-dim); }
+html:not(.dark-mode) .hover\:bg-slate-600:hover { background-color: var(--border-hover); }
+html:not(.dark-mode) .hover\:bg-slate-700:hover { background-color: var(--bg-hover); }
+html:not(.dark-mode) .hover\:bg-slate-800:hover { background-color: var(--bg-hover); }
+html:not(.dark-mode) .hover\:border-slate-600:hover { border-color: var(--border-hover); }
+html:not(.dark-mode) .hover\:text-slate-300:hover { color: var(--text-1); }
 
 /* ==================== HISTORY ITEMS ==================== */
 .history-item {

@@ -832,7 +832,7 @@ function _updateExercisesCardsHTML() {
                         <div style="font-size:1rem;font-weight:700;color:#FBBF24;">${escapeHTML(pr.maxWeight)} kg</div>
                         <div style="font-size:0.72rem;color:var(--text-3);">${escapeHTML(pr.reps)} reps · ${escapeHTML(pr.date)}</div>
                     </div>` : `<div style="min-width:80px;text-align:right;color:var(--text-3);font-size:0.8rem;">Sin PR</div>`}
-                    ${e.isCustom ? `<button data-id="${escapeHTML(e.id)}" onclick="window._deleteCustomExercise(this.dataset.id)" title="Eliminar ejercicio personalizado" style="padding:6px;background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.35);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;"><span class="material-icons" style="font-size:16px">delete</span></button>` : ''}
+                    ${e.isCustom ? `<button data-id="${escapeHTML(e.id)}" onclick="window._deleteCustomExercise(this.dataset.id)" title="Eliminar ejercicio personalizado" style="padding:6px;background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.35);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:40px;height:40px;flex-shrink:0;"><span class="material-icons" style="font-size:18px">delete</span></button>` : ''}
                 </div>`;
             }).join('')}
             ${filtered.length === 0 ? `<div style="text-align:center;color:var(--text-3);padding:30px;">Sin resultados locales para "${escapeHTML(_exSearch)}"</div>` : ''}
@@ -1016,7 +1016,7 @@ export function renderWorkoutHistory() {
                                 <div style="font-size:0.75rem;color:var(--text-3);">Kcal</div>
                                 <div style="font-size:1.1rem;font-weight:700;color:var(--primary-text);">${kcal || '—'}</div>
                             </div>
-                            <button onclick="event.stopPropagation();window._deleteWorkoutSession('${escapeHTML(date)}')" title="Eliminar entreno" style="padding:6px;background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.35);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"><span class="material-icons" style="font-size:16px">delete</span></button>
+                            <button onclick="event.stopPropagation();window._deleteWorkoutSession('${escapeHTML(date)}')" title="Eliminar entreno" style="padding:6px;background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.35);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:40px;height:40px;flex-shrink:0;"><span class="material-icons" style="font-size:18px">delete</span></button>
                         </div>
                     </div>
                     <div style="display:none;padding:0 18px 14px;border-top:1px solid var(--border-dim);">

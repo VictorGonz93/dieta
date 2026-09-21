@@ -3,7 +3,8 @@
 import { getDateKey } from '../storage.js';
 
 export function setupTabNavigation() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    const btns = Array.from(document.querySelectorAll('.tab-btn'));
+    btns.forEach((btn, idx) => {
         btn.addEventListener('click', () => {
             const tabId = btn.dataset.tab;
             showTab(tabId);
@@ -14,6 +15,14 @@ export function setupTabNavigation() {
                 }, 100);
             }
         });
+        // Navegación por teclado (patrón tabs WAI-ARIA): ←/→ cambian de pestaña
+        btn.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            e.preventDefault();
+            const next = (idx + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length;
+            btns[next].focus();
+            btns[next].click();
+        });
     });
 }
 
@@ -21,13 +30,19 @@ export function showTab(tabId) {
     import('./onboarding.js').then(m => m.closeOnboarding());
 
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+    });
 
     const tabElement = document.getElementById(tabId);
     if (tabElement) tabElement.classList.add('active');
 
     const btn = document.querySelector(`[data-tab="${tabId}"]`);
-    if (btn) btn.classList.add('active');
+    if (btn) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+    }
 
     if (tabId === 'hoy') {
         import('../meals.js').then(m => m.renderDay());
