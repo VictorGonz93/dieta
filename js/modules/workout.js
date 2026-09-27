@@ -110,79 +110,79 @@ export const EQUIPMENT_TYPES = {
 
 export const BASE_EXERCISES_DB = [
     // ── Pecho ─────────────────────────────────────────────────────────────────
-    { id: 1,  name: 'Press Banca (Barra)',          muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 6.0 },
-    { id: 2,  name: 'Press Inclinado (Barra)',       muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 6.0 },
-    { id: 3,  name: 'Press Declinado (Barra)',       muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.5 },
-    { id: 4,  name: 'Press Banca (Mancuernas)',      muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.5 },
-    { id: 5,  name: 'Press Inclinado (Mancuernas)',  muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.5 },
-    { id: 6,  name: 'Press Declinado (Mancuernas)', muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.0 },
+    { id: 1,  name: 'Press Banca (Barra)',          muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 6.0, secondary: ['Tríceps', 'Hombros'] },
+    { id: 2,  name: 'Press Inclinado (Barra)',       muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 6.0, secondary: ['Tríceps', 'Hombros'] },
+    { id: 3,  name: 'Press Declinado (Barra)',       muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.5, secondary: ['Tríceps', 'Hombros'] },
+    { id: 4,  name: 'Press Banca (Mancuernas)',      muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.5, secondary: ['Tríceps', 'Hombros'] },
+    { id: 5,  name: 'Press Inclinado (Mancuernas)',  muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.5, secondary: ['Tríceps', 'Hombros'] },
+    { id: 6,  name: 'Press Declinado (Mancuernas)', muscle: 'Pecho',    type: 'libre',   category: 'compuesto', met: 5.0, secondary: ['Tríceps', 'Hombros'] },
     { id: 7,  name: 'Aperturas Mancuerna (Plano)',   muscle: 'Pecho',    type: 'libre',   category: 'aislamiento', met: 4.0 },
     { id: 8,  name: 'Aperturas Inclinadas',          muscle: 'Pecho',    type: 'libre',   category: 'aislamiento', met: 4.0 },
     { id: 9,  name: 'Peck Deck / Contractora',       muscle: 'Pecho',    type: 'maquina', category: 'aislamiento', met: 3.5 },
     { id: 10, name: 'Cruce de Poleas (Alto)',         muscle: 'Pecho',    type: 'polea',   category: 'aislamiento', met: 4.0 },
     { id: 11, name: 'Cruce de Poleas (Bajo)',         muscle: 'Pecho',    type: 'polea',   category: 'aislamiento', met: 4.0 },
-    { id: 12, name: 'Fondos en Paralelas (Pecho)',    muscle: 'Pecho',    type: 'cuerpo',  category: 'compuesto', met: 6.5 },
-    { id: 13, name: 'Flexiones / Push-ups',           muscle: 'Pecho',    type: 'cuerpo',  category: 'compuesto', met: 5.0 },
-    { id: 14, name: 'Pullover con Mancuerna',         muscle: 'Pecho',    type: 'libre',   category: 'aislamiento', met: 4.0 },
-    { id: 15, name: 'Press de Pecho en Máquina',      muscle: 'Pecho',    type: 'maquina', category: 'compuesto', met: 4.5 },
-    { id: 116,name: 'Press Banca Multipower',        muscle: 'Pecho',    type: 'maquina', category: 'compuesto', met: 4.5 },
-    { id: 117,name: 'Press Inclinado Multipower',    muscle: 'Pecho',    type: 'maquina', category: 'compuesto', met: 4.5 },
+    { id: 12, name: 'Fondos en Paralelas (Pecho)',    muscle: 'Pecho',    type: 'cuerpo',  category: 'compuesto', met: 6.5, secondary: ['Tríceps', 'Hombros'] },
+    { id: 13, name: 'Flexiones / Push-ups',           muscle: 'Pecho',    type: 'cuerpo',  category: 'compuesto', met: 5.0, secondary: ['Tríceps', 'Hombros'] },
+    { id: 14, name: 'Pullover con Mancuerna',         muscle: 'Pecho',    type: 'libre',   category: 'aislamiento', met: 4.0, secondary: ['Espalda'] },
+    { id: 15, name: 'Press de Pecho en Máquina',      muscle: 'Pecho',    type: 'maquina', category: 'compuesto', met: 4.5, secondary: ['Tríceps', 'Hombros'] },
+    { id: 116,name: 'Press Banca Multipower',        muscle: 'Pecho',    type: 'maquina', category: 'compuesto', met: 4.5, secondary: ['Tríceps', 'Hombros'] },
+    { id: 117,name: 'Press Inclinado Multipower',    muscle: 'Pecho',    type: 'maquina', category: 'compuesto', met: 4.5, secondary: ['Tríceps', 'Hombros'] },
 
     // ── Espalda ───────────────────────────────────────────────────────────────
-    { id: 16, name: 'Peso Muerto Convencional',       muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 7.0 },
-    { id: 17, name: 'Peso Muerto Rumano',              muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 6.0 },
-    { id: 18, name: 'Peso Muerto Sumo',                muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 6.5 },
-    { id: 19, name: 'Dominadas Pronas',               muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 6.5 },
-    { id: 20, name: 'Dominadas Supinas / Chin-ups',    muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 6.5 },
-    { id: 21, name: 'Remo con Barra (90°)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5, trackingType: 'weight_reps' },
-    { id: 22, name: 'Remo con Mancuerna Unilateral',  muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.0, trackingType: 'weight_reps' },
-    { id: 23, name: 'Remo en T (T-Bar Row)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5, trackingType: 'weight_reps' },
-    { id: 24, name: 'Jalón al Pecho Agarre Ancho',     muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5 },
-    { id: 25, name: 'Jalón Agarre Neutro / Cerrado',   muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5 },
-    { id: 26, name: 'Remo Gironda / Polea Baja',       muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, trackingType: 'weight_reps' },
-    { id: 27, name: 'Remo en Máquina Asistida',        muscle: 'Espalda',  type: 'maquina', category: 'compuesto', met: 4.5, trackingType: 'weight_reps' },
-    { id: 162, name: 'Remo Sentado en Polea',          muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, trackingType: 'weight_reps' },
-    { id: 163, name: 'Remo Pull (TRX/Suspensión)',     muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 5.5, trackingType: 'calisthenics' },
+    { id: 16, name: 'Peso Muerto Convencional',       muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 7.0, secondary: ['Piernas', 'Glúteos'] },
+    { id: 17, name: 'Peso Muerto Rumano',              muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 6.0, secondary: ['Piernas', 'Glúteos'] },
+    { id: 18, name: 'Peso Muerto Sumo',                muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 6.5, secondary: ['Piernas', 'Glúteos'] },
+    { id: 19, name: 'Dominadas Pronas',               muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 6.5, secondary: ['Bíceps'] },
+    { id: 20, name: 'Dominadas Supinas / Chin-ups',    muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 6.5, secondary: ['Bíceps'] },
+    { id: 21, name: 'Remo con Barra (90°)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5, trackingType: 'weight_reps', secondary: ['Bíceps'] },
+    { id: 22, name: 'Remo con Mancuerna Unilateral',  muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.0, trackingType: 'weight_reps', secondary: ['Bíceps'] },
+    { id: 23, name: 'Remo en T (T-Bar Row)',           muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 5.5, trackingType: 'weight_reps', secondary: ['Bíceps'] },
+    { id: 24, name: 'Jalón al Pecho Agarre Ancho',     muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, secondary: ['Bíceps'] },
+    { id: 25, name: 'Jalón Agarre Neutro / Cerrado',   muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, secondary: ['Bíceps'] },
+    { id: 26, name: 'Remo Gironda / Polea Baja',       muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, trackingType: 'weight_reps', secondary: ['Bíceps'] },
+    { id: 27, name: 'Remo en Máquina Asistida',        muscle: 'Espalda',  type: 'maquina', category: 'compuesto', met: 4.5, trackingType: 'weight_reps', secondary: ['Bíceps'] },
+    { id: 162, name: 'Remo Sentado en Polea',          muscle: 'Espalda',  type: 'polea',   category: 'compuesto', met: 4.5, trackingType: 'weight_reps', secondary: ['Bíceps'] },
+    { id: 163, name: 'Remo Pull (TRX/Suspensión)',     muscle: 'Espalda',  type: 'cuerpo',  category: 'compuesto', met: 5.5, trackingType: 'calisthenics', secondary: ['Bíceps'] },
     { id: 28, name: 'Pullover con Brazo Recto (Polea)',muscle: 'Espalda',  type: 'polea',   category: 'aislamiento', met: 4.0 },
     { id: 29, name: 'Hiperextensiones Lumbar',         muscle: 'Espalda',  type: 'cuerpo',  category: 'aislamiento', met: 3.5 },
-    { id: 31, name: 'Buenos Días (Good Mornings)',     muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 4.5 },
+    { id: 31, name: 'Buenos Días (Good Mornings)',     muscle: 'Espalda',  type: 'libre',   category: 'compuesto', met: 4.5, secondary: ['Piernas', 'Glúteos'] },
     { id: 32, name: 'Encogimientos con Barra (Trapecio)', muscle: 'Espalda', type: 'libre',  category: 'aislamiento', met: 3.5 },
-    { id: 120,name: 'Dominadas Asistidas (Máquina)',   muscle: 'Espalda',  type: 'maquina', category: 'compuesto', met: 5.0 },
+    { id: 120,name: 'Dominadas Asistidas (Máquina)',   muscle: 'Espalda',  type: 'maquina', category: 'compuesto', met: 5.0, secondary: ['Bíceps'] },
 
     // ── Piernas ───────────────────────────────────────────────────────────────
-    { id: 33, name: 'Sentadilla Trasera (Barra)',      muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 7.0 },
-    { id: 34, name: 'Sentadilla Frontal (Barra)',      muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 7.0 },
-    { id: 35, name: 'Sentadilla Búlgara',              muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 6.0 },
-    { id: 36, name: 'Sentadilla Goblet (Kettlebell/Manc)', muscle: 'Piernas', type: 'libre', category: 'compuesto', met: 5.5 },
-    { id: 37, name: 'Hack Squat (Máquina)',            muscle: 'Piernas',  type: 'maquina', category: 'compuesto', met: 6.0 },
-    { id: 38, name: 'Prensa Inclinada (45°)',           muscle: 'Piernas',  type: 'maquina', category: 'compuesto', met: 5.5 },
-    { id: 124,name: 'Prensa Horizontal',               muscle: 'Piernas',  type: 'maquina', category: 'compuesto', met: 5.0 },
+    { id: 33, name: 'Sentadilla Trasera (Barra)',      muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 7.0, secondary: ['Glúteos'] },
+    { id: 34, name: 'Sentadilla Frontal (Barra)',      muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 7.0, secondary: ['Glúteos'] },
+    { id: 35, name: 'Sentadilla Búlgara',              muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 6.0, secondary: ['Glúteos'] },
+    { id: 36, name: 'Sentadilla Goblet (Kettlebell/Manc)', muscle: 'Piernas', type: 'libre', category: 'compuesto', met: 5.5, secondary: ['Glúteos'] },
+    { id: 37, name: 'Hack Squat (Máquina)',            muscle: 'Piernas',  type: 'maquina', category: 'compuesto', met: 6.0, secondary: ['Glúteos'] },
+    { id: 38, name: 'Prensa Inclinada (45°)',           muscle: 'Piernas',  type: 'maquina', category: 'compuesto', met: 5.5, secondary: ['Glúteos'] },
+    { id: 124,name: 'Prensa Horizontal',               muscle: 'Piernas',  type: 'maquina', category: 'compuesto', met: 5.0, secondary: ['Glúteos'] },
     { id: 39, name: 'Extensiones de Cuádriceps',       muscle: 'Piernas',  type: 'maquina', category: 'aislamiento', met: 4.0 },
     { id: 40, name: 'Curl Femoral Tumbado',            muscle: 'Piernas',  type: 'maquina', category: 'aislamiento', met: 4.0 },
     { id: 42, name: 'Curl Femoral Sentado',            muscle: 'Piernas',  type: 'maquina', category: 'aislamiento', met: 4.0 },
-    { id: 43, name: 'Zancadas / Lunges',               muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 5.5 },
+    { id: 43, name: 'Zancadas / Lunges',               muscle: 'Piernas',  type: 'libre',   category: 'compuesto', met: 5.5, secondary: ['Glúteos'] },
     { id: 46, name: 'Gemelos de Pie (Máquina/Barra)',  muscle: 'Piernas',  type: 'maquina', category: 'aislamiento', met: 3.5 },
     { id: 47, name: 'Gemelos Sentado',                 muscle: 'Piernas',  type: 'maquina', category: 'aislamiento', met: 3.0 },
     { id: 48, name: 'Abductores en Máquina',           muscle: 'Piernas',  type: 'maquina', category: 'aislamiento', met: 3.5 },
     { id: 49, name: 'Aductores en Máquina',            muscle: 'Piernas',  type: 'maquina', category: 'aislamiento', met: 3.5 },
 
     // ── Glúteos ───────────────────────────────────────────────────────────────
-    { id: 51, name: 'Hip Thrust con Barra',            muscle: 'Glúteos',  type: 'libre',   category: 'compuesto', met: 5.5 },
-    { id: 52, name: 'Hip Thrust en Máquina',           muscle: 'Glúteos',  type: 'maquina', category: 'compuesto', met: 5.0 },
+    { id: 51, name: 'Hip Thrust con Barra',            muscle: 'Glúteos',  type: 'libre',   category: 'compuesto', met: 5.5, secondary: ['Piernas'] },
+    { id: 52, name: 'Hip Thrust en Máquina',           muscle: 'Glúteos',  type: 'maquina', category: 'compuesto', met: 5.0, secondary: ['Piernas'] },
     { id: 54, name: 'Patada de Glúteo en Polea',        muscle: 'Glúteos',  type: 'polea',   category: 'aislamiento', met: 3.5 },
     { id: 57, name: 'Abducción de Cadera en Polea',     muscle: 'Glúteos',  type: 'polea',   category: 'aislamiento', met: 3.5 },
-    { id: 58, name: 'Glute Bridge (Puente)',           muscle: 'Glúteos',  type: 'cuerpo',  category: 'compuesto', met: 4.0 },
+    { id: 58, name: 'Glute Bridge (Puente)',           muscle: 'Glúteos',  type: 'cuerpo',  category: 'compuesto', met: 4.0, secondary: ['Piernas'] },
 
     // ── Hombros ───────────────────────────────────────────────────────────────
-    { id: 60, name: 'Press Militar de Pie (Barra)',    muscle: 'Hombros',  type: 'libre',   category: 'compuesto', met: 5.5 },
-    { id: 61, name: 'Press Sentado con Mancuernas',    muscle: 'Hombros',  type: 'libre',   category: 'compuesto', met: 5.0 },
-    { id: 62, name: 'Press Arnold',                    muscle: 'Hombros',  type: 'libre',   category: 'compuesto', met: 5.0 },
-    { id: 63, name: 'Press de Hombro en Máquina',      muscle: 'Hombros',  type: 'maquina', category: 'compuesto', met: 4.5 },
+    { id: 60, name: 'Press Militar de Pie (Barra)',    muscle: 'Hombros',  type: 'libre',   category: 'compuesto', met: 5.5, secondary: ['Tríceps'] },
+    { id: 61, name: 'Press Sentado con Mancuernas',    muscle: 'Hombros',  type: 'libre',   category: 'compuesto', met: 5.0, secondary: ['Tríceps'] },
+    { id: 62, name: 'Press Arnold',                    muscle: 'Hombros',  type: 'libre',   category: 'compuesto', met: 5.0, secondary: ['Tríceps'] },
+    { id: 63, name: 'Press de Hombro en Máquina',      muscle: 'Hombros',  type: 'maquina', category: 'compuesto', met: 4.5, secondary: ['Tríceps'] },
     { id: 64, name: 'Elevaciones Laterales Mancuerna', muscle: 'Hombros',  type: 'libre',   category: 'aislamiento', met: 4.0 },
     { id: 65, name: 'Elevaciones Laterales en Polea',  muscle: 'Hombros',  type: 'polea',   category: 'aislamiento', met: 4.0 },
     { id: 66, name: 'Elevaciones Frontales',           muscle: 'Hombros',  type: 'libre',   category: 'aislamiento', met: 3.5 },
     { id: 68, name: 'Pájaros con Mancuerna (Deltoides Post)', muscle: 'Hombros', type: 'libre', category: 'aislamiento', met: 3.5 },
-    { id: 70, name: 'Face Pull en Polea',              muscle: 'Hombros',  type: 'polea',   category: 'aislamiento', met: 3.5 },
+    { id: 70, name: 'Face Pull en Polea',              muscle: 'Hombros',  type: 'polea',   category: 'aislamiento', met: 3.5, secondary: ['Espalda'] },
 
     // ── Bíceps ────────────────────────────────────────────────────────────────
     { id: 72, name: 'Curl de Bíceps con Barra Recta',  muscle: 'Bíceps',   type: 'libre',   category: 'aislamiento', met: 4.0 },
@@ -198,19 +198,19 @@ export const BASE_EXERCISES_DB = [
     { id: 84, name: 'Extensión Tríceps Polea (Barra)', muscle: 'Tríceps',  type: 'polea',   category: 'aislamiento', met: 3.5 },
     { id: 85, name: 'Extensión Tríceps Polea (Cuerda)',muscle: 'Tríceps',  type: 'polea',   category: 'aislamiento', met: 3.5 },
     { id: 86, name: 'Extensión Trasnuca con Mancuerna',muscle: 'Tríceps',  type: 'libre',   category: 'aislamiento', met: 3.5 },
-    { id: 87, name: 'Fondos entre Bancos (Tríceps)',   muscle: 'Tríceps',  type: 'cuerpo',  category: 'compuesto', met: 4.5 },
-    { id: 89, name: 'Press Banca Agarre Cerrado',      muscle: 'Tríceps',  type: 'libre',   category: 'compuesto', met: 5.0 },
+    { id: 87, name: 'Fondos entre Bancos (Tríceps)',   muscle: 'Tríceps',  type: 'cuerpo',  category: 'compuesto', met: 4.5, secondary: ['Pecho', 'Hombros'] },
+    { id: 89, name: 'Press Banca Agarre Cerrado',      muscle: 'Tríceps',  type: 'libre',   category: 'compuesto', met: 5.0, secondary: ['Pecho', 'Hombros'] },
 
     // ── Antebrazos ────────────────────────────────────────────────────────────
     { id: 137,name: 'Curl de Muñeca (Barra)',          muscle: 'Antebrazos', type: 'libre', category: 'aislamiento', met: 3.0 },
-    { id: 141,name: 'Farmer\'s Walk (Paseo del Granjero)', muscle: 'Antebrazos', type: 'libre', category: 'compuesto', met: 5.5 },
+    { id: 141,name: 'Farmer\'s Walk (Paseo del Granjero)', muscle: 'Antebrazos', type: 'libre', category: 'compuesto', met: 5.5, secondary: ['Espalda'] },
     { id: 142,name: 'Dead Hang (Colgado de Barra)',    muscle: 'Antebrazos', type: 'cuerpo', category: 'aislamiento', met: 3.0 },
 
     // ── Core ──────────────────────────────────────────────────────────────────
     { id: 91, name: 'Crunch Abdominal',               muscle: 'Core',     type: 'cuerpo',  category: 'aislamiento', met: 3.5 },
     { id: 93, name: 'Crunch en Polea Alta',            muscle: 'Core',     type: 'polea',   category: 'aislamiento', met: 3.5 },
     { id: 94, name: 'Plancha Isométrica Frontal',      muscle: 'Core',     type: 'cuerpo',  category: 'aislamiento', met: 4.0 },
-    { id: 96, name: 'Rueda Abdominal (Ab Wheel)',      muscle: 'Core',     type: 'cuerpo',  category: 'compuesto', met: 5.0 },
+    { id: 96, name: 'Rueda Abdominal (Ab Wheel)',      muscle: 'Core',     type: 'cuerpo',  category: 'compuesto', met: 5.0, secondary: ['Espalda'] },
     { id: 98, name: 'Elevación de Piernas Colgado',    muscle: 'Core',     type: 'cuerpo',  category: 'compuesto', met: 5.0 },
 
     // ── Cardio & Deportes ──────────────────────────────────────────────────────
@@ -753,6 +753,31 @@ export function recomputeSessionKcal(dateKey) {
     return ok;
 }
 
+// Músculos secundarios por defecto según (primario, categoría). Solo para
+// ejercicios sin 'secondary' explícito (customs, Wler, plantillas antiguas).
+// Los aislamientos no infieren: conteo conservador.
+const _DEFAULT_SECONDARY = {
+    'Pecho': ['Tríceps', 'Hombros'],
+    'Espalda': ['Bíceps'],
+    'Piernas': ['Glúteos'],
+    'Glúteos': ['Piernas'],
+    'Hombros': ['Tríceps'],
+    'Tríceps': ['Pecho', 'Hombros'],
+};
+
+// Secundarios validados de un ejercicio (para conteo fraccional ×0.5).
+// Evidencia: Pelland 2024 — el modelo fraccional predice mejor la hipertrofia.
+export function getExerciseSecondaryMuscles(ex) {
+    if (!ex || typeof ex !== 'object') return [];
+    const valid = (m) => typeof m === 'string' && m !== ex.muscle
+        && MUSCLES.includes(m) && m !== 'Todos' && m !== 'Cardio';
+    if (Array.isArray(ex.secondary)) return ex.secondary.filter(valid);
+    if (ex.category === 'compuesto' && Array.isArray(_DEFAULT_SECONDARY[ex.muscle])) {
+        return _DEFAULT_SECONDARY[ex.muscle].filter(valid);
+    }
+    return [];
+}
+
 // Bandas de volumen semanal (series DIRECTAS por músculo). Evidencia:
 // Baz-Valle 2022 (12-20 óptimo en entrenados), Pelland 2024 (dosis-respuesta
 // con rendimientos decrecientes; eficiente 4-10), Trexler 2026 (12-30).
@@ -766,10 +791,11 @@ export function volumeBandForSets(sets) {
     return 'excesivo';
 }
 
-// Series directas por músculo en una ventana de 7 días terminada en endDateKey
+// Series por músculo en una ventana de 7 días terminada en endDateKey
 // (weeksBack=0: semana actual; =1: anterior). Solo fuerza/calistenia/isométrico
-// con trabajo real; cardio y pasos excluidos. Conteo por músculo PRIMARIO del
-// ejercicio (limitación documentada: los compuestos no reparten a secundarios).
+// con trabajo real; cardio y pasos excluidos. Devuelve por músculo:
+// { sets (directas, primario), fractional (secundarios ×0.5), days }.
+// Bandas y alertas usan DIRECTAS (umbrales validados); fraccionales = contexto.
 export function getWeeklyMuscleVolume(endDateKey = null, weeksBack = 0) {
     const sessions = getWorkoutSessions();
     const allExercisesDB = getExercisesDB();
@@ -780,7 +806,7 @@ export function getWeeklyMuscleVolume(endDateKey = null, weeksBack = 0) {
 
     const muscles = {};
     const bump = (muscle) => {
-        if (!muscles[muscle]) muscles[muscle] = { sets: 0, days: 0 };
+        if (!muscles[muscle]) muscles[muscle] = { sets: 0, fractional: 0, days: 0 };
         return muscles[muscle];
     };
 
@@ -805,6 +831,12 @@ export function getWeeklyMuscleVolume(endDateKey = null, weeksBack = 0) {
             if (counted > 0) {
                 bump(muscle).sets += counted;
                 dayMuscles.add(muscle);
+                // Fraccionales ×0.5 a secundarios (explícitos o inferidos)
+                const ref = { ...dbEx, ...ex };
+                for (const sec of getExerciseSecondaryMuscles(ref)) {
+                    bump(sec).fractional += counted * 0.5;
+                    dayMuscles.add(sec);
+                }
             }
         }
         dayMuscles.forEach(m => { muscles[m].days++; });

@@ -1013,6 +1013,8 @@ export function renderMuscleVolume() {
                 const sets = lowNow(m);
                 const prevSets = lowPrev(m);
                 const days = (cur.muscles[m] && cur.muscles[m].days) || 0;
+                const frac = (cur.muscles[m] && cur.muscles[m].fractional) || 0;
+                const fracTxt = Number.isInteger(frac) ? String(frac) : frac.toFixed(1);
                 const band = volumeBandForSets(sets);
                 const style = _VOLUME_BAND_STYLE[band];
                 const pct = Math.min(100, Math.round((sets / VOLUME_BANDS.OPTIMAL_MAX) * 100));
@@ -1029,11 +1031,11 @@ export function renderMuscleVolume() {
                     <div style="height:8px;border-radius:4px;background:var(--bg-elevated);overflow:hidden;">
                         <div style="height:100%;width:${pct}%;background:${style.color};border-radius:4px;transition:width .3s;"></div>
                     </div>
-                    <div style="font-size:0.72rem;color:var(--text-3);margin-top:4px;">${days} día${days !== 1 ? 's' : ''} entrenado${days !== 1 ? 's' : ''} esta semana</div>
+                    <div style="font-size:0.72rem;color:var(--text-3);margin-top:4px;">${days} día${days !== 1 ? 's' : ''} entrenado${days !== 1 ? 's' : ''} esta semana${frac > 0 ? ` · +${fracTxt} fraccionales de compuestos` : ''}</div>
                 </div>`;
             }).join('')}
             <div style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:4px 8px;">
-                Conteo directo por músculo primario (los compuestos no reparten a secundarios) · Cardio y pasos excluidos
+                Directas = músculo primario · Fraccionales = secundarios ×0.5 (Pelland 2024) · Bandas sobre directas · Cardio y pasos excluidos
             </div>
         </div>
     `;
