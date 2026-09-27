@@ -107,6 +107,10 @@ export function calculateWeightPrediction() {
     const weeklyGain = -weeklyLoss;
     const current = AppState.config.currentWeight;
     const target = AppState.config.targetWeight;
+    // Sin pesos configurados no hay ETA posible (evita Invalid Date)
+    if (!Number.isFinite(current) || !Number.isFinite(target)) {
+        return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
+    }
     const goalPhase = AppState.config.goalPhase || 'definicion';
     const confidence = AppState.config.weightHistory.length > 20 ? 'high' : 'medium';
 
@@ -356,6 +360,7 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
         deficitVsTDEE: Math.round(deficitVsTDEE),
         carbsConsumed: Math.round(totalCarbs),
         carbBaseline: Math.round(carbBaseline),
+        goalPhase: AppState.config.goalPhase || 'definicion',
         mealCount: mealSlots,
         bayesianAdjustment: parseFloat(bayesianAdjustment.toFixed(3)),
         confidence: daysTracked > 28 ? 'high' : daysTracked > 14 ? 'medium' : 'low',
@@ -432,6 +437,9 @@ export function displayNextDayPrediction() {
     const weightChangeSign = weightChange > 0 ? '+' : '';
     const weightColor = weightChange > 0 ? 'var(--color-red)' : 'var(--primary)';
     const structuralDeficit = nextPred.tdee - nextPred.calorieTarget;
+    const isBulkPhase = (nextPred.goalPhase || 'definicion') === 'volumen';
+    const structuralLabel = isBulkPhase ? 'Superávit diario estructural' : 'Déficit diario estructural';
+    const structuralValue = isBulkPhase ? -structuralDeficit : structuralDeficit;
 
     predictionEl.innerHTML = `
         <div class="next-day-card">
@@ -453,7 +461,7 @@ export function displayNextDayPrediction() {
                     ${nextPred.workoutKcal > 0 ? `<div class="factor"><span class="factor-label">↳ Entreno registrado</span><span class="factor-value">+${nextPred.workoutKcal} kcal</span></div>` : ''}
                     <div class="factor"><span class="factor-label">Déficit vs meta</span><span class="factor-value">${nextPred.deficitVsMeta} kcal</span></div>
                     <div class="factor"><span class="factor-label">Déficit real vs TDEE</span><span class="factor-value">${nextPred.deficitVsTDEE} kcal</span></div>
-                    <div class="factor"><span class="factor-label">Déficit diario estructural</span><span class="factor-value">${structuralDeficit} kcal/día</span></div>
+                    <div class="factor"><span class="factor-label">${structuralLabel}</span><span class="factor-value">${structuralValue} kcal/día</span></div>
                     <div class="factor"><span class="factor-label">Carbohidratos</span><span class="factor-value">${nextPred.carbsConsumed}g</span></div>
                     <div class="factor"><span class="factor-label">Comidas</span><span class="factor-value">${nextPred.mealCount || '-'}</span></div>
                     <div class="factor"><span class="factor-label">${nextPred.fatChange < 0 ? 'Pérdida de grasa' : 'Ganancia de grasa'}</span><span class="factor-value">${Math.abs(nextPred.fatChange).toFixed(2)} kg</span></div>
