@@ -3,7 +3,7 @@
 import AppState from './state.js';
 import { KCAL_PER_KG_FAT } from './constants.js';
 import { escapeHTML } from './utils.js';
-import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, clearAdaptiveTDEECache } from './nutrition.js';
+import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, clearAdaptiveTDEECache } from './nutrition.js';
 import { getWorkoutSessions, recomputeSessionKcal } from './workout.js';
 import { getDateKey, saveDays, safeGet, safeSet } from './storage.js';
 import { showNotification } from './ui/notifications.js';
@@ -454,10 +454,11 @@ export function saveDailyWeight() {
     recordWeight(AppState.currentDate, weight);
     AppState.config.currentWeight = weight;
 
-    // Recalcular proteína y déficit automático con el nuevo peso
+    // Recalcular proteína y déficit/superávit automático con el nuevo peso
     const pace = AppState.config.lossPace || 'moderado';
     const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
     AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
+    AppState.config.surplusTarget = calculateAutoSurplus(weight, AppState.config.gainPace || 'lento');
     AppState.config.proteinGoal = Math.round(weight * pFactor);
 
     safeSet('nutrition_config', AppState.config);
@@ -525,6 +526,7 @@ export function updateWeightEntry(date, newWeight) {
             const pace = AppState.config.lossPace || 'moderado';
             const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
             AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
+            AppState.config.surplusTarget = calculateAutoSurplus(weight, AppState.config.gainPace || 'lento');
             AppState.config.proteinGoal = Math.round(weight * pFactor);
             safeSet('nutrition_config', AppState.config);
         }
@@ -553,6 +555,7 @@ export function deleteWeightEntry(date) {
             const pace = AppState.config.lossPace || 'moderado';
             const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
             AppState.config.deficitTarget = calculateAutoDeficit(AppState.config.currentWeight, pace);
+            AppState.config.surplusTarget = calculateAutoSurplus(AppState.config.currentWeight, AppState.config.gainPace || 'lento');
             AppState.config.proteinGoal = Math.round(AppState.config.currentWeight * pFactor);
         }
         safeSet('nutrition_config', AppState.config);

@@ -1,7 +1,7 @@
 // ==================== NUTRICIÓN Y CÁLCULOS ====================
 
 import AppState from './state.js';
-import { GYM_ROUTINE, UNIT_CONVERSIONS, KCAL_PER_KG_FAT } from './constants.js';
+import { GYM_ROUTINE, UNIT_CONVERSIONS, KCAL_PER_KG_FAT, LEAN_GAIN_KCAL_PER_KG } from './constants.js';
 import { estimateWorkoutKcal, calculateWorkoutDuration, getWorkoutSessions, getWorkoutTemplates } from './workout.js';
 import { getDateKey } from './storage.js';
 
@@ -315,6 +315,36 @@ export function calculateAutoDeficit(weight = null, lossPace = null) {
     return clampDeficit((w * 0.0075 * KCAL_PER_KG_FAT) / 7);
 }
 
+/**
+ * Calcula el superávit calórico diario para volumen limpio según el peso
+ * corporal y el ritmo de ganancia (lento, moderado o manual).
+ * Evidencia: Helms 2023 (5-20% sobre mantenimiento según experiencia),
+ * Trexler 2026 (+0.1-0.25%/sem). Lento +0.25%/sem ≈ +150 kcal a 68.5kg.
+ */
+export function calculateAutoSurplus(weight = null, gainPace = null) {
+    const w = parseFloat(weight || AppState.config.currentWeight) || 75;
+    const pace = gainPace || AppState.config.gainPace || 'lento';
+
+    // Clamps de seguridad: mínimo +100 (ruido), máximo +300 kcal/día y ≤15%
+    // del TDEE fórmula. Superávits mayores aceleran sobre todo la grasa
+    // (Helms 2023: +15% no dio más hipertrofia que +5%, solo más pliegues).
+    const tdeeEst = _getFormulaTMR(w) * 1.25;
+    const maxSurplus = Math.max(100, Math.min(300, tdeeEst * 0.15));
+    const clampSurplus = (s) => Math.round(Math.min(Math.max(100, s), maxSurplus));
+
+    if (pace === 'lento') {
+        // ~+0.25% del peso corporal por semana (volumen limpio)
+        return clampSurplus((w * 0.0025 * LEAN_GAIN_KCAL_PER_KG) / 7);
+    } else if (pace === 'moderado') {
+        // ~+0.50% del peso corporal por semana
+        return clampSurplus((w * 0.005 * LEAN_GAIN_KCAL_PER_KG) / 7);
+    } else if (pace === 'manual') {
+        return clampSurplus(AppState.config.surplusTarget || 150);
+    }
+
+    return clampSurplus((w * 0.0025 * LEAN_GAIN_KCAL_PER_KG) / 7);
+}
+
 // ─── Targets dinámicos diarios ────────────────────────────────────────────────
 // Cada día usa SOLO datos disponibles hasta esa fecha.
 // TDEE adaptativo congelado por día — no cambia al navegar al pasado.
@@ -375,14 +405,26 @@ export function getDynamicDayTargets(dateKey) {
     // In formula mode, we add today's workout kcal explicitly
     const tdee = tdeeMode === 'adaptive' ? tdeeBase : tdeeBase + workoutKcal;
 
-    // Déficit según peso del día
+    // Fase del objetivo: definicion (déficit), mantenimiento (=TDEE) o
+    // volumen (superávit). Por defecto definicion = comportamiento histórico.
+    const goalPhase = AppState.config.goalPhase || 'definicion';
     const lossPace = AppState.config.lossPace || 'moderado';
     const deficitTarget = calculateAutoDeficit(dayWeight, lossPace);
+    const gainPace = AppState.config.gainPace || 'lento';
+    const surplusTarget = calculateAutoSurplus(dayWeight, gainPace);
 
-    // Calorías objetivo — piso según sexo (AHA/ACC guidelines)
+    // Calorías objetivo según fase
     const gender = AppState.config.gender || 'male';
     const calorieFloor = gender === 'female' ? 1200 : 1500;
-    const cals = Math.max(calorieFloor, tdee - deficitTarget);
+    let cals;
+    if (goalPhase === 'volumen') {
+        cals = tdee + surplusTarget;
+    } else if (goalPhase === 'mantenimiento') {
+        cals = tdee;
+    } else {
+        // Piso según sexo (AHA/ACC guidelines) solo en definición
+        cals = Math.max(calorieFloor, tdee - deficitTarget);
+    }
 
     // Macros
     const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
@@ -407,6 +449,9 @@ export function getDynamicDayTargets(dateKey) {
         workoutKcal,
         deficitTarget,
         actualDeficit,
+        goalPhase,
+        gainPace,
+        surplusTarget,
         isRealLoggedSession,
         dayType: dayInfo.type || 'descanso',
         dayLabel: dayInfo.label || '',

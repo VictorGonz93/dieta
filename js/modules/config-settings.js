@@ -1,8 +1,8 @@
 ﻿// ==================== CONFIGURACIÓN ====================
 
 import AppState from './state.js';
-import { safeSet } from './storage.js';
-import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget, calculateAutoDeficit, calculateAdaptiveTDEE, clearAdaptiveTDEECache } from './nutrition.js';
+import { safeSet, getDateKey } from './storage.js';
+import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget, calculateAutoDeficit, calculateAutoSurplus, calculateAdaptiveTDEE, clearAdaptiveTDEECache } from './nutrition.js';
 import { recordWeight, updateWeightPrediction, displayNextDayPrediction } from './weight.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -15,6 +15,17 @@ export function loadConfig() {
             if (parsed.startDate) AppState.config.startDate = new Date(parsed.startDate);
         } catch (e) {
             console.warn('Config corrupta, usando valores por defecto:', e.message);
+        }
+    }
+    // Puente completado: avisar UNA vez para pasar a volumen (cambio manual,
+    // nunca automático: el usuario decide cuándo está listo).
+    if (AppState.config.bridgeStartDate && AppState.config.goalPhase === 'mantenimiento') {
+        const start = new Date(AppState.config.bridgeStartDate + 'T00:00:00');
+        const days = Math.floor((Date.now() - start.getTime()) / 86400000);
+        if (days >= 14) {
+            AppState.config.bridgeStartDate = null;
+            safeSet('nutrition_config', AppState.config);
+            showNotification('Puente de 2 semanas completado: puedes pasar a volumen en Config', 'info');
         }
     }
     updateConfigUI();
@@ -59,6 +70,38 @@ export function saveConfig() {
         AppState.config.deficitTarget = parseNum('deficitTargetInput', AppState.config.deficitTarget || 500, true);
     } else {
         AppState.config.deficitTarget = calculateAutoDeficit(AppState.config.currentWeight, AppState.config.lossPace);
+    }
+
+    const prevPhase = AppState.config.goalPhase || 'definicion';
+    const phaseEl = document.getElementById('goalPhaseSelect');
+    if (phaseEl?.value) {
+        AppState.config.goalPhase = phaseEl.value;
+    } else {
+        AppState.config.goalPhase = prevPhase;
+    }
+
+    const gainPaceEl = document.getElementById('gainPaceSelect');
+    if (gainPaceEl?.value) {
+        AppState.config.gainPace = gainPaceEl.value;
+    } else {
+        AppState.config.gainPace = AppState.config.gainPace || 'lento';
+    }
+
+    if (AppState.config.gainPace === 'manual') {
+        AppState.config.surplusTarget = parseNum('surplusTargetInput', AppState.config.surplusTarget || 150, true);
+    } else {
+        AppState.config.surplusTarget = calculateAutoSurplus(AppState.config.currentWeight, AppState.config.gainPace);
+    }
+
+    // Puente tras déficit largo: definicion → volumen sugiere 2 semanas en
+    // mantenimiento primero (evidencia: retorno directo, no reverse gradual).
+    // No se fuerza: el usuario decide con un confirm.
+    if (prevPhase === 'definicion' && AppState.config.goalPhase === 'volumen' && !AppState.config.bridgeStartDate) {
+        if (confirm('Tras un déficit largo conviene un puente de 2 semanas en mantenimiento antes del superávit. ¿Empezarlo ahora?')) {
+            AppState.config.goalPhase = 'mantenimiento';
+            AppState.config.bridgeStartDate = getDateKey(new Date());
+            showNotification('Puente de mantenimiento iniciado (2 semanas)', 'info');
+        }
     }
 
     const tdeeModeEl = document.getElementById('tdeeModeSelect');
@@ -110,6 +153,9 @@ export function updateConfigUI() {
     if (el('gender')) el('gender').value = AppState.config.gender || '';
     if (el('lossPaceSelect')) el('lossPaceSelect').value = AppState.config.lossPace || 'moderado';
     if (el('deficitTargetInput')) el('deficitTargetInput').value = AppState.config.deficitTarget || 500;
+    if (el('goalPhaseSelect')) el('goalPhaseSelect').value = AppState.config.goalPhase || 'definicion';
+    if (el('gainPaceSelect')) el('gainPaceSelect').value = AppState.config.gainPace || 'lento';
+    if (el('surplusTargetInput')) el('surplusTargetInput').value = AppState.config.surplusTarget || 150;
     if (el('tdeeModeSelect')) el('tdeeModeSelect').value = AppState.config.tdeeMode || 'formula';
     if (el('proteinFactorSelect')) el('proteinFactorSelect').value = AppState.config.proteinFactor || 2.0;
 

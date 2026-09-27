@@ -1,10 +1,10 @@
 // ==================== ESTADÍSTICAS Y ANÁLISIS ====================
 
 import AppState from './state.js';
-import { KCAL_PER_KG_FAT } from './constants.js';
+import { KCAL_PER_KG_FAT, LEAN_GAIN_KCAL_PER_KG } from './constants.js';
 import { num } from './utils.js';
 import { getDateKey } from './storage.js';
-import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit } from './nutrition.js';
+import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 
 const HISTORY_PER_PAGE = 10;
@@ -427,8 +427,11 @@ export function updateGoalsDisplay() {
     if (el('lossPaceSelect')) el('lossPaceSelect').value = lossPace;
     if (el('deficitTargetInput')) el('deficitTargetInput').value = deficitTarget;
     if (el('proteinFactorSelect')) el('proteinFactorSelect').value = AppState.config.proteinFactor || 2.0;
+    if (el('goalPhaseSelect')) el('goalPhaseSelect').value = AppState.config.goalPhase || 'definicion';
+    if (el('gainPaceSelect')) el('gainPaceSelect').value = AppState.config.gainPace || 'lento';
+    if (el('surplusTargetInput')) el('surplusTargetInput').value = AppState.config.surplusTarget || 150;
 
-    _updateLossPaceExplanation(w, lossPace, deficitTarget, weeklyLossKg);
+    refreshPhaseExplanations();
 }
 
 function _updateLossPaceExplanation(weight, lossPace, deficit, weeklyLossKg) {
@@ -452,6 +455,44 @@ function _updateLossPaceExplanation(weight, lossPace, deficit, weeklyLossKg) {
     }
 }
 
+function _updateGainPaceExplanation(weight, gainPace, surplus, weeklyGainKg) {
+    const explainEl = document.getElementById('gainPaceExplain');
+    const manualContainer = document.getElementById('manualSurplusContainer');
+
+    if (manualContainer) {
+        manualContainer.style.display = gainPace === 'manual' ? 'block' : 'none';
+    }
+
+    if (explainEl) {
+        if (gainPace === 'lento') {
+            explainEl.innerHTML = `Paso Lento (+0.25%/sem): Superávit de <strong>~${surplus} kcal/día</strong> (Ganancia estimada: <strong>~${weeklyGainKg.toFixed(2)} kg/sem</strong> para tus ${weight} kg).`;
+        } else if (gainPace === 'moderado') {
+            explainEl.innerHTML = `Paso Moderado (+0.50%/sem): Superávit de <strong>~${surplus} kcal/día</strong> (Ganancia estimada: <strong>~${weeklyGainKg.toFixed(2)} kg/sem</strong> para tus ${weight} kg).`;
+        } else if (gainPace === 'manual') {
+            explainEl.innerHTML = `Modo Manual: Superávit fijo de <strong>${surplus} kcal/día</strong> (Ganancia estimada: <strong>~${weeklyGainKg.toFixed(2)} kg/sem</strong>).`;
+        }
+    }
+}
+
+export function refreshPhaseExplanations() {
+    const w = AppState.config.currentWeight || 75;
+    const lossPace = AppState.config.lossPace || 'moderado';
+    const gainPace = AppState.config.gainPace || 'lento';
+    const deficitTarget = calculateAutoDeficit(w, lossPace);
+    const surplusTarget = calculateAutoSurplus(w, gainPace);
+    _updateLossPaceExplanation(w, lossPace, deficitTarget, (deficitTarget * 7) / KCAL_PER_KG_FAT);
+    _updateGainPaceExplanation(w, gainPace, surplusTarget, (surplusTarget * 7) / LEAN_GAIN_KCAL_PER_KG);
+    const phaseEl = document.getElementById('goalPhaseExplain');
+    if (phaseEl) {
+        const phase = AppState.config.goalPhase || 'definicion';
+        phaseEl.textContent = phase === 'volumen'
+            ? 'Tus calorías van por encima de tu gasto (superávit para ganar músculo).'
+            : phase === 'mantenimiento'
+            ? 'Tus calorías igualan tu gasto (ni ganas ni pierdes).'
+            : 'Tus calorías van por debajo de tu gasto (déficit para perder grasa).';
+    }
+}
+
 window._onLossPaceChange = function() {
     const select = document.getElementById('lossPaceSelect');
     if (!select) return;
@@ -462,6 +503,22 @@ window._onLossPaceChange = function() {
         const weeklyLoss = (def * 7) / KCAL_PER_KG_FAT;
         _updateLossPaceExplanation(w, pace, def, weeklyLoss);
     });
+};
+
+window._onGainPaceChange = function() {
+    const select = document.getElementById('gainPaceSelect');
+    if (!select) return;
+    const pace = select.value;
+    const w = AppState.config.currentWeight || 75;
+    import('./nutrition.js').then(m => {
+        const sur = m.calculateAutoSurplus(w, pace);
+        const weeklyGain = (sur * 7) / LEAN_GAIN_KCAL_PER_KG;
+        _updateGainPaceExplanation(w, pace, sur, weeklyGain);
+    });
+};
+
+window._onGoalPhaseChange = function() {
+    refreshPhaseExplanations();
 };
 
 export function updateStatistics() {

@@ -494,8 +494,17 @@
 
                         <!-- Ajuste de Preferencias de Cálculo -->
                         <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700/60 space-y-4">
-                            <h4 class="text-sm font-semibold text-white uppercase tracking-wider text-slate-300">Ajuste de Parámetros de Pérdida</h4>
+                            <h4 class="text-sm font-semibold text-white uppercase tracking-wider text-slate-300">Ajuste de Parámetros de Objetivo</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Fase del Objetivo</label>
+                                    <select id="goalPhaseSelect" onchange="window._onGoalPhaseChange()" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                        <option value="definicion" selected>📉 Definición (déficit calórico)</option>
+                                        <option value="mantenimiento">⚖️ Mantenimiento (= TDEE)</option>
+                                        <option value="volumen">📈 Volumen limpio (superávit moderado)</option>
+                                    </select>
+                                    <p class="text-xs text-slate-400 mt-1.5" id="goalPhaseExplain">Define si tus calorías van por debajo, igual o por encima de tu gasto.</p>
+                                </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">Ritmo de Pérdida Deseado</label>
                                     <select id="lossPaceSelect" onchange="window._onLossPaceChange()" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
@@ -510,6 +519,20 @@
                                     <label class="block text-sm font-medium text-slate-300 mb-2">Déficit Manual (kcal/día)</label>
                                     <input type="number" id="deficitTargetInput" value="500" step="50" min="100" max="1200" placeholder="Ej: 500" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
                                     <p class="text-xs text-slate-400 mt-1.5">Especifica el número exacto de calorías a restar de tu TDEE.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Ritmo de Ganancia (volumen)</label>
+                                    <select id="gainPaceSelect" onchange="window._onGainPaceChange()" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                        <option value="lento" selected>🐢 Lento / Limpio (+0.25% peso corporal/sem)</option>
+                                        <option value="moderado">🚶 Moderado (+0.50% peso corporal/sem)</option>
+                                        <option value="manual">⚙️ Manual (Definir Kcal exactas)</option>
+                                    </select>
+                                    <p class="text-xs text-slate-400 mt-1.5" id="gainPaceExplain">Superávit calculado automáticamente según tu peso actual.</p>
+                                </div>
+                                <div id="manualSurplusContainer" style="display: none;">
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Superávit Manual (kcal/día)</label>
+                                    <input type="number" id="surplusTargetInput" value="150" step="25" min="100" max="500" placeholder="Ej: 150" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                    <p class="text-xs text-slate-400 mt-1.5">Especifica el número exacto de calorías a sumar a tu TDEE.</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">Fuente de TDEE</label>
