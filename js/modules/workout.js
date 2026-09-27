@@ -753,6 +753,67 @@ export function recomputeSessionKcal(dateKey) {
     return ok;
 }
 
+// Bandas de volumen semanal (series DIRECTAS por músculo). Evidencia:
+// Baz-Valle 2022 (12-20 óptimo en entrenados), Pelland 2024 (dosis-respuesta
+// con rendimientos decrecientes; eficiente 4-10), Trexler 2026 (12-30).
+export const VOLUME_BANDS = { LOW_MAX: 7, OPTIMAL_MIN: 10, OPTIMAL_MAX: 20, HIGH_MAX: 30 };
+
+export function volumeBandForSets(sets) {
+    if (sets <= VOLUME_BANDS.LOW_MAX) return 'bajo';
+    if (sets < VOLUME_BANDS.OPTIMAL_MIN) return 'base';
+    if (sets <= VOLUME_BANDS.OPTIMAL_MAX) return 'optimo';
+    if (sets <= VOLUME_BANDS.HIGH_MAX) return 'alto';
+    return 'excesivo';
+}
+
+// Series directas por músculo en una ventana de 7 días terminada en endDateKey
+// (weeksBack=0: semana actual; =1: anterior). Solo fuerza/calistenia/isométrico
+// con trabajo real; cardio y pasos excluidos. Conteo por músculo PRIMARIO del
+// ejercicio (limitación documentada: los compuestos no reparten a secundarios).
+export function getWeeklyMuscleVolume(endDateKey = null, weeksBack = 0) {
+    const sessions = getWorkoutSessions();
+    const allExercisesDB = getExercisesDB();
+    const end = endDateKey ? new Date(endDateKey + 'T00:00:00') : new Date();
+    end.setDate(end.getDate() - weeksBack * 7);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+
+    const muscles = {};
+    const bump = (muscle) => {
+        if (!muscles[muscle]) muscles[muscle] = { sets: 0, days: 0 };
+        return muscles[muscle];
+    };
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const session = sessions[key];
+        if (!session || !Array.isArray(session.exercises)) continue;
+        const dayMuscles = new Set();
+        for (const ex of session.exercises) {
+            if (!ex || typeof ex !== 'object') continue;
+            const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
+            const trackingType = ex.trackingType || (dbEx && dbEx.trackingType) || getExerciseTrackingType(dbEx || ex);
+            if (trackingType === 'steps' || trackingType === 'cardio_distance') continue;
+            let muscle = ex.muscle || (dbEx && dbEx.muscle) || 'Otros';
+            if (!MUSCLES.includes(muscle) || muscle === 'Todos' || muscle === 'Cardio') muscle = 'Otros';
+            const sets = Array.isArray(ex.sets) ? ex.sets : [];
+            let counted = 0;
+            for (const set of sets) {
+                if (!set || typeof set !== 'object') continue;
+                if ((parseFloat(set.reps) || 0) > 0 || (parseFloat(set.secs) || 0) > 0) counted++;
+            }
+            if (counted > 0) {
+                bump(muscle).sets += counted;
+                dayMuscles.add(muscle);
+            }
+        }
+        dayMuscles.forEach(m => { muscles[m].days++; });
+    }
+
+    const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    return { startKey: fmt(start), endKey: fmt(end), muscles };
+}
+
 // Elimina la sesión de una fecha (los targets nutricionales se recalculan
 // solos porque se leen en vivo desde workoutSessions).
 export function deleteWorkoutSession(dateKey) {

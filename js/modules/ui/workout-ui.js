@@ -8,6 +8,7 @@ import {
     setWorkoutDuration, setWorkoutNotes, setWorkoutRestTime, calculateWorkoutDuration,
     finalizeWorkout, estimateWorkoutKcal,
     getWorkoutSessions, getExercisePRs, deleteWorkoutSession, deleteCustomExercise,
+    getWeeklyMuscleVolume, volumeBandForSets, VOLUME_BANDS,
     getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate, loadWorkoutTemplate,
 } from '../workout.js';
 import { getDateKey } from '../storage.js';
@@ -158,6 +159,7 @@ export function showSportTab(tabId) {
     if (tabId === 'entreno-hoy') renderTodayWorkout();
     if (tabId === 'ejercicios') renderExercisesDB();
     if (tabId === 'historial-entrenos') renderWorkoutHistory();
+    if (tabId === 'volumen') renderMuscleVolume();
 }
 window.showSportTab = showSportTab;
 
@@ -970,6 +972,71 @@ function _formatWorkoutSet(set, trackingType, index) {
             return label + `${r(set.reps)}×${r(set.kg)}kg`;
         }
     }
+}
+
+// ─── Volumen muscular semanal ───────────────────────────────────────────────
+const _VOLUME_BAND_STYLE = {
+    bajo: { label: 'Bajo', color: '#F87171' },
+    base: { label: 'Base', color: '#8AA0C0' },
+    optimo: { label: 'Óptimo', color: '#34D399' },
+    alto: { label: 'Alto', color: '#60A5FA' },
+    excesivo: { label: 'Excesivo', color: '#FBBF24' },
+};
+
+export function renderMuscleVolume() {
+    const container = document.getElementById('sport-volumen');
+    if (!container) return;
+
+    const endKey = getDateKey(AppState.currentDate);
+    const cur = getWeeklyMuscleVolume(endKey, 0);
+    const prev = getWeeklyMuscleVolume(endKey, 1);
+    const muscles = MUSCLES.filter(m => m !== 'Todos' && m !== 'Cardio');
+
+    // Alerta: músculo bajo (<8) dos semanas seguidas → riesgo de desentreno
+    const lowNow = (m) => ((cur.muscles[m] && cur.muscles[m].sets) || 0);
+    const lowPrev = (m) => ((prev.muscles[m] && prev.muscles[m].sets) || 0);
+    const alerts = muscles.filter(m => lowNow(m) <= VOLUME_BANDS.LOW_MAX && lowPrev(m) <= VOLUME_BANDS.LOW_MAX);
+
+    const fmtDate = (k) => new Date(k + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+
+    container.innerHTML = `
+        <div class="max-w-2xl mx-auto space-y-4">
+            <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:14px 18px;">
+                <div style="font-weight:700;color:var(--text-1);margin-bottom:2px;">Volumen semanal por músculo</div>
+                <div style="font-size:0.78rem;color:var(--text-2);">Series directas con trabajo real · ${fmtDate(cur.startKey)} – ${fmtDate(cur.endKey)} · Óptimo 10–20 (Baz-Valle 2022)</div>
+            </div>
+            ${alerts.length > 0 ? `
+            <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.35);border-radius:12px;padding:12px 18px;font-size:0.85rem;color:var(--text-1);">
+                ⚠️ Volumen bajo 2 semanas seguidas: <strong>${alerts.map(escapeHTML).join(', ')}</strong>. Considera añadir series o frecuencia.
+            </div>` : ''}
+            ${muscles.map(m => {
+                const sets = lowNow(m);
+                const prevSets = lowPrev(m);
+                const days = (cur.muscles[m] && cur.muscles[m].days) || 0;
+                const band = volumeBandForSets(sets);
+                const style = _VOLUME_BAND_STYLE[band];
+                const pct = Math.min(100, Math.round((sets / VOLUME_BANDS.OPTIMAL_MAX) * 100));
+                return `
+                <div style="background:var(--bg-card);border:1px solid var(--border-base);border-radius:12px;padding:12px 18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;">
+                        <div style="font-weight:600;color:var(--text-1);">${escapeHTML(m)}</div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:0.75rem;color:var(--text-2);">sem. anterior: ${prevSets}</span>
+                            <span style="font-size:0.72rem;font-weight:700;color:${style.color};background:var(--bg-elevated);padding:2px 8px;border-radius:6px;">${style.label}</span>
+                            <span style="font-weight:700;color:var(--text-1);">${sets} series</span>
+                        </div>
+                    </div>
+                    <div style="height:8px;border-radius:4px;background:var(--bg-elevated);overflow:hidden;">
+                        <div style="height:100%;width:${pct}%;background:${style.color};border-radius:4px;transition:width .3s;"></div>
+                    </div>
+                    <div style="font-size:0.72rem;color:var(--text-3);margin-top:4px;">${days} día${days !== 1 ? 's' : ''} entrenado${days !== 1 ? 's' : ''} esta semana</div>
+                </div>`;
+            }).join('')}
+            <div style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:4px 8px;">
+                Conteo directo por músculo primario (los compuestos no reparten a secundarios) · Cardio y pasos excluidos
+            </div>
+        </div>
+    `;
 }
 
 window._deleteWorkoutSession = function (dateKey) {
