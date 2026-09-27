@@ -91,7 +91,7 @@ function await_getDayNumber() {
 
 export function calculateWeightPrediction() {
     if (!AppState.config.weightHistory || AppState.config.weightHistory.length < 2) {
-        return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, confidence: 'low' };
+        return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
     }
 
     const recentHistory = AppState.config.weightHistory.slice(-14);
@@ -101,13 +101,34 @@ export function calculateWeightPrediction() {
     const daysDiff = (new Date(last.date) - new Date(first.date)) / (1000 * 60 * 60 * 24);
     const weightDiff = first.weight - last.weight;
 
-    if (daysDiff === 0) return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, confidence: 'low' };
+    if (daysDiff === 0) return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
 
-    const weeklyLoss = (weightDiff / daysDiff) * 7;
-    const remainingWeight = AppState.config.currentWeight - AppState.config.targetWeight;
+    const weeklyLoss = (weightDiff / daysDiff) * 7; // + pierde, - gana
+    const weeklyGain = -weeklyLoss;
+    const current = AppState.config.currentWeight;
+    const target = AppState.config.targetWeight;
+    const goalPhase = AppState.config.goalPhase || 'definicion';
+    const confidence = AppState.config.weightHistory.length > 20 ? 'high' : 'medium';
 
-    if (weeklyLoss <= 0) {
-        return { estimatedDays: null, estimatedDate: null, weeklyLoss, confidence: 'low' };
+    // Volumen (o target por encima del actual): ETA por ritmo de ganancia
+    if ((goalPhase === 'volumen' || target > current) && target > current && weeklyGain > 0) {
+        const remaining = target - current;
+        const estimatedDays = Math.ceil((remaining / weeklyGain) * 7);
+        const estimatedDate = new Date();
+        estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
+        return {
+            estimatedDays,
+            estimatedDate: estimatedDate.toLocaleDateString('es-ES'),
+            weeklyLoss: weeklyLoss.toFixed(2),
+            weeklyGain: weeklyGain.toFixed(2),
+            confidence,
+        };
+    }
+
+    const remainingWeight = current - target;
+
+    if (weeklyLoss <= 0 || remainingWeight <= 0) {
+        return { estimatedDays: null, estimatedDate: null, weeklyLoss: weeklyLoss.toFixed(2), weeklyGain: weeklyGain.toFixed(2), confidence: 'low' };
     }
 
     const estimatedDays = Math.ceil((remainingWeight / weeklyLoss) * 7);
@@ -118,7 +139,8 @@ export function calculateWeightPrediction() {
         estimatedDays,
         estimatedDate: estimatedDate.toLocaleDateString('es-ES'),
         weeklyLoss: Math.abs(weeklyLoss).toFixed(2),
-        confidence: AppState.config.weightHistory.length > 20 ? 'high' : 'medium',
+        weeklyGain: weeklyGain.toFixed(2),
+        confidence,
     };
 }
 
@@ -372,12 +394,15 @@ export function updateWeightPrediction() {
     const predictionEl = document.getElementById('weightPrediction');
     if (!predictionEl) return;
 
-    if (pred.estimatedDays && pred.weeklyLoss > 0) {
+    const isBulk = (AppState.config.goalPhase || 'definicion') === 'volumen';
+    const rateValue = isBulk ? pred.weeklyGain : pred.weeklyLoss;
+    const rateLabel = isBulk ? 'Ganancia semanal:' : 'Pérdida semanal:';
+    if (pred.estimatedDays && parseFloat(rateValue) > 0) {
         predictionEl.innerHTML = `
             <div class="prediction-card">
                 <div class="prediction-title">Proyección de Peso</div>
                 <div class="prediction-content">
-                    <div class="prediction-stat"><span>Pérdida semanal:</span><strong>${pred.weeklyLoss} kg</strong></div>
+                    <div class="prediction-stat"><span>${rateLabel}</span><strong>${parseFloat(rateValue).toFixed(2)} kg</strong></div>
                     <div class="prediction-stat"><span>Días para meta:</span><strong>${pred.estimatedDays}</strong></div>
                     <div class="prediction-stat"><span>Fecha estimada:</span><strong>${pred.estimatedDate}</strong></div>
                     <div class="prediction-confidence">(Confianza: ${pred.confidence})</div>

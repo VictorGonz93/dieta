@@ -159,15 +159,64 @@ export function getWeeklyProgress() {
     const stats = calculateWeeklyStats();
     const currentWeight = AppState.config.currentWeight || 75;
     const lossPace = AppState.config.lossPace || 'moderado';
-    // Fuente única: calculateAutoDeficit (con clamps de piso y 30% TDEE).
-    // Si el día actual tiene actualDeficit calculado, ese manda (déficit real).
+    const goalPhase = AppState.config.goalPhase || 'definicion';
     const todayKey = getDateKey(AppState.currentDate);
     const todayTargets = getDynamicDayTargets(todayKey);
+    const actualLoss = parseFloat(stats.weeklyLoss) || 0; // + pierde, - gana
+
+    // VOLUMEN: umbrales sobre ritmo de ganancia (%/sem). Evidencia Helms 2023:
+    // 0.10-0.30%/sem óptimo; >0.60% sostenido = grasa (recortar superávit).
+    if (goalPhase === 'volumen') {
+        const surplus = (todayTargets && Number.isFinite(todayTargets.surplusTarget) && todayTargets.surplusTarget > 0)
+            ? todayTargets.surplusTarget
+            : calculateAutoSurplus(currentWeight, AppState.config.gainPace || 'lento');
+        const expectedWeeklyGain = parseFloat(((surplus * 7) / LEAN_GAIN_KCAL_PER_KG).toFixed(2));
+        const gainActual = -actualLoss; // + ganando
+        const gainRatePct = (gainActual / currentWeight) * 100;
+        let status;
+        if (gainActual <= 0.02) status = 'Estancado';
+        else if (gainRatePct > 0.60) status = 'Muy rápido';
+        else if (gainRatePct > 0.40) status = 'Algo rápido';
+        else if (gainRatePct >= 0.10) status = 'En camino';
+        else status = 'Algo lento';
+        const diff = gainActual - expectedWeeklyGain;
+        const target = AppState.config.targetWeight;
+        const daysToGoal = (target > currentWeight && gainActual > 0)
+            ? Math.round((target - currentWeight) / (gainActual / 7))
+            : 0;
+        return {
+            status,
+            weeklyLoss: stats.weeklyLoss,
+            expectedWeeklyLoss: expectedWeeklyGain,
+            expectedWeeklyGain,
+            diff: diff.toFixed(2),
+            daysToGoal,
+            estimatedDate: new Date(Date.now() + daysToGoal * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+        };
+    }
+
+    // MANTENIMIENTO: estable si |ritmo| < 0.10%/sem
+    if (goalPhase === 'mantenimiento') {
+        const ratePct = (actualLoss / currentWeight) * 100; // + pierde
+        let status;
+        if (Math.abs(ratePct) < 0.10) status = 'Estable';
+        else if (ratePct <= -0.10) status = 'Por encima';
+        else status = 'Por debajo';
+        return {
+            status,
+            weeklyLoss: stats.weeklyLoss,
+            expectedWeeklyLoss: 0,
+            diff: actualLoss.toFixed(2),
+            daysToGoal: 0,
+            estimatedDate: new Date().toLocaleDateString('es-ES'),
+        };
+    }
+
+    // DEFINICIÓN: lógica original (déficit real del día o calculado)
     const dailyDeficit = (todayTargets && Number.isFinite(todayTargets.actualDeficit) && todayTargets.actualDeficit > 0)
         ? todayTargets.actualDeficit
         : calculateAutoDeficit(currentWeight, lossPace);
     const expectedWeeklyLoss = parseFloat(((dailyDeficit * 7) / KCAL_PER_KG_FAT).toFixed(2));
-    const actualLoss = parseFloat(stats.weeklyLoss) || 0;
     const diff = actualLoss - expectedWeeklyLoss;
     // weeklyLoss con signo: positivo = perdiendo, negativo = ganando
     const status = actualLoss < -0.05 ? 'Ganando peso'
@@ -364,10 +413,17 @@ export function displayGoalsTracking() {
 
 export function updateGoalsDisplay() {
     const { startWeight, currentWeight, targetWeight } = AppState.config;
+    const goalPhase = AppState.config.goalPhase || 'definicion';
+    const isBulk = goalPhase === 'volumen' || (targetWeight > currentWeight && targetWeight > startWeight);
     const totalToLose = (startWeight || 0) - (targetWeight || 0);
     const alreadyLost = (startWeight || 0) - (currentWeight || 0);
     const stillToLose = (currentWeight || 0) - (targetWeight || 0);
-    const progressPercent = totalToLose > 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0;
+    // Progreso espejado en volumen: (actual-inicio)/(meta-inicio)
+    const totalToGain = (targetWeight || 0) - (startWeight || 0);
+    const alreadyGained = (currentWeight || 0) - (startWeight || 0);
+    const progressPercent = isBulk
+        ? (totalToGain > 0 ? Math.round((alreadyGained / totalToGain) * 100) : 0)
+        : (totalToLose > 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0);
 
     const w = currentWeight || 75;
     const lossPace = AppState.config.lossPace || 'moderado';
@@ -378,11 +434,19 @@ export function updateGoalsDisplay() {
 
     // ETA con el déficit REAL del día (piso calórico / macros mínimas pueden
     // recortarlo respecto al teórico). Fallback al objetivo si no hay dato.
+    // En volumen se usa el superávit equivalente (LEAN_GAIN_KCAL_PER_KG).
     const effectiveDeficit = (dynamic && Number.isFinite(dynamic.actualDeficit) && dynamic.actualDeficit > 0)
         ? dynamic.actualDeficit
         : deficitTarget;
     const weeklyLossKg = (effectiveDeficit * 7) / KCAL_PER_KG_FAT; // kg/semana equivalentes
-    const weeksRemaining = weeklyLossKg > 0 && stillToLose > 0 ? Math.ceil(stillToLose / weeklyLossKg) : 0;
+    const effectiveSurplus = (dynamic && Number.isFinite(dynamic.surplusTarget) && dynamic.surplusTarget > 0)
+        ? dynamic.surplusTarget
+        : calculateAutoSurplus(w, AppState.config.gainPace || 'lento');
+    const weeklyGainKg = (effectiveSurplus * 7) / LEAN_GAIN_KCAL_PER_KG;
+    const stillToGain = (targetWeight || 0) - (currentWeight || 0);
+    const weeklyRateKg = isBulk ? weeklyGainKg : weeklyLossKg;
+    const stillToGo = isBulk ? stillToGain : stillToLose;
+    const weeksRemaining = weeklyRateKg > 0 && stillToGo > 0 ? Math.ceil(stillToGo / weeklyRateKg) : 0;
     const daysRemaining = weeksRemaining * 7;
 
     // ?? (no ||): carbs puede ser 0 legítimo y || lo convertiría en 130
@@ -395,22 +459,25 @@ export function updateGoalsDisplay() {
     if (el('goalStartWeight')) el('goalStartWeight').textContent = startWeight ? `${startWeight} kg` : '-';
     if (el('goalCurrentWeight')) el('goalCurrentWeight').textContent = currentWeight ? `${currentWeight} kg` : '-';
     if (el('goalTargetWeight')) el('goalTargetWeight').textContent = targetWeight ? `${targetWeight} kg` : '-';
-    if (el('goalWeightLost')) el('goalWeightLost').textContent = alreadyLost > 0 ? `${alreadyLost.toFixed(1)} kg` : '0 kg';
+    if (el('goalWeightLost')) el('goalWeightLost').textContent = isBulk
+        ? (alreadyGained > 0 ? `+${alreadyGained.toFixed(1)} kg` : '0 kg')
+        : (alreadyLost > 0 ? `${alreadyLost.toFixed(1)} kg` : '0 kg');
     if (el('goalProgressBar')) el('goalProgressBar').style.width = `${Math.min(progressPercent, 100)}%`;
     if (el('goalProgressPercent')) el('goalProgressPercent').textContent = `${progressPercent}%`;
 
+    const rateExplain = `(${weeklyRateKg.toFixed(2)} kg/semana)`;
     let timeEstimate = '-', timeExplain = '';
-    if (stillToLose > 0) {
+    if (stillToGo > 0) {
         if (weeksRemaining === 0) {
             timeEstimate = '¡Ya casi!';
             timeExplain = 'Estás muy cerca de tu objetivo';
         } else if (weeksRemaining < 4) {
             timeEstimate = `${weeksRemaining} semana${weeksRemaining > 1 ? 's' : ''}`;
-            timeExplain = `Aproximadamente ${daysRemaining} días (${weeklyLossKg.toFixed(2)} kg/semana)`;
+            timeExplain = `Aproximadamente ${daysRemaining} días ${rateExplain}`;
         } else {
             const months = Math.ceil(weeksRemaining / 4.3);
             timeEstimate = `${months} mes${months > 1 ? 'es' : ''}`;
-            timeExplain = `Aproximadamente ${weeksRemaining} semanas (${weeklyLossKg.toFixed(2)} kg/semana)`;
+            timeExplain = `Aproximadamente ${weeksRemaining} semanas ${rateExplain}`;
         }
     } else {
         timeEstimate = 'Objetivo alcanzado';
