@@ -71,7 +71,8 @@ function _getWorkoutKcalForDate(dateKey, sessions) {
     try {
         const session = sessions[dateKey];
         if (session && session.exercises && session.exercises.length > 0) {
-            return session.estimatedKcal || 0;
+            // parseFloat: un estimatedKcal corrupto (string) no debe envenenar sumas
+            return parseFloat(session.estimatedKcal) || 0;
         }
     } catch {}
     return 0;
@@ -88,7 +89,11 @@ function _sumDayKcal(dateKey) {
             if (Number.isFinite(k)) total += k;
         });
     });
-    return total;
+    // Winsorización anti-atracones: un solo día no puede aportar más de 2× el
+    // mantenimiento fórmula. Sin cap, un día de 6000 kcal con 10 días válidos
+    // desviaba el promedio ~+420 kcal. El día sigue contando como registrado.
+    const cap = _getFormulaTMR(AppState.config.currentWeight) * 1.25 * 2;
+    return Math.min(total, cap);
 }
 
 function _getFormulaTMR(weightKg) {
@@ -163,8 +168,12 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
 
     const weightHistory = AppState.config.weightHistory || [];
 
-    // Solo usar entradas de peso ANTERIORES a dateKey (excluir el día objetivo)
-    const historicalWeights = weightHistory.filter(w => w.date < dateKey);
+    // Solo usar entradas de peso ANTERIORES a dateKey (excluir el día objetivo).
+    // Orden defensivo: un import desordenado rompía ventana/span (daysBetween≈1
+    // distorsionaba el Δ ×7700). El orden canónico también se guarda al importar.
+    const historicalWeights = weightHistory
+        .filter(w => w && typeof w.date === 'string' && w.date < dateKey)
+        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
     // BUG FIX 1: formulaTDEE usa el peso más reciente del histórico, no el actual
     const lastHistoricalWeight = historicalWeights.length > 0

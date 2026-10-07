@@ -262,6 +262,27 @@ function _isPlainObject(v) {
     return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
+// Sanea un historial de pesos: solo entradas con fecha YYYY-MM-DD válida y
+// peso finito en rango humano (25-350 kg). Devuelve {clean, dropped}.
+// Sin esto, un import con pesos corruptos degradaba el TDEE adaptativo
+// (pesos no numéricos → Δ tratado como 0; fechas malas → filtros/orden rotos).
+export function _sanitizeWeightHistory(hist) {
+    if (!Array.isArray(hist)) return { clean: [], dropped: 0 };
+    const clean = [];
+    let dropped = 0;
+    for (const e of hist) {
+        const dateOk = e && typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date);
+        const w = parseFloat(e && e.weight);
+        if (dateOk && Number.isFinite(w) && w >= 25 && w <= 350) {
+            clean.push({ ...e, weight: w });
+        } else {
+            dropped++;
+        }
+    }
+    clean.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    return { clean, dropped };
+}
+
 export function validateBackupData(data) {
     const errors = [];
     const warnings = [];
@@ -304,6 +325,19 @@ export function validateBackupData(data) {
         !_isPlainObject(data.predictionCalibration)) {
         warnings.push('Sección "predictionCalibration" malformada: omitida');
         data.predictionCalibration = undefined;
+    }
+    // Historiales de peso: sanean + ordenan (no bloquean el restore, avisan)
+    for (const key of ['weight_history']) {
+        if (data[key] !== undefined) {
+            const { clean, dropped } = _sanitizeWeightHistory(data[key]);
+            if (dropped > 0) warnings.push(`Historial "${key}": ${dropped} entrada(s) inválidas descartadas`);
+            data[key] = clean;
+        }
+    }
+    if (data.config && data.config.weightHistory !== undefined) {
+        const { clean, dropped } = _sanitizeWeightHistory(data.config.weightHistory);
+        if (dropped > 0) warnings.push(`Historial "config.weightHistory": ${dropped} entrada(s) inválidas descartadas`);
+        data.config.weightHistory = clean;
     }
 
     return { ok: errors.length === 0, errors, warnings, days };
@@ -511,8 +545,10 @@ export function restoreFromBackup() {
 
         const weightHist = (backup.config && backup.config.weightHistory) || backup.weight_history;
         if (weightHist && weightHist.length > 0) {
-            AppState.config.weightHistory = weightHist;
-            safeSet('weight_history', weightHist);
+            const { clean, dropped } = _sanitizeWeightHistory(weightHist);
+            if (dropped > 0) console.warn(`[Restore] ${dropped} peso(s) inválidos descartados`);
+            AppState.config.weightHistory = clean;
+            safeSet('weight_history', clean);
         }
 
         if (backup.days) {

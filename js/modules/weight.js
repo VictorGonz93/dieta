@@ -24,6 +24,11 @@ export function loadWeightHistory() {
     } else {
         const parsed = safeGet('weight_history', []);
         AppState.config.weightHistory = Array.isArray(parsed) ? parsed : [];
+        // Orden canónico por fecha (los gráficos/regresión asumen cronología)
+        AppState.config.weightHistory.sort((a, b) => {
+            const da = a && a.date, db = b && b.date;
+            return da < db ? -1 : da > db ? 1 : 0;
+        });
         let migratedCount = 0;
         AppState.config.weightHistory.forEach((entry) => {
             if (entry.predictedWeight === undefined) {
