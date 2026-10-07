@@ -171,10 +171,11 @@ export function getWeeklyProgress() {
             ? todayTargets.surplusTarget
             : calculateAutoSurplus(currentWeight, AppState.config.gainPace || 'lento');
         const expectedWeeklyGain = parseFloat(((surplus * 7) / LEAN_GAIN_KCAL_PER_KG).toFixed(2));
-        const gainActual = -actualLoss; // + ganando
+        const gainActual = -actualLoss; // + ganando, - perdiendo
         const gainRatePct = (gainActual / currentWeight) * 100;
         let status;
-        if (gainActual <= 0.02) status = 'Estancado';
+        if (gainActual < -0.05) status = 'Perdiendo peso';
+        else if (gainActual <= 0.02) status = 'Estancado';
         else if (gainRatePct > 0.60) status = 'Muy rápido';
         else if (gainRatePct > 0.40) status = 'Algo rápido';
         else if (gainRatePct >= 0.10) status = 'En camino';
@@ -552,11 +553,20 @@ export function refreshPhaseExplanations() {
     const phaseEl = document.getElementById('goalPhaseExplain');
     if (phaseEl) {
         const phase = AppState.config.goalPhase || 'definicion';
-        phaseEl.textContent = phase === 'volumen'
+        let text = phase === 'volumen'
             ? 'Tus calorías van por encima de tu gasto (superávit para ganar músculo).'
             : phase === 'mantenimiento'
             ? 'Tus calorías igualan tu gasto (ni ganas ni pierdes).'
             : 'Tus calorías van por debajo de tu gasto (déficit para perder grasa).';
+        // Contador del puente de mantenimiento (día X de 14)
+        if (phase === 'mantenimiento' && AppState.config.bridgeStartDate) {
+            const start = new Date(AppState.config.bridgeStartDate + 'T00:00:00');
+            const days = Math.floor((Date.now() - start.getTime()) / 86400000);
+            if (Number.isFinite(days) && days >= 0) {
+                text += ` Puente en curso: día ${Math.min(days + 1, 14)} de 14.`;
+            }
+        }
+        phaseEl.textContent = text;
     }
 }
 

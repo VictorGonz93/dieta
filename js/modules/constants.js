@@ -1,6 +1,6 @@
 // ==================== CONSTANTES GLOBALES ====================
 
-export const CURRENT_APP_VERSION = 120;
+export const CURRENT_APP_VERSION = 121;
 
 // Energía por kg de tejido adiposo (~87% lípidos a ~9400 kcal/kg).
 // Usar este valor COMPLETO: ya incluye la composición del tejido.
@@ -8,9 +8,10 @@ export const CURRENT_APP_VERSION = 120;
 export const KCAL_PER_KG_FAT = 7700;
 
 // Coste energético por kg de tejido magro ganado en superávit (~6000 kcal/kg).
-// El músculo es ~75% agua + coste de síntesis proteica. Rango literatura
-// 5000-7700 según proporción agua/grasa del tejido ganado; 6000 es el punto
-// medio conservador (Garthe, Slater 2019). La titulación por báscula corrige.
+// El músculo es ~75% agua + coste de síntesis proteica. Joosen & Westerterp
+// estiman 6050 para depositar 1 kg de músculo (vía Slater 2019); Forbes 7440
+// es el extremo alto. 6000 es el punto defendible y conservador; la
+// titulación semanal por báscula (umbrales de progreso) corrige el resto.
 export const LEAN_GAIN_KCAL_PER_KG = 6000;
 
 export const UNIT_CONVERSIONS = {
