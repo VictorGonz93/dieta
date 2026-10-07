@@ -480,6 +480,9 @@ export function updateGoalsDisplay() {
             timeEstimate = `${months} mes${months > 1 ? 'es' : ''}`;
             timeExplain = `Aproximadamente ${weeksRemaining} semanas ${rateExplain}`;
         }
+    } else if (isBulk) {
+        timeEstimate = 'Define tu meta';
+        timeExplain = 'En volumen la meta debe estar por encima de tu peso actual';
     } else {
         timeEstimate = 'Objetivo alcanzado';
         timeExplain = 'Has llegado a tu peso objetivo';

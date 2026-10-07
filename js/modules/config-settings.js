@@ -120,6 +120,15 @@ export function saveConfig() {
 
     AppState.config.proteinGoal = Math.round((AppState.config.currentWeight || 75) * AppState.config.proteinFactor);
 
+    // En volumen la meta debe estar por encima del peso actual; si no, avisar
+    // (no se bloquea ni se auto-cambia: el usuario pone su número).
+    if (AppState.config.goalPhase === 'volumen'
+        && Number.isFinite(AppState.config.targetWeight)
+        && Number.isFinite(AppState.config.currentWeight)
+        && AppState.config.targetWeight <= AppState.config.currentWeight) {
+        showNotification('En volumen la meta debe superar tu peso actual (p. ej. +2-3 kg)', 'warning');
+    }
+
     if (newWeight !== oldWeight) {
         recordWeight(new Date(), newWeight);
     }
