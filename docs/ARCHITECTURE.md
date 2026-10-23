@@ -90,7 +90,10 @@ NO → Fallback offline
 ```
 
 ### Export/Import JSON
-- `exportData()` - Exporta TODO: config + días + productos + estadísticas
+- `exportData()` - Backup completo: datos + estadísticas y predicción
+- `exportDatabaseJSON()` - Solo base de datos (días, pesos, entrenos, productos, combos); reimportable
+- `exportProductsJSON()` - Solo productos personalizados
+- `exportRangeJSON()` / `exportRangeCSV()` - Días de un rango con macros objetivo, diferencias y cumplimiento
 - `importData()` - Restaura desde backup JSON
 
 ## � Estructura Interna de app.js
@@ -146,7 +149,8 @@ El archivo `app.js` (2838 líneas) está organizado en **secciones funcionales**
 
 // 12. Data Management (líneas 2565-2803)
 //     loadAllDays(), saveDays()
-//     exportData(), exportCSV(), importData()
+//     exportData(), exportDatabaseJSON(), exportProductsJSON(),
+//     exportRangeJSON(), exportRangeCSV(), exportCSV(), importData()
 //     clearAllData()
 ```
 

@@ -159,7 +159,7 @@ function _tdeeFromEntries(entries, minValidDays) {
  * Resultados cacheados — llamar clearAdaptiveTDEECache() al modificar peso.
  *
  * @param {string} dateKey - Fecha objetivo (YYYY-MM-DD)
- * @returns {{ tdee, confidence, daysUsed, formulaTDEE, avgWorkoutPerDay, ... }}
+ * @returns {{ tdee, confidence, source, daysUsed, formulaTDEE, avgWorkoutPerDay, ... }}
  */
 export function calculateAdaptiveTDEEForDate(dateKey) {
     if (_adaptiveTDEECache.has(dateKey)) {
@@ -182,7 +182,7 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     const formulaTDEE = Math.round(_getFormulaTMR(lastHistoricalWeight) * 1.25);
 
     if (historicalWeights.length < 14) {
-        const result = { tdee: formulaTDEE, confidence: 'none', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
+        const result = { tdee: formulaTDEE, confidence: 'none', source: 'formula', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
@@ -198,7 +198,7 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
 
     // Ventana demasiado dispersa: el Δ de peso no representa el periodo
     if (daysBetween > 45) {
-        const result = { tdee: formulaTDEE, confidence: 'low', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
+        const result = { tdee: formulaTDEE, confidence: 'low', source: 'formula', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
@@ -224,7 +224,7 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
 
     // Fallback con validDays < 10 no debe restar workouts del TDEE fórmula
     if (validDays < 10) {
-        const result = { tdee: formulaTDEE, confidence: 'low', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay: 0 };
+        const result = { tdee: formulaTDEE, confidence: 'low', source: 'formula', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay: 0 };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
@@ -268,6 +268,7 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     const result = {
         tdee: Math.round(smoothedTDEE),
         confidence,
+        source: 'adaptive',
         daysUsed: validDays,
         formulaTDEE,
         rawAdaptive: Math.round(adaptiveTDEE),
@@ -396,23 +397,26 @@ export function getDynamicDayTargets(dateKey) {
     let adaptiveResult = null;
     const formulaTDEE = Math.round(tmr * 1.25);
     const CAP = 400;
+    let useAdaptiveEstimate = false;
     if (tdeeMode === 'adaptive') {
         adaptiveResult = calculateAdaptiveTDEEForDate(dateKey);
-        if (adaptiveResult.confidence !== 'none') {
+        if (adaptiveResult.source === 'adaptive') {
             // Usar TDEE adaptativo directamente — ya incluye el efecto de workouts
+            useAdaptiveEstimate = true;
             tdeeBase = Math.round(adaptiveResult.tdee);
             // Proteger tdeeBase: no puede bajar de formulaTDEE - CAP
             tdeeBase = Math.max(formulaTDEE - CAP, tdeeBase);
         } else {
+            // Fallback a fórmula (pocos pesajes, ventana dispersa o <10 días
+            // válidos): NO incluye workouts, así que se suman como en fórmula.
             tdeeBase = formulaTDEE;
         }
     } else {
         tdeeBase = formulaTDEE;
     }
-    // In adaptive mode, workoutKcal is already included in the TDEE estimate
-    // (historical workouts contribute to weight change → reflected in adaptive TDEE)
-    // In formula mode, we add today's workout kcal explicitly
-    const tdee = tdeeMode === 'adaptive' ? tdeeBase : tdeeBase + workoutKcal;
+    // Con estimación adaptativa real, las kcal del entreno ya están reflejadas
+    // en el TDEE (histórico de peso). Sin ella (fórmula o fallback), se suman.
+    const tdee = useAdaptiveEstimate ? tdeeBase : tdeeBase + workoutKcal;
 
     // Fase del objetivo: definicion (déficit), mantenimiento (=TDEE) o
     // volumen (superávit). Por defecto definicion = comportamiento histórico.

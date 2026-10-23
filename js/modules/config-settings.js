@@ -196,6 +196,9 @@ export function updateCalculatedValues() {
         if (adaptive.confidence === 'none') {
             el('tdeeAdaptiveValue').textContent = `- (necesita ≥14 días de datos)`;
             el('tdeeAdaptiveValue').style.color = 'var(--text-2)';
+        } else if (adaptive.source === 'formula') {
+            el('tdeeAdaptiveValue').textContent = `${adaptive.tdee} kcal/día (fórmula)`;
+            el('tdeeAdaptiveValue').style.color = 'var(--text-2)';
         } else {
             const diff = adaptive.tdee - adaptive.formulaTDEE;
             const sign = diff > 0 ? '+' : '';
@@ -204,7 +207,10 @@ export function updateCalculatedValues() {
         }
     }
     if (el('tdeeAdaptiveDetail')) {
-        if (adaptive.confidence !== 'none') {
+        if (adaptive.source === 'formula' && adaptive.confidence !== 'none') {
+            el('tdeeAdaptiveDetail').textContent = `Sin estimación adaptativa fiable (${adaptive.daysUsed} días); usando fórmula + entreno del día.`;
+            el('tdeeAdaptiveDetail').style.display = 'block';
+        } else if (adaptive.confidence !== 'none') {
             const diff = adaptive.tdee - adaptive.formulaTDEE;
             const sign = diff > 0 ? '+' : '';
             el('tdeeAdaptiveDetail').textContent = `Fórmula: ${adaptive.formulaTDEE} | Diferencia: ${sign}${diff} | Confianza: ${adaptive.confidence} | Datos: ${adaptive.daysUsed} días`;

@@ -595,6 +595,10 @@
                                 <span class="material-icons text-lg">qr_code_scanner</span>
                                 <span>Escanear</span>
                             </button>
+                            <button onclick="exportProductsJSON()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg smooth-transition flex items-center gap-1.5 shrink-0 font-semibold text-sm cursor-pointer" title="Exportar tus productos personalizados">
+                                <span class="material-icons text-lg">download</span>
+                                <span>Exportar</span>
+                            </button>
                             <select id="categoryFilter" class="w-36 shrink-0 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
                                 <option value="">Todas</option>
                                 <option value="bebidas">Bebidas</option>
@@ -1031,8 +1035,11 @@
                             Gestión de Datos
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button onclick="exportDatabaseJSON()" class="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg smooth-transition flex items-center justify-center gap-2">
+                                <span class="material-icons">storage</span> Base de datos (JSON)
+                            </button>
                             <button onclick="exportData()" class="py-3 px-4 gradient-success text-white font-semibold rounded-lg hover:shadow-lg smooth-transition flex items-center justify-center gap-2">
-                                <span class="material-icons">download</span> Descargar JSON
+                                <span class="material-icons">download</span> Backup completo (JSON)
                             </button>
                             <button onclick="exportCSV()" class="py-3 px-4 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition flex items-center justify-center gap-2">
                                 <span class="material-icons">table_chart</span> Descargar CSV
@@ -1046,6 +1053,50 @@
                             </button>
                             <button onclick="clearAllData()" class="py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg smooth-transition flex items-center justify-center gap-2">
                                 <span class="material-icons">delete</span> Limpiar Todo
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-3"><strong>Base de datos:</strong> días, comidas, pesos, entrenos, productos personalizados, combos e historial (reimportable). <strong>Backup completo:</strong> añade resúmenes, estadísticas y predicción.</p>
+                    </div>
+
+                    <div class="stat-card mb-8">
+                        <h3 class="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                            <span class="material-icons">date_range</span>
+                            Exportar días seleccionados
+                        </h3>
+                        <p class="text-slate-400 text-sm mb-4">Elige un rango. Se incluyen las macros objetivo de cada día (TDEE congelado), la diferencia y el % de cumplimiento.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label for="exportRangeFrom" class="block text-xs font-medium text-slate-400 mb-1">Desde</label>
+                                <input type="date" id="exportRangeFrom" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
+                            </div>
+                            <div>
+                                <label for="exportRangeTo" class="block text-xs font-medium text-slate-400 mb-1">Hasta</label>
+                                <input type="date" id="exportRangeTo" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <button onclick="setExportRangePreset(7)" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg smooth-transition">Últimos 7 días</button>
+                            <button onclick="setExportRangePreset(30)" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg smooth-transition">Últimos 30 días</button>
+                            <button onclick="setExportRangePreset('month')" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg smooth-transition">Este mes</button>
+                            <button onclick="setExportRangePreset('all')" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg smooth-transition">Todo</button>
+                        </div>
+                        <div class="space-y-2 mb-4">
+                            <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="exportOnlyLogged" class="w-4 h-4 accent-emerald-500">
+                                Solo días con registros
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="exportIncludeMeals" checked class="w-4 h-4 accent-emerald-500">
+                                Incluir comidas detalladas (JSON)
+                            </label>
+                        </div>
+                        <p id="exportRangeHint" class="text-xs text-slate-500 mb-4">-</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <button onclick="exportRangeJSON()" class="py-3 px-4 gradient-success text-white font-semibold rounded-lg hover:shadow-lg smooth-transition flex items-center justify-center gap-2">
+                                <span class="material-icons">description</span> Días (JSON)
+                            </button>
+                            <button onclick="exportRangeCSV()" class="py-3 px-4 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition flex items-center justify-center gap-2">
+                                <span class="material-icons">table_chart</span> Días (CSV)
                             </button>
                         </div>
                     </div>

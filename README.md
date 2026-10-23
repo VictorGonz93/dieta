@@ -54,7 +54,7 @@ Acceso rápido a la información nutricional de miles de alimentos.
 - **Tus propios productos** — Crea y guarda recetas favoritas
 - **Favoritos** para acceso instantáneo
 - **Filtros avanzados** por categoría, calorías, proteína
-- **Import/Export** de tus productos personalizados
+- **Export JSON** de tus productos personalizados (con los precargados aparte)
 
 ---
 
@@ -112,7 +112,10 @@ Personalización completa de la app y gestión de datos.
 - Preferencias de visualización
 
 **Datos:**
-- **Export JSON** — Descarga todo (config, historia, predicciones)
+- **Base de datos (JSON)** — Solo tus datos (días, comidas, pesos, entrenos, productos, combos e historial), sin estadísticas. Reimportable.
+- **Productos personalizados (JSON)** — Desde la pestaña Base de Datos, solo tus alimentos creados.
+- **Backup completo (JSON)** — Añade resúmenes, estadísticas y predicción.
+- **Días seleccionados (JSON/CSV)** — Elige un rango; incluye macros objetivo por día, diferencias y % de cumplimiento.
 - **Export CSV** — Formato Excel para análisis avanzado
 - **Import** — Restaura tu backup en cualquier dispositivo
 - **Dark Mode** — Activado por defecto (navy/esmeralda)
@@ -233,7 +236,7 @@ Confianza:    Alta (basada en 6+ datos)
 
 ### Backup & Restauración
 ```
-1. Config → Export JSON
+1. Config → Backup completo (JSON)
    ↓ Se descarga: nutrition_backup_20250526.json
 
 2. En otro dispositivo → Config → Import

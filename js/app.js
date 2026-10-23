@@ -9,7 +9,7 @@ import { loadCustomProducts, addNewProduct, deleteProduct, editProductCustomUnit
 import { loadConfig, saveConfig, updateHeaderInfo } from './modules/config-settings.js';
 import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previousDay, nextDay, todayDay, copyYesterdayMeals } from './modules/meals.js';
 import { loadWeightHistory, saveDailyWeight, updateWeightPrediction, displayNextDayPrediction, renderWeightHistory, updateWeightEntry, deleteWeightEntry } from './modules/weight.js';
-import { loadAllDays, loadMealCombos, exportData, exportCSV, importData, clearAllData, autoBackup, restoreFromBackup } from './modules/storage.js';
+import { loadAllDays, loadMealCombos, exportData, exportCSV, exportDatabaseJSON, exportProductsJSON, exportRangeJSON, exportRangeCSV, setExportRangePreset, initExportRangeUI, importData, clearAllData, autoBackup, restoreFromBackup } from './modules/storage.js';
 import { initializeCharts } from './modules/charts.js';
 import { initWorkoutPlan, updateWorkoutPlan, saveWorkoutPlan, resetWorkoutPlan } from './modules/workout.js';
 
@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMealCombos();
     loadWeightHistory();
     loadAllDays();
+    initExportRangeUI();
     autoBackup();
     initializeToday();
     renderProductsList();
@@ -115,6 +116,11 @@ window.copyYesterdayMeals = copyYesterdayMeals;
 window.saveDailyWeight = saveDailyWeight;
 window.saveConfig = saveConfig;
 window.exportData = exportData;
+window.exportDatabaseJSON = exportDatabaseJSON;
+window.exportProductsJSON = exportProductsJSON;
+window.exportRangeJSON = exportRangeJSON;
+window.exportRangeCSV = exportRangeCSV;
+window.setExportRangePreset = setExportRangePreset;
 window.exportCSV = exportCSV;
 window.importData = importData;
 window.clearAllData = clearAllData;
