@@ -351,6 +351,9 @@ export function initTodayWorkout(dateKey) {
         ? { ...saved }
         : { date: dateKey, exercises: [], duration: 0, restTimeMin: 3, notes: '', finalized: false };
     if (_todayWorkout.restTimeMin === undefined) _todayWorkout.restTimeMin = 3;
+    // Sesiones antiguas sin el campo: se consideran realizadas, no borradores.
+    if (_todayWorkout.finalized === undefined) _todayWorkout.finalized = true;
+    if (!Array.isArray(_todayWorkout.exercises)) _todayWorkout.exercises = [];
 }
 
 export function getTodayWorkout() { return _todayWorkout; }
@@ -419,6 +422,8 @@ export function addExerciseToWorkout(exerciseId) {
         sets: initialSets
     });
 
+    // Acción explícita: la sesión vuelve a existir y deja de estar "borrada".
+    if (_todayWorkout.date) _clearTombstone('sessions', _todayWorkout.date);
     _autoSave();
     showNotification(`"${ex.name}" añadido al entreno de hoy`, 'success');
     return true;
@@ -498,10 +503,10 @@ export function toggleSetDone(exerciseId, setIndex) {
 }
 
 export function getFrequentExercises() {
-    const sessions = getWorkoutSessions();
+    const sessions = getFinalizedWorkoutSessions();
     const frequencyMap = {};
     Object.values(sessions).forEach(sess => {
-        if (sess && sess.exercises) {
+        if (sess && Array.isArray(sess.exercises)) {
             sess.exercises.forEach(ex => {
                 frequencyMap[ex.exerciseId] = (frequencyMap[ex.exerciseId] || 0) + 1;
             });
@@ -517,13 +522,16 @@ export function getFrequentExercises() {
 
 export function setWorkoutDuration(minutes) {
     if (!_todayWorkout) return;
-    _todayWorkout.duration = parseInt(minutes) || 0;
+    const n = parseFloat(minutes);
+    _todayWorkout.duration = Number.isFinite(n) ? Math.min(1440, Math.max(0, n)) : 0;
     _autoSave();
 }
 
 export function setWorkoutRestTime(minutes) {
     if (!_todayWorkout) return;
-    _todayWorkout.restTimeMin = parseInt(minutes) || 3;
+    const n = parseFloat(minutes);
+    // Antes parseInt convertía 2,5 min en 2 min (y el input ya permite paso 0,5)
+    _todayWorkout.restTimeMin = Number.isFinite(n) ? Math.min(30, Math.max(0.5, n)) : 3;
     _autoSave();
 }
 
@@ -580,17 +588,51 @@ export function setWorkoutNotes(notes) {
 }
 
 export function finalizeWorkout(dateKey) {
-    if (!_todayWorkout || !_todayWorkout.exercises.length) return false;
-    _todayWorkout.estimatedKcal = estimateWorkoutKcal(_todayWorkout);
-    _todayWorkout.finalized = true;
+    if (!_todayWorkout || !Array.isArray(_todayWorkout.exercises) || _todayWorkout.exercises.length === 0) {
+        showNotification('Añade al menos un ejercicio antes de guardar el entreno', 'warning');
+        return false;
+    }
+    const hasWork = _todayWorkout.exercises.some(ex => Array.isArray(ex && ex.sets) && ex.sets.some(s =>
+        (parseFloat(s && s.reps) || 0) > 0 || (parseFloat(s && s.steps) || 0) > 0
+        || (parseFloat(s && s.mins) || 0) > 0 || (parseFloat(s && s.secs) || 0) > 0
+    ));
+    if (!hasWork) {
+        showNotification('Registra al menos una serie con trabajo antes de guardar', 'warning');
+        return false;
+    }
+
+    const key = typeof dateKey === 'string' && dateKey ? dateKey : _todayWorkout.date;
+    const session = {
+        ..._todayWorkout,
+        date: key,
+        estimatedKcal: estimateWorkoutKcal({ ..._todayWorkout, date: key }),
+        finalized: true,
+    };
     const sessions = getWorkoutSessions();
-    sessions[dateKey] = { ..._todayWorkout };
-    safeSet('workoutSessions', sessions);
+    sessions[key] = session;
+    // Persistir primero: si falla la escritura (cuota), la sesión en memoria no
+    // debe quedarse marcada como realizada.
+    if (!safeSet('workoutSessions', sessions)) {
+        showNotification('No se pudo guardar el entreno. Revisa el espacio disponible.', 'error');
+        return false;
+    }
+
+    _todayWorkout.date = key;
+    _todayWorkout.estimatedKcal = session.estimatedKcal;
+    _todayWorkout.finalized = true;
+    _clearTombstone('sessions', key);
     notifyNutritionChanged();
-    // Actualizar PRs
+    // Actualizar PRs solo con números válidos y series reales
     _todayWorkout.exercises.forEach(ex => {
-        const best = ex.sets.reduce((b, s) => s.kg > b.kg ? s : b, { kg: 0, reps: 0 });
-        if (best.kg > 0) updateExercisePR(ex.exerciseId, best.kg, best.reps, dateKey);
+        if (!Array.isArray(ex && ex.sets)) return;
+        const best = ex.sets.reduce((b, s) => {
+            const kg = parseFloat(s && s.kg) || 0;
+            const reps = parseFloat(s && s.reps) || 0;
+            // Un PR exige una serie real: kg con 0 reps es un dato incompleto.
+            if (kg <= 0 || reps <= 0) return b;
+            return kg > b.kg ? { kg, reps } : b;
+        }, { kg: 0, reps: 0 });
+        if (best.kg > 0) updateExercisePR(ex.exerciseId, best.kg, best.reps, key);
     });
     showNotification('Entreno guardado correctamente', 'success');
     return true;
@@ -609,7 +651,7 @@ export function calculate1RM(weight, reps) {
 }
 
 export function estimateWorkoutKcal(workout) {
-    if (!workout?.exercises.length) return 0;
+    if (!workout || !Array.isArray(workout.exercises) || workout.exercises.length === 0) return 0;
     const dateKey = workout.date;
     const historyEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
     const bodyWeight = historyEntry?.weight || AppState.config.currentWeight || 75;
@@ -736,6 +778,58 @@ export function getWorkoutSessions() {
     return (sessions && typeof sessions === 'object' && !Array.isArray(sessions)) ? sessions : {};
 }
 
+// Una sesión sin 'finalized' es de una versión antigua y cuenta como realizada.
+// Los borradores (finalized:false) se conservan para reanudar, pero no deben
+// contaminar historial, volumen, PRs ni TDEE adaptativo.
+export function isSessionFinalized(session) {
+    return !!session && session.finalized !== false;
+}
+
+export function getFinalizedWorkoutSessions() {
+    const sessions = getWorkoutSessions();
+    const out = {};
+    Object.keys(sessions).forEach(dateKey => {
+        if (isSessionFinalized(sessions[dateKey])) out[dateKey] = sessions[dateKey];
+    });
+    return out;
+}
+
+// ─── Tombstones ──────────────────────────────────────────────────────────────
+// Evitan que una sesión o plantilla borrada "reaparezca" al auto-cargar la
+// plantilla del día o al restaurar un backup antiguo.
+export function getWorkoutTombstones() {
+    const raw = safeGet('workoutTombstones', {});
+    return {
+        sessions: raw && typeof raw === 'object' && !Array.isArray(raw.sessions) && raw.sessions && typeof raw.sessions === 'object' ? raw.sessions : {},
+        templates: raw && typeof raw === 'object' && !Array.isArray(raw.templates) && raw.templates && typeof raw.templates === 'object' ? raw.templates : {},
+    };
+}
+
+function _saveWorkoutTombstones(tombstones) {
+    return safeSet('workoutTombstones', tombstones);
+}
+
+function _markTombstone(type, key) {
+    const tombstones = getWorkoutTombstones();
+    tombstones[type][key] = Date.now();
+    _saveWorkoutTombstones(tombstones);
+}
+
+function _clearTombstone(type, key) {
+    const tombstones = getWorkoutTombstones();
+    if (!(key in tombstones[type])) return;
+    delete tombstones[type][key];
+    _saveWorkoutTombstones(tombstones);
+}
+
+export function hasWorkoutSessionTombstone(dateKey) {
+    return !!getWorkoutTombstones().sessions[dateKey];
+}
+
+export function hasWorkoutTemplateTombstone(templateId) {
+    return !!getWorkoutTombstones().templates[templateId];
+}
+
 export function getTodaySession(dateKey) {
     return getWorkoutSessions()[dateKey] || null;
 }
@@ -797,7 +891,7 @@ export function volumeBandForSets(sets) {
 // { sets (directas, primario), fractional (secundarios ×0.5), days }.
 // Bandas y alertas usan DIRECTAS (umbrales validados); fraccionales = contexto.
 export function getWeeklyMuscleVolume(endDateKey = null, weeksBack = 0) {
-    const sessions = getWorkoutSessions();
+    const sessions = getFinalizedWorkoutSessions();
     const allExercisesDB = getExercisesDB();
     const end = endDateKey ? new Date(endDateKey + 'T00:00:00') : new Date();
     end.setDate(end.getDate() - weeksBack * 7);
@@ -853,14 +947,34 @@ export function deleteWorkoutSession(dateKey) {
     if (!sessions[dateKey]) return false;
     delete sessions[dateKey];
     const ok = safeSet('workoutSessions', sessions);
-    if (ok) notifyNutritionChanged();
+    if (ok) {
+        _markTombstone('sessions', dateKey);
+        notifyNutritionChanged();
+    }
     return ok;
 }
 
 function _autoSave() {
     if (!_todayWorkout) return;
-    _todayWorkout.estimatedKcal = estimateWorkoutKcal(_todayWorkout);
     const sessions = getWorkoutSessions();
+    // No dejar sesiones vacías en almacenamiento (borrar el último ejercicio
+    // debe eliminar el borrador, no crear una sesión fantasma).
+    if (!Array.isArray(_todayWorkout.exercises) || _todayWorkout.exercises.length === 0) {
+        if (sessions[_todayWorkout.date]) {
+            delete sessions[_todayWorkout.date];
+            const saved = safeSet('workoutSessions', sessions);
+            // Quitar el último ejercicio equivale a borrar la sesión: deja
+            // tombstone para que la plantilla del día no la recree sola.
+            if (saved) _markTombstone('sessions', _todayWorkout.date);
+            notifyNutritionChanged();
+        }
+        return;
+    }
+    _todayWorkout.estimatedKcal = estimateWorkoutKcal(_todayWorkout);
+    // Cualquier edición convierte la sesión en borrador: si ya estaba
+    // finalizada, deja de contar en historial/volumen/TDEE hasta volver a
+    // guardarla. Así "finalized" refleja la realidad y no datos a medias.
+    _todayWorkout.finalized = false;
     sessions[_todayWorkout.date] = { ..._todayWorkout };
     safeSet('workoutSessions', sessions);
     notifyNutritionChanged();
@@ -869,15 +983,23 @@ function _autoSave() {
 // ─── Plantillas ───────────────────────────────────────────────────────────────
 export function getWorkoutTemplates() {
     const templates = safeGet('workoutTemplates', {});
-    return (templates && typeof templates === 'object' && !Array.isArray(templates)) ? templates : {};
+    if (!templates || typeof templates !== 'object' || Array.isArray(templates)) return {};
+    const tombstones = getWorkoutTombstones().templates;
+    const out = {};
+    Object.keys(templates).forEach(id => {
+        if (tombstones[id]) return; // plantilla borrada: no resucitar
+        out[id] = templates[id];
+    });
+    return out;
 }
 
 export function saveWorkoutTemplate(name) {
     const workout = getTodayWorkout();
-    if (!workout?.exercises.length || !name.trim()) return null;
-    const templates = getWorkoutTemplates();
+    if (!workout?.exercises?.length || !name.trim()) return null;
+    const templates = safeGet('workoutTemplates', {});
+    const safeTemplates = (templates && typeof templates === 'object' && !Array.isArray(templates)) ? templates : {};
     const id = `tmpl-${Date.now()}`;
-    templates[id] = {
+    safeTemplates[id] = {
         id,
         name: name.trim(),
         createdAt: workout.date,
@@ -895,17 +1017,22 @@ export function saveWorkoutTemplate(name) {
             })),
         })),
     };
-    safeSet('workoutTemplates', templates);
+    if (!safeSet('workoutTemplates', safeTemplates)) return null;
+    _clearTombstone('templates', id);
     return id;
 }
 
 export function deleteWorkoutTemplate(id) {
-    const templates = getWorkoutTemplates();
-    delete templates[id];
-    safeSet('workoutTemplates', templates);
+    const templates = safeGet('workoutTemplates', {});
+    const safeTemplates = (templates && typeof templates === 'object' && !Array.isArray(templates)) ? templates : {};
+    delete safeTemplates[id];
+    if (!safeSet('workoutTemplates', safeTemplates)) return false;
+    _markTombstone('templates', id);
+    return true;
 }
 
 export function loadWorkoutTemplate(id) {
+    if (hasWorkoutTemplateTombstone(id)) return false;
     const templates = getWorkoutTemplates();
     const tmpl = templates[id];
     if (!tmpl || !Array.isArray(tmpl.exercises) || !_todayWorkout) return false;
@@ -922,6 +1049,8 @@ export function loadWorkoutTemplate(id) {
             steps: s.steps, mins: s.mins, km: s.km, secs: s.secs,
         })) : [],
     }));
+    // Cargar una plantilla es una acción explícita: la sesión vuelve a existir.
+    if (_todayWorkout.date) _clearTombstone('sessions', _todayWorkout.date);
     _autoSave();
     return true;
 }
@@ -933,9 +1062,16 @@ export function getExercisePRs() {
 }
 
 export function updateExercisePR(exerciseId, weight, reps, date) {
+    const w = parseFloat(weight);
+    const r = parseFloat(reps);
+    // Un PR de fuerza exige reps reales: kg con 0 reps no es una marca válida.
+    if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(r) || r <= 0) return;
     const prs = getExercisePRs();
-    if (!prs[exerciseId] || weight > prs[exerciseId].maxWeight) {
-        prs[exerciseId] = { maxWeight: weight, reps, date };
+    const existingMax = parseFloat(prs[exerciseId] && prs[exerciseId].maxWeight);
+    if (!prs[exerciseId] || !Number.isFinite(existingMax) || w > existingMax) {
+        const entry = { maxWeight: Math.round(w * 100) / 100, reps: Math.round(r) };
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) entry.date = date;
+        prs[exerciseId] = entry;
         safeSet('exercisePRs', prs);
     }
 }

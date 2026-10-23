@@ -8,8 +8,11 @@ import { getDateKey } from './storage.js';
 export function getDayNumber(date) {
     if (!AppState.config.startDate) return 0;
     const start = new Date(AppState.config.startDate);
-    const diff = date - start;
-    return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
+    // Diferencia por componentes UTC del día local: evita que un cambio de
+    // horario (23/25 h) devuelva un día de más o de menos.
+    const startUTC = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+    const dateUTC = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+    return Math.floor((dateUTC - startUTC) / 86400000) + 1;
 }
 
 export function getDayType(date) {
@@ -17,6 +20,43 @@ export function getDayType(date) {
     const dayName = daysOfWeek[date.getDay()];
     const routine = AppState.config.customGymRoutine || GYM_ROUTINE;
     return routine[dayName] || { type: 'descanso', label: 'Descanso', templateId: '' };
+}
+
+// Progreso de la FASE actual, compartido por la cabecera y "Tus Objetivos".
+// Si existe phaseStartWeight/phaseStartDate se usa ese punto de partida; si no,
+// startWeight/startDate. Así la cabecera y la tarjeta nunca muestran % distintos.
+export function getPhaseProgress() {
+    const phase = AppState.config.goalPhase || 'definicion';
+    const currentWeight = parseFloat(AppState.config.currentWeight);
+    const targetWeight = parseFloat(AppState.config.targetWeight);
+    const phaseStart = parseFloat(AppState.config.phaseStartWeight);
+    const startWeight = Number.isFinite(phaseStart) && phaseStart >= 25 && phaseStart <= 350
+        ? phaseStart
+        : parseFloat(AppState.config.startWeight);
+
+    const isBulk = phase === 'volumen'
+        || (Number.isFinite(targetWeight) && Number.isFinite(currentWeight)
+            && Number.isFinite(startWeight) && targetWeight > currentWeight && targetWeight > startWeight);
+    const totalMove = isBulk ? targetWeight - startWeight : startWeight - targetWeight;
+    const moved = isBulk ? currentWeight - startWeight : startWeight - currentWeight;
+    let progressPercent = 0;
+    if (Number.isFinite(totalMove) && totalMove > 0 && Number.isFinite(moved)) {
+        progressPercent = Math.min(100, Math.max(0, Math.round((moved / totalMove) * 100)));
+    }
+
+    return {
+        phase,
+        isBulk,
+        startWeight: Number.isFinite(startWeight) ? startWeight : null,
+        startDateKey: AppState.config.phaseStartDate || (AppState.config.startDate ? getDateKey(new Date(AppState.config.startDate)) : null),
+        currentWeight: Number.isFinite(currentWeight) ? currentWeight : null,
+        targetWeight: Number.isFinite(targetWeight) ? targetWeight : null,
+        moved: Number.isFinite(moved) ? moved : 0,
+        remaining: Number.isFinite(currentWeight) && Number.isFinite(targetWeight)
+            ? (isBulk ? targetWeight - currentWeight : currentWeight - targetWeight)
+            : 0,
+        progressPercent,
+    };
 }
 
 export function getCalorieTarget() {
@@ -70,9 +110,10 @@ export function clearAdaptiveTDEECache() {
 function _getWorkoutKcalForDate(dateKey, sessions) {
     try {
         const session = sessions[dateKey];
-        if (session && session.exercises && session.exercises.length > 0) {
+        if (session && session.finalized !== false && Array.isArray(session.exercises) && session.exercises.length > 0) {
             // parseFloat: un estimatedKcal corrupto (string) no debe envenenar sumas
-            return parseFloat(session.estimatedKcal) || 0;
+            const n = parseFloat(session.estimatedKcal);
+            return Number.isFinite(n) ? Math.min(20000, Math.max(0, n)) : 0;
         }
     } catch {}
     return 0;
@@ -378,8 +419,11 @@ export function getDynamicDayTargets(dateKey) {
         const sessions = getWorkoutSessions();
         const session = sessions[dateKey];
 
-        if (session && session.exercises && session.exercises.length > 0) {
-            workoutKcal = session.estimatedKcal || estimateWorkoutKcal(session) || 0;
+        if (session && session.finalized !== false && Array.isArray(session.exercises) && session.exercises.length > 0) {
+            const saved = parseFloat(session.estimatedKcal);
+            workoutKcal = Number.isFinite(saved)
+                ? Math.min(20000, Math.max(0, saved))
+                : Math.max(0, parseFloat(estimateWorkoutKcal(session)) || 0);
             isRealLoggedSession = true;
         } else if (dayInfo.templateId) {
             const templates = getWorkoutTemplates();

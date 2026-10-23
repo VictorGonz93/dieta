@@ -18,7 +18,10 @@ export function loadMealHistory() {
     const saved = localStorage.getItem('meal_history');
     if (saved) {
         try {
-            AppState.mealHistory = JSON.parse(saved);
+            const parsed = JSON.parse(saved);
+            AppState.mealHistory = Array.isArray(parsed)
+                ? parsed.filter(m => m && typeof m === 'object' && typeof m.name === 'string')
+                : [];
         } catch (e) {
             console.warn('Meal history corrupto, reiniciando:', e.message);
             AppState.mealHistory = [];
@@ -27,19 +30,25 @@ export function loadMealHistory() {
 }
 
 export function saveMealHistory() {
-    return safeSet('meal_history', AppState.mealHistory.slice(0, 50));
+    const history = Array.isArray(AppState.mealHistory) ? AppState.mealHistory : [];
+    return safeSet('meal_history', history.slice(0, 50));
 }
 
 export function addToMealHistory(mealData) {
+    if (!AppState.mealHistory) AppState.mealHistory = [];
+    const num = (v) => {
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return Number.isFinite(n) ? n : 0;
+    };
     AppState.mealHistory.unshift({
         timestamp: Date.now(),
-        name: mealData.name,
-        quantity: mealData.quantity,
-        unit: mealData.unit,
-        kcal: mealData.kcal,
-        protein: mealData.protein,
-        carbs: mealData.carbs,
-        fats: mealData.fats,
+        name: String(mealData.name || '').trim().slice(0, 160),
+        quantity: num(mealData.quantity),
+        unit: String(mealData.unit || 'g').slice(0, 20),
+        kcal: num(mealData.kcal),
+        protein: num(mealData.protein),
+        carbs: num(mealData.carbs),
+        fats: num(mealData.fats),
     });
     saveMealHistory();
 }
@@ -123,6 +132,17 @@ export function renderDay() {
     import('./stats.js').then(m => m.displayWeeklyProgress());
 }
 
+function _number(value, fallback = 0) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+    if (typeof value === 'string' && value.trim() !== '') {
+        // Datos en español pueden llegar como "100,5": parseFloat los cortaba
+        // en 100 sin avisar. Number rechaza basura tipo "10abc".
+        const n = Number(value.trim().replace(',', '.'));
+        if (Number.isFinite(n)) return n;
+    }
+    return fallback;
+}
+
 export function renderMealSection(mealName, foods) {
     const container = document.getElementById(mealName + '-items');
     const totalEl = document.getElementById(mealName + '-total');
@@ -131,25 +151,30 @@ export function renderMealSection(mealName, foods) {
     container.innerHTML = '';
     let totalKcal = 0, totalProtein = 0, totalCarbs = 0, totalFats = 0;
 
-    foods.forEach((food, index) => {
+    (Array.isArray(foods) ? foods : []).forEach((rawFood, index) => {
+        const food = rawFood && typeof rawFood === 'object' ? rawFood : {};
+        const kcal = _number(food.kcal);
+        const protein = _number(food.protein);
+        const carbs = _number(food.carbs);
+        const fats = _number(food.fats);
         const foodEl = document.createElement('div');
         foodEl.className = 'food-item';
         const timeDisplay = food.time ? ` <span class="food-time"><span class="material-icons" style="font-size:11px;vertical-align:middle">schedule</span> ${escapeHTML(food.time)}</span>` : '';
-        const quantityDisplay = `${food.quantity} ${food.unit}`.replace(/^\s+|\s+$/g, '');
+        const quantityDisplay = `${food.quantity ?? ''} ${food.unit ?? ''}`.trim();
         foodEl.innerHTML = `
-            <span class="food-item-name">${escapeHTML(food.name)} (${escapeHTML(quantityDisplay)})${timeDisplay}</span>
+            <span class="food-item-name">${escapeHTML(food.name || 'Alimento')} (${escapeHTML(quantityDisplay)})${timeDisplay}</span>
             <span class="food-item-macros">
-                <span class="food-macro kcal">${food.kcal.toFixed(0)} kcal</span>
-                <span class="food-macro protein">${food.protein.toFixed(1)}g P</span>
+                <span class="food-macro kcal">${kcal.toFixed(0)} kcal</span>
+                <span class="food-macro protein">${protein.toFixed(1)}g P</span>
             </span>
             <button class="food-item-delete" onclick="window.deleteFood('${mealName}', ${index})">×</button>
         `;
         container.appendChild(foodEl);
 
-        totalKcal += food.kcal;
-        totalProtein += food.protein;
-        totalCarbs += food.carbs;
-        totalFats += food.fats;
+        totalKcal += kcal;
+        totalProtein += protein;
+        totalCarbs += carbs;
+        totalFats += fats;
     });
 
     totalEl.textContent = `${totalKcal.toFixed(0)} kcal | ${totalProtein.toFixed(1)}g P`;
@@ -158,14 +183,20 @@ export function renderMealSection(mealName, foods) {
 export function updateDaySummary(dayData, dateKey) {
     const _dateKey = dateKey || getDateKey(AppState.currentDate);
     const meals = ['breakfast', 'lunch', 'snack', 'dinner'];
+    const day = (dayData && typeof dayData === 'object' && dayData.meals)
+        ? dayData
+        : AppState.allDays[_dateKey];
+    const mealData = day && day.meals && typeof day.meals === 'object' ? day.meals : {};
     let sumKcal = 0, sumProtein = 0, sumCarbs = 0, sumFats = 0;
 
     meals.forEach(meal => {
-        dayData.meals[meal].forEach(food => {
-            sumKcal += food.kcal;
-            sumProtein += food.protein;
-            sumCarbs += food.carbs;
-            sumFats += food.fats;
+        const foods = Array.isArray(mealData[meal]) ? mealData[meal] : [];
+        foods.forEach(food => {
+            if (!food || typeof food !== 'object') return;
+            sumKcal += _number(food.kcal);
+            sumProtein += _number(food.protein);
+            sumCarbs += _number(food.carbs);
+            sumFats += _number(food.fats);
         });
     });
 
@@ -252,24 +283,59 @@ export function getStatusRange(value, min, max) {
 export function addFood() {
     if (!AppState.currentMealForModal) return;
 
-    const food = {
-        name: document.getElementById('foodName').value,
-        quantity: parseFloat(document.getElementById('foodQuantity').value),
-        unit: document.getElementById('foodUnit').value,
-        kcal: parseFloat(document.getElementById('foodCals').value),
-        protein: parseFloat(document.getElementById('foodProtein').value),
-        carbs: parseFloat(document.getElementById('foodCarbs').value),
-        fats: parseFloat(document.getElementById('foodFats').value),
-        time: document.getElementById('foodTime').value || null,
-    };
+    const mealSlot = AppState.currentMealForModal;
+    if (!['breakfast', 'lunch', 'snack', 'dinner'].includes(mealSlot)) return;
 
-    if (!food.name || !food.quantity || !food.kcal) {
-        showNotification('Completa todos los campos', 'error');
+    const name = String(document.getElementById('foodName').value || '').trim();
+    const rawQuantity = parseFloat(document.getElementById('foodQuantity').value);
+    const unit = String(document.getElementById('foodUnit').value || 'g').trim().slice(0, 20) || 'g';
+    const kcal = parseFloat(document.getElementById('foodCals').value);
+    const protein = parseFloat(document.getElementById('foodProtein').value);
+    const carbs = parseFloat(document.getElementById('foodCarbs').value);
+    const fats = parseFloat(document.getElementById('foodFats').value);
+    const timeRaw = String(document.getElementById('foodTime').value || '');
+    const time = /^\d{2}:\d{2}$/.test(timeRaw) ? timeRaw : null;
+
+    if (!name) {
+        showNotification('Pon un nombre al alimento', 'error');
+        return;
+    }
+    if (!Number.isFinite(rawQuantity) || rawQuantity <= 0 || rawQuantity > 100000) {
+        showNotification('La cantidad debe ser un número mayor que 0', 'error');
+        return;
+    }
+    const macros = { kcal, protein, carbs, fats };
+    const invalidMacro = Object.entries(macros).find(([, v]) => !Number.isFinite(v) || v < 0 || v > 100000);
+    if (invalidMacro) {
+        showNotification('Las calorías y macros deben ser números no negativos', 'error');
         return;
     }
 
     const dateKey = getDateKey(AppState.currentDate);
-    AppState.allDays[dateKey].meals[AppState.currentMealForModal].push(food);
+    const todayKey = getDateKey(new Date());
+    if (dateKey > todayKey) {
+        showNotification('No puedes registrar comida en una fecha futura', 'warning');
+        return;
+    }
+    if (!AppState.allDays[dateKey] || !AppState.allDays[dateKey].meals) {
+        initializeToday();
+    }
+    const day = AppState.allDays[dateKey];
+    if (!day || !day.meals) return;
+    if (!Array.isArray(day.meals[mealSlot])) day.meals[mealSlot] = [];
+
+    const food = {
+        name: name.slice(0, 160),
+        quantity: Math.round(rawQuantity * 100) / 100,
+        unit,
+        kcal: Math.round(kcal * 100) / 100,
+        protein: Math.round(protein * 100) / 100,
+        carbs: Math.round(carbs * 100) / 100,
+        fats: Math.round(fats * 100) / 100,
+        time,
+    };
+
+    day.meals[mealSlot].push(food);
     saveDays();
     addToMealHistory(food);
 
@@ -277,16 +343,14 @@ export function addFood() {
         const todayEntry = AppState.config.weightHistory.find(w => w.date === dateKey);
         if (todayEntry) {
             const updatedPrediction = calculateNextDayPredictionForDate(dateKey, AppState.config.currentWeight);
-            if (updatedPrediction) {
-                todayEntry.predictedWeight = updatedPrediction.predictedWeight;
-                saveWeightHistory();
-            }
+            todayEntry.predictedWeight = updatedPrediction ? updatedPrediction.predictedWeight : null;
+            saveWeightHistory();
         }
     }
 
     import('./ui/modal.js').then(m => m.closeModal());
     renderDay();
-    updateDaySummary(AppState.allDays[dateKey]);
+    updateDaySummary(AppState.allDays[dateKey], dateKey);
     displayNextDayPrediction();
     import('./charts.js').then(m => m.renderWeightPredictionChart());
     showNotification(`${food.name} agregado correctamente`);
@@ -294,22 +358,25 @@ export function addFood() {
 
 export function deleteFood(meal, index) {
     const dateKey = getDateKey(AppState.currentDate);
-    const removed = AppState.allDays[dateKey].meals[meal].splice(index, 1)[0];
+    const day = AppState.allDays[dateKey];
+    const foods = day && day.meals && Array.isArray(day.meals[meal]) ? day.meals[meal] : null;
+    if (!foods) return;
+    const idx = parseInt(index, 10);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= foods.length) return;
+    const removed = foods.splice(idx, 1)[0];
     saveDays();
 
     if (AppState.config.weightHistory && AppState.config.currentWeight) {
         const todayEntry = AppState.config.weightHistory.find(w => w.date === dateKey);
         if (todayEntry) {
             const updatedPrediction = calculateNextDayPredictionForDate(dateKey, AppState.config.currentWeight);
-            if (updatedPrediction) {
-                todayEntry.predictedWeight = updatedPrediction.predictedWeight;
-                saveWeightHistory();
-            }
+            todayEntry.predictedWeight = updatedPrediction ? updatedPrediction.predictedWeight : null;
+            saveWeightHistory();
         }
     }
 
     renderDay();
-    updateDaySummary(AppState.allDays[dateKey]);
+    updateDaySummary(AppState.allDays[dateKey], dateKey);
     displayNextDayPrediction();
     import('./charts.js').then(m => m.renderWeightPredictionChart());
 
@@ -317,10 +384,12 @@ export function deleteFood(meal, index) {
     showNotification(`"${removed.name}" eliminado · Deshacer`, 'warning', () => {
         if (undone) return;
         undone = true;
-        AppState.allDays[dateKey].meals[meal].splice(index, 0, removed);
+        const currentFoods = AppState.allDays[dateKey]?.meals?.[meal];
+        if (!Array.isArray(currentFoods)) return;
+        currentFoods.splice(Math.min(idx, currentFoods.length), 0, removed);
         saveDays();
         renderDay();
-        updateDaySummary(AppState.allDays[dateKey]);
+        updateDaySummary(AppState.allDays[dateKey], dateKey);
         displayNextDayPrediction();
         import('./charts.js').then(m => m.renderWeightPredictionChart());
         showNotification('Comida restaurada', 'success');
@@ -348,22 +417,33 @@ export function todayDay() {
 
 export function copyYesterdayMeals() {
     const currentKey = getDateKey(AppState.currentDate);
+    if (currentKey > getDateKey(new Date())) {
+        showNotification('No puedes copiar comidas a una fecha futura', 'warning');
+        return;
+    }
     const yesterday = new Date(AppState.currentDate);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayKey = getDateKey(yesterday);
 
     const yesterdayData = AppState.allDays[yesterdayKey];
-    if (!yesterdayData || !Object.values(yesterdayData.meals).some(m => m.length > 0)) {
+    const yesterdayMeals = yesterdayData && yesterdayData.meals && typeof yesterdayData.meals === 'object'
+        ? yesterdayData.meals : null;
+    if (!yesterdayMeals || !Object.values(yesterdayMeals).some(m => Array.isArray(m) && m.length > 0)) {
         showNotification('No hay comidas registradas ayer', 'error');
         return;
     }
 
-    const currentData = AppState.allDays[currentKey];
-    const hasMeals = Object.values(currentData.meals).some(m => m.length > 0);
+    let currentData = AppState.allDays[currentKey];
+    if (!currentData || !currentData.meals) {
+        initializeToday();
+        currentData = AppState.allDays[currentKey];
+    }
+    if (!currentData || !currentData.meals) return;
+    const hasMeals = Object.values(currentData.meals).some(m => Array.isArray(m) && m.length > 0);
     if (hasMeals && !confirm('Este día ya tiene comidas. ¿Sobrescribir con las de ayer?')) return;
 
     // Copia profunda de las comidas de ayer
-    currentData.meals = JSON.parse(JSON.stringify(yesterdayData.meals));
+    currentData.meals = JSON.parse(JSON.stringify(yesterdayMeals));
     saveDays();
     renderDay();
     showNotification('Comidas copiadas del día anterior');

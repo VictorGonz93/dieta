@@ -1,8 +1,8 @@
 ﻿// ==================== CONFIGURACIÓN ====================
 
 import AppState from './state.js';
-import { safeSet, getDateKey } from './storage.js';
-import { calculateTMR, calculateTDEE, getDayType, getCalorieTarget, calculateAutoDeficit, calculateAutoSurplus, calculateAdaptiveTDEE, clearAdaptiveTDEECache } from './nutrition.js';
+import { safeSet, getDateKey, sanitizeConfig } from './storage.js';
+import { getDayNumber, getPhaseProgress, calculateTMR, calculateTDEE, getDayType, calculateAutoDeficit, calculateAutoSurplus, calculateAdaptiveTDEE, clearAdaptiveTDEECache } from './nutrition.js';
 import { recordWeight, updateWeightPrediction, displayNextDayPrediction } from './weight.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -11,8 +11,14 @@ export function loadConfig() {
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
-            Object.assign(AppState.config, parsed);
-            if (parsed.startDate) AppState.config.startDate = new Date(parsed.startDate);
+            // Lista blanca de claves y tipos: Object.assign permitía __proto__ y
+            // que un string en currentWeight envenenara TDEE/objetivos.
+            const clean = sanitizeConfig(parsed);
+            if (clean.startDate) clean.startDate = new Date(`${clean.startDate}T00:00:00`);
+            Object.assign(AppState.config, clean);
+            if (AppState.config.startDate && Number.isNaN(new Date(AppState.config.startDate).getTime())) {
+                AppState.config.startDate = null;
+            }
         } catch (e) {
             console.warn('Config corrupta, usando valores por defecto:', e.message);
         }
@@ -43,10 +49,31 @@ function parseNum(id, currentVal, isInt = false) {
 export function saveConfig() {
     const oldWeight = AppState.config.currentWeight;
     const newWeight = parseNum('currentWeightInput', AppState.config.currentWeight);
+    const startWeightInput = parseNum('startWeight', AppState.config.startWeight);
+    const targetWeightInput = parseNum('targetWeight', AppState.config.targetWeight);
+    const heightInput = parseNum('height', AppState.config.height, true);
+    const ageInput = parseNum('age', AppState.config.age, true);
 
-    AppState.config.startWeight = parseNum('startWeight', AppState.config.startWeight);
+    // Rangos humanos: un 700 kg (o negativo) corrompía TDEE, macros y gráficos.
+    const badWeight = [newWeight, startWeightInput, targetWeightInput].find(
+        v => Number.isFinite(v) && (v < 25 || v > 350)
+    );
+    if (badWeight !== undefined) {
+        showNotification('Los pesos deben estar entre 25 y 350 kg', 'warning');
+        return;
+    }
+    if (Number.isFinite(heightInput) && (heightInput < 100 || heightInput > 250)) {
+        showNotification('La altura debe estar entre 100 y 250 cm', 'warning');
+        return;
+    }
+    if (Number.isFinite(ageInput) && (ageInput < 14 || ageInput > 100)) {
+        showNotification('La edad debe estar entre 14 y 100 años', 'warning');
+        return;
+    }
+
+    AppState.config.startWeight = startWeightInput;
     AppState.config.currentWeight = newWeight;
-    AppState.config.targetWeight = parseNum('targetWeight', AppState.config.targetWeight);
+    AppState.config.targetWeight = targetWeightInput;
 
     const startDateInput = document.getElementById('startDate')?.value;
     if (startDateInput) {
@@ -55,7 +82,6 @@ export function saveConfig() {
 
     AppState.config.height = parseNum('height', AppState.config.height, true);
     AppState.config.age = parseNum('age', AppState.config.age, true);
-
     const genderEl = document.getElementById('gender');
     if (genderEl?.value) AppState.config.gender = genderEl.value;
 
@@ -102,6 +128,13 @@ export function saveConfig() {
             AppState.config.bridgeStartDate = getDateKey(new Date());
             showNotification('Puente de mantenimiento iniciado (2 semanas)', 'info');
         }
+    }
+
+    // La barra de progreso se reinicia al cambiar de fase: la cabecera y
+    // Objetivos comparten este punto de partida (getPhaseProgress).
+    if (prevPhase !== AppState.config.goalPhase) {
+        AppState.config.phaseStartWeight = AppState.config.currentWeight;
+        AppState.config.phaseStartDate = getDateKey(new Date());
     }
 
     const tdeeModeEl = document.getElementById('tdeeModeSelect');
@@ -156,7 +189,9 @@ export function updateConfigUI() {
     if (el('startWeight')) el('startWeight').value = AppState.config.startWeight || '';
     if (el('currentWeightInput')) el('currentWeightInput').value = AppState.config.currentWeight || '';
     if (el('targetWeight')) el('targetWeight').value = AppState.config.targetWeight || '';
-    if (el('startDate')) el('startDate').value = AppState.config.startDate ? AppState.config.startDate.toISOString().split('T')[0] : '';
+    // getDateKey usa componentes locales: toISOString podía mostrar el día
+    // anterior en zonas con offset positivo (España en verano, UTC+2).
+    if (el('startDate')) el('startDate').value = AppState.config.startDate ? getDateKey(new Date(AppState.config.startDate)) : '';
     if (el('height')) el('height').value = AppState.config.height || '';
     if (el('age')) el('age').value = AppState.config.age || '';
     if (el('gender')) el('gender').value = AppState.config.gender || '';
@@ -242,8 +277,8 @@ export function updateStorageInfo() {
 
 export function updateHeaderInfo() {
     const dayInfo = getDayType(AppState.currentDate);
-    const targetCals = getCalorieTarget();
     const { startWeight, currentWeight, targetWeight, startDate } = AppState.config;
+    const progress = getPhaseProgress();
 
     if (!startDate || !startWeight || !currentWeight) {
         if (document.getElementById('dayCounter')) document.getElementById('dayCounter').textContent = '-';
@@ -252,18 +287,13 @@ export function updateHeaderInfo() {
         return;
     }
 
-    // getDayNumber sin importar el módulo nutrition (evitar circular en carga)
-    const start = new Date(startDate);
-    const diff = AppState.currentDate - start;
-    const dayNumber = Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
-
-    const totalToLose = startWeight - targetWeight;
-    const alreadyLost = startWeight - currentWeight;
-    const progressPercent = totalToLose !== 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0;
+    const dayNumber = getDayNumber(AppState.currentDate);
 
     if (document.getElementById('dayCounter')) document.getElementById('dayCounter').textContent = dayNumber;
     if (document.getElementById('currentWeight')) document.getElementById('currentWeight').textContent = `${currentWeight} kg`;
-    if (document.getElementById('progressPercent')) document.getElementById('progressPercent').textContent = `${Math.min(progressPercent, 100)}%`;
+    if (document.getElementById('progressPercent')) {
+        document.getElementById('progressPercent').textContent = `${progress.progressPercent}%`;
+    }
 
     const dayTypeEl = document.getElementById('dayType');
     if (dayTypeEl && dayInfo) {

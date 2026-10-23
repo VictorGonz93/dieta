@@ -2,7 +2,7 @@
 
 import AppState from '../state.js';
 import { UNIT_CONVERSIONS } from '../constants.js';
-import { escapeHTML } from '../utils.js';
+import { escapeHTML, num } from '../utils.js';
 import { getDateKey } from '../storage.js';
 
 export function openModal(mealType) {
@@ -58,15 +58,17 @@ export function setupTabSearch() {
 
             const { PRODUCTS_DB } = await import('../products.js');
             const matches = PRODUCTS_DB.filter(p => p.name.toLowerCase().includes(query)).slice(0, 5);
+            // El id va en data-* (no dentro del handler): un producto importado
+            // con id manipulable no puede inyectar código en el onclick.
             suggested.innerHTML = matches.map(p => `
-                <div class="suggested-product-item" onclick="selectProduct(${p.id})">
+                <div class="suggested-product-item" data-product-id="${escapeHTML(String(p.id))}" onclick="selectProduct(this.dataset.productId)">
                     <div class="suggested-product-info">
                         <div class="suggested-product-name">${escapeHTML(getDisplayProductName(p.name))}</div>
                         <div class="suggested-product-macros">
-                            <span class="macro-badge">🔥 ${p.kcal}kcal</span>
-                            <span class="macro-badge">💪 ${p.protein}g</span>
-                            <span class="macro-badge">🥔 ${p.carbs}g</span>
-                            <span class="macro-badge">🥑 ${p.fats}g</span>
+                            <span class="macro-badge">🔥 ${num(p.kcal)}kcal</span>
+                            <span class="macro-badge">💪 ${num(p.protein)}g</span>
+                            <span class="macro-badge">🥔 ${num(p.carbs)}g</span>
+                            <span class="macro-badge">🥑 ${num(p.fats)}g</span>
                         </div>
                     </div>
                 </div>
@@ -123,17 +125,21 @@ export function renderCombosInModal() {
                     🍱 Mis Combos y Recetas (1-Clic para añadir)
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    ${combos.map(c => `
+                    ${combos.map(c => {
+                        const itemsCount = Array.isArray(c.items) ? c.items.length : 0;
+                        const comboId = escapeHTML(String(c.id));
+                        return `
                         <div style="display: flex; align-items: center; background: #1E293B; border: 1px solid #334155; border-radius: 8px; overflow: hidden;">
-                            <button onclick="window.applyComboToCurrentMeal(${c.id})" style="padding: 6px 10px; background: transparent; border: none; color: #F8FAFC; cursor: pointer; text-align: left; font-size: 0.82rem; display: flex; flex-direction: column;">
+                            <button data-combo-id="${comboId}" onclick="window.applyComboToCurrentMeal(this.dataset.comboId)" style="padding: 6px 10px; background: transparent; border: none; color: #F8FAFC; cursor: pointer; text-align: left; font-size: 0.82rem; display: flex; flex-direction: column;">
                                 <span style="font-weight: 600; color: #38BDF8;">${escapeHTML(c.name)}</span>
-                                <span style="font-size: 0.72rem; color: #94A3B8;">${c.totalKcal} kcal · ${c.totalProtein}g P (${c.items.length} prod)</span>
+                                <span style="font-size: 0.72rem; color: #94A3B8;">${num(c.totalKcal)} kcal · ${num(c.totalProtein)}g P (${itemsCount} prod)</span>
                             </button>
-                            <button onclick="window._confirmDeleteCombo(${c.id})" title="Eliminar combo" style="padding: 6px 8px; background: transparent; border: none; border-left: 1px solid #334155; color: #64748B; cursor: pointer;">
+                            <button data-combo-id="${comboId}" onclick="window._confirmDeleteCombo(this.dataset.comboId)" title="Eliminar combo" style="padding: 6px 8px; background: transparent; border: none; border-left: 1px solid #334155; color: #64748B; cursor: pointer;">
                                 <span class="material-icons" style="font-size: 14px;">close</span>
                             </button>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -232,7 +238,8 @@ export function updateFoodUnitSelect(product) {
     ];
 
     if (product.customUnit && product.customUnitWeight) {
-        baseOptions.push(`<option value="${product.customUnit}">${product.customUnit} (${product.customUnitWeight}g)</option>`);
+        const unit = escapeHTML(String(product.customUnit));
+        baseOptions.push(`<option value="${unit}">${unit} (${num(product.customUnitWeight)}g)</option>`);
     }
 
     unitSelect.innerHTML = baseOptions.join('');

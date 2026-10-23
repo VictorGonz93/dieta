@@ -7,7 +7,8 @@ import {
     addSetToExercise, removeSetFromExercise, updateSet, toggleSetDone, getFrequentExercises,
     setWorkoutDuration, setWorkoutNotes, setWorkoutRestTime, calculateWorkoutDuration,
     finalizeWorkout, estimateWorkoutKcal,
-    getWorkoutSessions, getExercisePRs, deleteWorkoutSession, deleteCustomExercise,
+    getFinalizedWorkoutSessions, getExercisePRs, deleteWorkoutSession, deleteCustomExercise,
+    hasWorkoutSessionTombstone,
     getWeeklyMuscleVolume, volumeBandForSets, VOLUME_BANDS,
     getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate, loadWorkoutTemplate,
 } from '../workout.js';
@@ -176,9 +177,15 @@ export function renderTodayWorkout() {
     const routine = AppState.config.customGymRoutine || GYM_ROUTINE;
     const dayPlan = routine[dayName];
     const planLabel = dayPlan?.label || (dayPlan?.type === 'entreno' ? 'Entrenamiento' : 'Descanso');
+    const sessionStatus = workout.exercises.length === 0
+        ? 'Sin empezar'
+        : (workout.finalized ? 'Realizado' : 'Borrador');
 
-    // Auto-cargar plantilla asignada si la sesión de hoy no tiene ejercicios todavía
-    if ((!workout.exercises || workout.exercises.length === 0) && dayPlan?.templateId) {
+    // Auto-cargar plantilla asignada si la sesión de hoy no tiene ejercicios todavía.
+    // Si el usuario borró la sesión de ese día, el tombstone manda: no debe
+    // resucitar sola al volver a la pestaña (solo una carga manual de plantilla).
+    if ((!workout.exercises || workout.exercises.length === 0) && dayPlan?.templateId
+        && !hasWorkoutSessionTombstone(dateKey)) {
         if (loadWorkoutTemplate(dayPlan.templateId)) {
             workout = getTodayWorkout();
         }
@@ -197,8 +204,9 @@ export function renderTodayWorkout() {
                         <span class="material-icons" style="font-size:20px;">chevron_left</span>
                     </button>
                     <div style="flex:1;min-width:0;text-align:center;">
-                        <div style="font-size:0.8rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">${dayName} · ${dateKey}</div>
-                        <div style="font-size:1.1rem;font-weight:600;color:var(--text-1);">${planLabel}</div>
+                        <div style="font-size:0.8rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">${escapeHTML(dayName)} · ${escapeHTML(dateKey)}</div>
+                        <div style="font-size:1.1rem;font-weight:600;color:var(--text-1);">${escapeHTML(planLabel)}</div>
+                        <div id="workout-session-status" style="display:inline-block;margin-top:4px;padding:2px 9px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${workout.finalized && workout.exercises.length ? 'rgba(16,185,129,0.16)' : 'var(--bg-elevated)'};color:${workout.finalized && workout.exercises.length ? 'var(--primary-text)' : 'var(--text-2)'};">${sessionStatus}</div>
                     </div>
                     <button onclick="window._workoutNavDay(1)" title="Día siguiente"
                         style="padding:6px;background:var(--bg-elevated);color:var(--text-2);border:1px solid var(--border-base);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -225,12 +233,12 @@ export function renderTodayWorkout() {
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
                     ${templates.map(t => `
                     <div style="display:flex;align-items:stretch;border:1px solid var(--border-base);border-radius:8px;overflow:hidden;background:var(--bg-elevated);">
-                        <button onclick="window._workoutLoadTmpl('${t.id}')"
+                        <button data-tmpl-id="${escapeHTML(String(t.id))}" onclick="window._workoutLoadTmpl(this.dataset.tmplId)"
                             style="padding:6px 14px;background:transparent;color:var(--text-1);border:none;cursor:pointer;font-size:0.85rem;text-align:left;display:flex;flex-direction:column;gap:1px;">
-                            <span style="font-weight:600;">${t.name}</span>
-                            <span style="font-size:0.72rem;color:var(--text-3);">${t.exercises.length} ejercicio${t.exercises.length !== 1 ? 's' : ''} · ${t.createdAt}</span>
+                            <span style="font-weight:600;">${escapeHTML(t.name)}</span>
+                            <span style="font-size:0.72rem;color:var(--text-3);">${t.exercises.length} ejercicio${t.exercises.length !== 1 ? 's' : ''} · ${escapeHTML(t.createdAt || '')}</span>
                         </button>
-                        <button onclick="window._workoutDeleteTmpl('${t.id}')"
+                        <button data-tmpl-id="${escapeHTML(String(t.id))}" onclick="window._workoutDeleteTmpl(this.dataset.tmplId)"
                             title="Eliminar plantilla"
                             style="padding:6px 10px;background:transparent;color:var(--text-3);border:none;border-left:1px solid var(--border-dim);cursor:pointer;display:flex;align-items:center;">
                             <span class="material-icons" style="font-size:15px;">close</span>
@@ -273,10 +281,10 @@ export function renderTodayWorkout() {
                         <div style="font-size:0.75rem;color:var(--text-3);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Acceso rápido (Más realizados):</div>
                         <div style="display:flex;flex-wrap:wrap;gap:6px;">
                             ${frequentEx.map(fe => `
-                                <button onclick="window._workoutSelectEx('${fe.id}')"
+                                <button data-ex-id="${escapeHTML(String(fe.id))}" onclick="window._workoutSelectEx(this.dataset.exId)"
                                     style="padding:5px 10px;background:var(--bg-elevated);border:1px solid var(--border-base);color:var(--text-1);border-radius:20px;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
-                                    <span style="font-weight:600;color:var(--primary-text);">${fe.name}</span>
-                                    <span style="font-size:0.7rem;color:var(--text-3);">${fe.muscle}</span>
+                                    <span style="font-weight:600;color:var(--primary-text);">${escapeHTML(fe.name)}</span>
+                                    <span style="font-size:0.7rem;color:var(--text-3);">${escapeHTML(fe.muscle)}</span>
                                 </button>
                             `).join('')}
                         </div>
@@ -289,8 +297,8 @@ export function renderTodayWorkout() {
                         <select id="workout-ex-select" style="flex:1;padding:8px 12px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;">
                             <option value="">Selecciona ejercicio...</option>
                             ${MUSCLES.filter(m => m !== 'Todos').map(muscle => `
-                                <optgroup label="${muscle}">
-                                    ${getExercisesDB().filter(e => e.muscle === muscle).map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
+                                <optgroup label="${escapeHTML(muscle)}">
+                                    ${getExercisesDB().filter(e => e.muscle === muscle).map(e => `<option value="${escapeHTML(String(e.id))}">${escapeHTML(e.name)}</option>`).join('')}
                                 </optgroup>
                             `).join('')}
                         </select>
@@ -329,11 +337,11 @@ export function renderTodayWorkout() {
                     <label style="color:var(--text-2);font-size:0.85rem;white-space:nowrap;margin-top:8px;">Notas</label>
                     <textarea id="workout-notes" rows="2" placeholder="Sensaciones, fatiga, etc."
                         onchange="window._workoutSetNotes(this.value)"
-                        style="flex:1;min-width:200px;padding:8px 12px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.85rem;outline:none;resize:vertical;">${workout.notes || ''}</textarea>
+                        style="flex:1;min-width:200px;padding:8px 12px;background:var(--bg-elevated);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.85rem;outline:none;resize:vertical;">${escapeHTML(workout.notes || '')}</textarea>
                 </div>
                 <button onclick="window._workoutSave()" style="align-self:flex-end;padding:10px 24px;background:linear-gradient(135deg,#10B981,#059669);color:white;font-weight:700;border:none;border-radius:10px;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;gap:6px;">
                     <span class="material-icons" style="font-size:18px;">save</span>
-                    Guardar Entreno
+                    ${workout.finalized ? 'Guardar cambios' : 'Guardar Entreno'}
                 </button>
             </div>
         </div>
@@ -364,7 +372,10 @@ export function renderTodayWorkout() {
         _updateKcalDisplay();
         _updateDurationCalc();
     };
-    window._workoutSetNotes = (v) => setWorkoutNotes(v);
+    window._workoutSetNotes = (v) => {
+        setWorkoutNotes(v);
+        _updateWorkoutStatus();
+    };
     window._workoutSave = () => {
         const dateKey = getDateKey(AppState.currentDate);
         if (finalizeWorkout(dateKey)) {
@@ -427,11 +438,11 @@ window._filterTodayAddExercises = (query) => {
     suggestionsEl.innerHTML = matches.map(e => {
         const isAdded = workout?.exercises?.some(ex => ex.exerciseId == e.id);
         return `
-            <div onclick="${isAdded ? '' : `window._workoutSelectEx('${e.id}')`}"
+            <div ${isAdded ? '' : `data-ex-id="${escapeHTML(String(e.id))}" onclick="window._workoutSelectEx(this.dataset.exId)"`}
                 style="padding:10px 14px;border-bottom:1px solid var(--border-dim);display:flex;align-items:center;justify-content:space-between;cursor:${isAdded ? 'default' : 'pointer'};opacity:${isAdded ? 0.5 : 1};background:var(--bg-elevated);">
                 <div>
-                    <span style="font-weight:600;color:var(--text-1);font-size:0.9rem;">${e.name}</span>
-                    <span style="font-size:0.75rem;color:var(--text-3);margin-left:6px;">${e.muscle}</span>
+                    <span style="font-weight:600;color:var(--text-1);font-size:0.9rem;">${escapeHTML(e.name)}</span>
+                    <span style="font-size:0.75rem;color:var(--text-3);margin-left:6px;">${escapeHTML(e.muscle)}</span>
                 </div>
                 ${isAdded 
                     ? '<span style="font-size:0.75rem;color:var(--text-3);">Añadido</span>'
@@ -454,16 +465,18 @@ window._workoutSelectEx = (exerciseId) => {
 };
 
 export function getPreviousExercisePerformance(exerciseId) {
-    const sessions = getWorkoutSessions();
+    // Solo sesiones realizadas: el borrador de hoy (o de ayer) no es una
+    // referencia válida de rendimiento.
+    const sessions = getFinalizedWorkoutSessions();
     const dateKey = getDateKey(AppState.currentDate);
     const sortedDates = Object.keys(sessions).filter(d => d < dateKey).sort().reverse();
 
     for (const d of sortedDates) {
         const sess = sessions[d];
-        if (!sess || !sess.exercises) continue;
+        if (!sess || !Array.isArray(sess.exercises)) continue;
         const ex = sess.exercises.find(e => e.exerciseId == exerciseId);
-        if (ex && ex.sets && ex.sets.length > 0) {
-            const validSets = ex.sets.filter(s => (s.reps || s.steps || s.mins || s.secs || 0) > 0);
+        if (ex && Array.isArray(ex.sets) && ex.sets.length > 0) {
+            const validSets = ex.sets.filter(s => (parseFloat(s.reps) || parseFloat(s.steps) || parseFloat(s.mins) || parseFloat(s.secs) || 0) > 0);
             if (validSets.length > 0) {
                 const trackingType = ex.trackingType || 'weight_reps';
                 let setsText = '';
@@ -483,11 +496,16 @@ export function getPreviousExercisePerformance(exerciseId) {
     return null;
 }
 
+function _uiNumber(value, fallback = '') {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
 function _renderExerciseList() {
     const container = document.getElementById('workout-exercises-list');
     if (!container) return;
     const workout = getTodayWorkout();
-    if (!workout || !workout.exercises || workout.exercises.length === 0) {
+    if (!workout || !Array.isArray(workout.exercises) || workout.exercises.length === 0) {
         container.innerHTML = `<div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.9rem;">Sin ejercicios. Añade uno arriba.</div>`;
         return;
     }
@@ -495,42 +513,46 @@ function _renderExerciseList() {
     const allExercisesDB = getExercisesDB();
 
     container.innerHTML = workout.exercises.map(ex => {
-        const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
-        const trackingType = ex.trackingType || getExerciseTrackingType(dbEx);
-        const prevPerf = getPreviousExercisePerformance(ex.exerciseId);
+        const exercise = ex && typeof ex === 'object' ? ex : {};
+        const sets = Array.isArray(exercise.sets) ? exercise.sets : [];
+        const dbEx = allExercisesDB.find(e => e.id == exercise.exerciseId) || exercise;
+        const trackingType = exercise.trackingType || getExerciseTrackingType(dbEx);
+        const prevPerf = getPreviousExercisePerformance(exercise.exerciseId);
+        const exId = escapeHTML(String(exercise.exerciseId ?? ''));
+        const exAttr = `data-ex-id="${exId}"`;
 
         let headersHTML = '';
         let badgesHTML = '';
 
         if (trackingType === 'steps') {
             headersHTML = `<span>#</span><span>Pasos</span><span>Minutos</span><span></span>`;
-            const totalSteps = ex.sets.reduce((sum, s) => sum + (parseInt(s.steps) || 0), 0);
+            const totalSteps = sets.reduce((sum, s) => sum + (parseInt(s && s.steps) || 0), 0);
             const approxKm = (totalSteps * 0.00075).toFixed(2);
             badgesHTML = `<span>Pasos: <strong style="color:#10B981;">${totalSteps.toLocaleString('es-ES')}</strong> (~${approxKm} km)</span>`;
         } else if (trackingType === 'cardio_distance') {
             headersHTML = `<span>#</span><span>Minutos</span><span>Distancia (Km)</span><span></span>`;
-            const totalMins = ex.sets.reduce((sum, s) => sum + (parseInt(s.mins) || 0), 0);
-            const totalKm = ex.sets.reduce((sum, s) => sum + (parseFloat(s.km) || 0), 0);
+            const totalMins = sets.reduce((sum, s) => sum + (parseInt(s && s.mins) || 0), 0);
+            const totalKm = sets.reduce((sum, s) => sum + (parseFloat(s && s.km) || 0), 0);
             badgesHTML = `<span>Tiempo: <strong style="color:#10B981;">${totalMins} min</strong></span>${totalKm > 0 ? ` · <span>Distancia: <strong style="color:#38BDF8;">${totalKm.toFixed(1)} km</strong></span>` : ''}`;
         } else if (trackingType === 'time_hold') {
             headersHTML = `<span>#</span><span>Segundos</span><span>Lastre (Kg)</span><span></span>`;
-            const totalSecs = ex.sets.reduce((sum, s) => sum + (parseInt(s.secs) || 0), 0);
+            const totalSecs = sets.reduce((sum, s) => sum + (parseInt(s && s.secs) || 0), 0);
             badgesHTML = `<span>Tiempo total: <strong style="color:#10B981;">${totalSecs}s</strong></span>`;
         } else if (trackingType === 'calisthenics') {
             headersHTML = `<span>#</span><span>Reps</span><span>Lastre (Kg)</span><span></span>`;
-            const totalReps = ex.sets.reduce((sum, s) => sum + (parseInt(s.reps) || 0), 0);
-            const maxKg = Math.max(...ex.sets.map(s => parseFloat(s.kg) || 0));
+            const totalReps = sets.reduce((sum, s) => sum + (parseInt(s && s.reps) || 0), 0);
+            const maxKg = sets.length > 0 ? Math.max(...sets.map(s => parseFloat(s && s.kg) || 0)) : 0;
             badgesHTML = `<span>Reps totales: <strong style="color:#10B981;">${totalReps}</strong></span>${maxKg > 0 ? ` · <span>Lastre máx: <strong style="color:#FBBF24;">${maxKg} kg</strong></span>` : ''}`;
         } else {
             // weight_reps
             headersHTML = `<span>#</span><span>Reps</span><span>Kg</span><span></span>`;
-            const bestSet = ex.sets.reduce((b, s) => {
-                const val = (parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0);
+            const bestSet = sets.reduce((b, current) => {
+                const val = (parseFloat(current && current.kg) || 0) * (parseInt(current && current.reps) || 0);
                 const bVal = (parseFloat(b.kg) || 0) * (parseInt(b.reps) || 0);
-                return val > bVal ? s : b;
+                return val > bVal ? current : b;
             }, { kg: 0, reps: 0 });
             const est1RM = calculate1RM(bestSet.kg, bestSet.reps);
-            const totalVol = ex.sets.reduce((sum, s) => sum + ((parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0)), 0);
+            const totalVol = sets.reduce((sum, s) => sum + ((parseFloat(s && s.kg) || 0) * (parseInt(s && s.reps) || 0)), 0);
             badgesHTML = `${est1RM > 0 ? `<span>1RM est: <strong style="color:#10B981;">${est1RM} kg</strong></span> · ` : ''}<span>Volumen: <strong style="color:#60A5FA;">${totalVol.toLocaleString('es-ES')} kg</strong></span>`;
         }
 
@@ -539,24 +561,24 @@ function _renderExerciseList() {
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;">
                 <div>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <span style="font-weight:600;color:var(--text-1);font-size:1rem;">${ex.name}</span>
-                        <span style="font-size:0.75rem;color:var(--text-2);background:var(--bg-elevated);padding:2px 8px;border-radius:20px;">${ex.muscle}</span>
+                        <span style="font-weight:600;color:var(--text-1);font-size:1rem;">${escapeHTML(exercise.name || 'Ejercicio')}</span>
+                        <span style="font-size:0.75rem;color:var(--text-2);background:var(--bg-elevated);padding:2px 8px;border-radius:20px;">${escapeHTML(exercise.muscle || 'Otros')}</span>
                     </div>
                     <div style="font-size:0.75rem;color:var(--text-3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
-                        <span id="badge-info-${ex.exerciseId}">${badgesHTML}</span>
-                        ${prevPerf ? `<span>Anterior (${prevPerf.date}): <strong style="color:#60A5FA;">${prevPerf.setsText}</strong></span>` : ''}
+                        <span id="badge-info-${exId}">${badgesHTML}</span>
+                        ${prevPerf ? `<span>Anterior (${escapeHTML(prevPerf.date)}): <strong style="color:#60A5FA;">${escapeHTML(prevPerf.setsText)}</strong></span>` : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:4px;flex-shrink:0;">
-                    <button onclick="window._workoutMoveEx('${ex.exerciseId}',-1)" title="Subir"
+                    <button ${exAttr} onclick="window._workoutMoveEx(this.dataset.exId,-1)" title="Subir"
                         style="padding:4px 6px;background:var(--bg-elevated);color:var(--text-2);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;font-size:0.8rem;">
                         <span class="material-icons" style="font-size:14px;vertical-align:middle;">keyboard_arrow_up</span>
                     </button>
-                    <button onclick="window._workoutMoveEx('${ex.exerciseId}',1)" title="Bajar"
+                    <button ${exAttr} onclick="window._workoutMoveEx(this.dataset.exId,1)" title="Bajar"
                         style="padding:4px 6px;background:var(--bg-elevated);color:var(--text-2);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;font-size:0.8rem;">
                         <span class="material-icons" style="font-size:14px;vertical-align:middle;">keyboard_arrow_down</span>
                     </button>
-                    <button onclick="window._workoutRemoveEx('${ex.exerciseId}')" title="Eliminar ejercicio"
+                    <button ${exAttr} onclick="window._workoutRemoveEx(this.dataset.exId)" title="Eliminar ejercicio"
                         style="padding:4px 8px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.3);border-radius:6px;cursor:pointer;font-size:0.8rem;">
                         <span class="material-icons" style="font-size:14px;vertical-align:middle;">close</span>
                     </button>
@@ -568,24 +590,26 @@ function _renderExerciseList() {
                 ${headersHTML}
             </div>
 
-            ${ex.sets.map((set, i) => {
+            ${sets.map((rawSet, i) => {
+                const set = rawSet && typeof rawSet === 'object' ? rawSet : {};
                 const isDone = !!set.done;
+                const inputStyle = `padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;`;
                 let input1HTML = '';
                 let input2HTML = '';
 
                 if (trackingType === 'steps') {
-                    input1HTML = `<input type="number" value="${set.steps !== undefined ? set.steps : 5000}" step="100" placeholder="Pasos" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'steps',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input1HTML = `<input type="number" value="${_uiNumber(set.steps, 5000)}" step="100" placeholder="Pasos" ${exAttr} oninput="window._workoutUpdateSet(this.dataset.exId,${i},'steps',this.value)" style="${inputStyle}">`;
                     input2HTML = '';
                 } else if (trackingType === 'cardio_distance') {
-                    input1HTML = `<input type="number" value="${set.mins !== undefined ? set.mins : 30}" placeholder="Min" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'mins',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
-                    input2HTML = `<input type="number" value="${set.km !== undefined ? set.km : ''}" step="0.1" placeholder="Km (opcional)" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'km',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input1HTML = `<input type="number" value="${_uiNumber(set.mins, 30)}" placeholder="Min" ${exAttr} oninput="window._workoutUpdateSet(this.dataset.exId,${i},'mins',this.value)" style="${inputStyle}">`;
+                    input2HTML = `<input type="number" value="${_uiNumber(set.km)}" step="0.1" placeholder="Km (opcional)" ${exAttr} oninput="window._workoutUpdateSet(this.dataset.exId,${i},'km',this.value)" style="${inputStyle}">`;
                 } else if (trackingType === 'time_hold') {
-                    input1HTML = `<input type="number" value="${set.secs !== undefined ? set.secs : 45}" step="5" placeholder="Seg" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'secs',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
-                    input2HTML = `<input type="number" value="${set.kg !== undefined ? set.kg : 0}" step="0.5" placeholder="Lastre kg" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'kg',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input1HTML = `<input type="number" value="${_uiNumber(set.secs, 45)}" step="5" placeholder="Seg" ${exAttr} oninput="window._workoutUpdateSet(this.dataset.exId,${i},'secs',this.value)" style="${inputStyle}">`;
+                    input2HTML = `<input type="number" value="${_uiNumber(set.kg, 0)}" step="0.5" placeholder="Lastre kg" ${exAttr} oninput="window._workoutUpdateSet(this.dataset.exId,${i},'kg',this.value)" style="${inputStyle}">`;
                 } else {
                     // weight_reps or calisthenics
-                    input1HTML = `<input type="number" value="${set.reps !== undefined ? set.reps : 10}" min="1" max="100" placeholder="Reps" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'reps',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
-                    input2HTML = `<input type="number" value="${set.kg !== undefined ? set.kg : 0}" min="0" step="0.5" placeholder="${trackingType === 'calisthenics' ? 'Lastre kg' : 'Kg'}" oninput="window._workoutUpdateSet('${ex.exerciseId}',${i},'kg',this.value)" style="padding:5px 6px;background:${isDone ? 'rgba(6,9,15,0.4)' : 'var(--bg-card)'};border:1px solid var(--border-base);border-radius:6px;color:var(--text-1);font-size:0.9rem;outline:none;text-align:center;width:100%;">`;
+                    input1HTML = `<input type="number" value="${_uiNumber(set.reps, 10)}" min="1" max="100" placeholder="Reps" ${exAttr} oninput="window._workoutUpdateSet(this.dataset.exId,${i},'reps',this.value)" style="${inputStyle}">`;
+                    input2HTML = `<input type="number" value="${_uiNumber(set.kg, 0)}" min="0" step="0.5" placeholder="${trackingType === 'calisthenics' ? 'Lastre kg' : 'Kg'}" ${exAttr} oninput="window._workoutUpdateSet(this.dataset.exId,${i},'kg',this.value)" style="${inputStyle}">`;
                 }
 
                 return `
@@ -594,7 +618,7 @@ function _renderExerciseList() {
                     ${input1HTML}
                     ${input2HTML}
                     <div style="display:flex;gap:4px;">
-                        <button onclick="window._workoutToggleSetDone('${ex.exerciseId}',${i})" title="${isDone ? 'Completado' : 'Marcar completado'}"
+                        <button ${exAttr} onclick="window._workoutToggleSetDone(this.dataset.exId,${i})" title="${isDone ? 'Completado' : 'Marcar completado'}"
                             style="padding:4px 6px;background:${isDone ? 'var(--primary)' : 'var(--bg-card)'};color:${isDone ? '#FFF' : 'var(--text-2)'};border:1px solid ${isDone ? 'var(--primary)' : 'var(--border-base)'};border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                             <span class="material-icons" style="font-size:15px;">${isDone ? 'check_circle' : 'check'}</span>
                         </button>
@@ -602,7 +626,7 @@ function _renderExerciseList() {
                             style="padding:4px 6px;background:var(--bg-card);color:var(--primary);border:1px solid var(--border-base);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
                             <span class="material-icons" style="font-size:15px;">timer</span>
                         </button>
-                        <button onclick="window._workoutRemoveSet('${ex.exerciseId}',${i})" title="Eliminar serie"
+                        <button ${exAttr} onclick="window._workoutRemoveSet(this.dataset.exId,${i})" title="Eliminar serie"
                             style="padding:4px 6px;background:transparent;color:var(--text-3);border:1px solid var(--border-dim);border-radius:6px;cursor:pointer;display:flex;align-items:center;">
                             <span class="material-icons" style="font-size:15px;">remove</span>
                         </button>
@@ -610,7 +634,7 @@ function _renderExerciseList() {
                 </div>
                 `;
             }).join('')}
-            <button onclick="window._workoutAddSet('${ex.exerciseId}')"
+            <button ${exAttr} onclick="window._workoutAddSet(this.dataset.exId)"
                 style="margin-top:8px;padding:5px 12px;background:transparent;color:var(--text-2);border:1px dashed var(--border-base);border-radius:6px;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:4px;">
                 <span class="material-icons" style="font-size:14px;">add</span> Añadir ${trackingType === 'steps' || trackingType === 'cardio_distance' ? 'bloque' : 'serie'}
             </button>
@@ -644,7 +668,7 @@ function _renderExerciseList() {
 
 function _updateSetBadges(exerciseId) {
     const workout = getTodayWorkout();
-    if (!workout) return;
+    if (!workout || !Array.isArray(workout.exercises)) return;
     const ex = workout.exercises.find(e => e.exerciseId == exerciseId);
     if (!ex) return;
     const badge = document.getElementById(`badge-info-${exerciseId}`);
@@ -652,30 +676,31 @@ function _updateSetBadges(exerciseId) {
     const allExercisesDB = getExercisesDB();
     const dbEx = allExercisesDB.find(e => e.id == ex.exerciseId) || ex;
     const trackingType = ex.trackingType || getExerciseTrackingType(dbEx);
+    const sets = Array.isArray(ex.sets) ? ex.sets : [];
     let badgesHTML = '';
     if (trackingType === 'steps') {
-        const totalSteps = ex.sets.reduce((sum, s) => sum + (parseInt(s.steps) || 0), 0);
+        const totalSteps = sets.reduce((sum, s) => sum + (parseInt(s && s.steps) || 0), 0);
         const approxKm = (totalSteps * 0.00075).toFixed(2);
         badgesHTML = `<span>Pasos: <strong style="color:#10B981;">${totalSteps.toLocaleString('es-ES')}</strong> (~${approxKm} km)</span>`;
     } else if (trackingType === 'cardio_distance') {
-        const totalMins = ex.sets.reduce((sum, s) => sum + (parseInt(s.mins) || 0), 0);
-        const totalKm = ex.sets.reduce((sum, s) => sum + (parseFloat(s.km) || 0), 0);
+        const totalMins = sets.reduce((sum, s) => sum + (parseInt(s && s.mins) || 0), 0);
+        const totalKm = sets.reduce((sum, s) => sum + (parseFloat(s && s.km) || 0), 0);
         badgesHTML = `<span>Tiempo: <strong style="color:#10B981;">${totalMins} min</strong></span>${totalKm > 0 ? ` · <span>Distancia: <strong style="color:#38BDF8;">${totalKm.toFixed(1)} km</strong></span>` : ''}`;
     } else if (trackingType === 'time_hold') {
-        const totalSecs = ex.sets.reduce((sum, s) => sum + (parseInt(s.secs) || 0), 0);
+        const totalSecs = sets.reduce((sum, s) => sum + (parseInt(s && s.secs) || 0), 0);
         badgesHTML = `<span>Tiempo total: <strong style="color:#10B981;">${totalSecs}s</strong></span>`;
     } else if (trackingType === 'calisthenics') {
-        const totalReps = ex.sets.reduce((sum, s) => sum + (parseInt(s.reps) || 0), 0);
-        const maxKg = Math.max(...ex.sets.map(s => parseFloat(s.kg) || 0));
+        const totalReps = sets.reduce((sum, s) => sum + (parseInt(s && s.reps) || 0), 0);
+        const maxKg = sets.length > 0 ? Math.max(...sets.map(s => parseFloat(s && s.kg) || 0)) : 0;
         badgesHTML = `<span>Reps totales: <strong style="color:#10B981;">${totalReps}</strong></span>${maxKg > 0 ? ` · <span>Lastre máx: <strong style="color:#FBBF24;">${maxKg} kg</strong></span>` : ''}`;
     } else {
-        const bestSet = ex.sets.reduce((b, s) => {
-            const val = (parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0);
+        const bestSet = sets.reduce((b, current) => {
+            const val = (parseFloat(current && current.kg) || 0) * (parseInt(current && current.reps) || 0);
             const bVal = (parseFloat(b.kg) || 0) * (parseInt(b.reps) || 0);
-            return val > bVal ? s : b;
+            return val > bVal ? current : b;
         }, { kg: 0, reps: 0 });
         const est1RM = calculate1RM(bestSet.kg, bestSet.reps);
-        const totalVol = ex.sets.reduce((sum, s) => sum + ((parseFloat(s.kg) || 0) * (parseInt(s.reps) || 0)), 0);
+        const totalVol = sets.reduce((sum, s) => sum + ((parseFloat(s && s.kg) || 0) * (parseInt(s && s.reps) || 0)), 0);
         badgesHTML = `${est1RM > 0 ? `<span>1RM est: <strong style="color:#10B981;">${est1RM} kg</strong></span> · ` : ''}<span>Volumen: <strong style="color:#60A5FA;">${totalVol.toLocaleString('es-ES')} kg</strong></span>`;
     }
     badge.innerHTML = badgesHTML;
@@ -698,8 +723,20 @@ function _update1RMDisplay(exerciseId) {
     }
 }
 
+function _updateWorkoutStatus() {
+    const workout = getTodayWorkout();
+    const el = document.getElementById('workout-session-status');
+    if (!el || !workout) return;
+    const hasExercises = Array.isArray(workout.exercises) && workout.exercises.length > 0;
+    const done = hasExercises && workout.finalized !== false;
+    el.textContent = !hasExercises ? 'Sin empezar' : (done ? 'Realizado' : 'Borrador');
+    el.style.background = done ? 'rgba(16,185,129,0.16)' : 'var(--bg-elevated)';
+    el.style.color = done ? 'var(--primary-text)' : 'var(--text-2)';
+}
+
 function _updateKcalDisplay() {
     const workout = getTodayWorkout();
+    _updateWorkoutStatus();
     const el = document.querySelector('#sport-entreno-hoy [style*="1.4rem"]');
     if (!el || !workout) return;
     const kcal = estimateWorkoutKcal(workout);
@@ -756,7 +793,7 @@ export function renderExercisesDB(fullReset = false) {
                     <div style="display:flex;gap:8px;">
                         <div style="position:relative;flex:1;">
                             <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:18px;">search</span>
-                            <input id="ex-local-search-input" type="text" placeholder="Buscar ejercicio local..." value="${_exSearch}"
+                            <input id="ex-local-search-input" type="text" placeholder="Buscar ejercicio local..." value="${escapeHTML(_exSearch)}"
                                 oninput="window._exSearch(this.value)"
                                 style="width:100%;padding:8px 12px 8px 36px;background:var(--bg-card);border:1px solid var(--border-base);border-radius:8px;color:var(--text-1);font-size:0.9rem;outline:none;box-sizing:border-box;">
                         </div>
@@ -1055,11 +1092,13 @@ export function renderWorkoutHistory() {
     const container = document.getElementById('sport-historial-entrenos');
     if (!container) return;
 
-    const sessions = getWorkoutSessions();
+    // Los borradores se conservan para reanudarlos, pero el historial solo
+    // muestra entrenos realizados.
+    const sessions = getFinalizedWorkoutSessions();
     const dates = Object.keys(sessions).sort().reverse();
 
     if (dates.length === 0) {
-        container.innerHTML = `<div style="text-align:center;color:var(--text-3);padding:40px;font-size:0.9rem;">Sin entrenos registrados todavía.</div>`;
+        container.innerHTML = `<div style="text-align:center;color:var(--text-3);padding:40px;font-size:0.9rem;">Sin entrenos realizados todavía. Los borradores no cuentan hasta guardarlos.</div>`;
         return;
     }
 

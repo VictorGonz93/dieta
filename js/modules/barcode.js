@@ -157,7 +157,7 @@ async function initCameraStream() {
             if (cameraSelect) {
                 cameraSelect.innerHTML = devices.map((d, index) => {
                     const label = d.label || `Cámara ${index + 1}`;
-                    return `<option value="${d.id}">${label}</option>`;
+                    return `<option value="${escapeHTML(d.id)}">${escapeHTML(label)}</option>`;
                 }).join('');
             }
 

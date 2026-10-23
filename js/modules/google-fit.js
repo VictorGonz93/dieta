@@ -217,6 +217,7 @@ export async function fetchTodayStepsFromGoogleFit() {
 
         const data = await response.json();
         let totalSteps = 0;
+        let hasData = false;
 
         if (data && data.bucket) {
             data.bucket.forEach(bucket => {
@@ -226,7 +227,12 @@ export async function fetchTodayStepsFromGoogleFit() {
                             dataset.point.forEach(point => {
                                 if (point.value) {
                                     point.value.forEach(val => {
-                                        totalSteps += (val.intVal || val.fpVal || 0);
+                                        const raw = val.intVal !== undefined ? val.intVal : val.fpVal;
+                                        const n = Number(raw);
+                                        if (raw !== undefined && raw !== null && Number.isFinite(n)) {
+                                            totalSteps += n;
+                                            hasData = true;
+                                        }
                                     });
                                 }
                             });
@@ -236,11 +242,12 @@ export async function fetchTodayStepsFromGoogleFit() {
             });
         }
 
-        console.log('[GoogleFit] API response OK. Total pasos:', totalSteps);
-        if (totalSteps === 0) {
+        console.log('[GoogleFit] API response OK. Total pasos:', totalSteps, 'hay datos:', hasData);
+        if (!hasData) {
             console.log('[GoogleFit] Sin datos de pasos en Google Fit para hoy. Asegúrate de que Google Fit esté instalado y sincronizando en tu móvil.');
+            return null;
         }
-        return totalSteps > 0 ? Math.round(totalSteps) : 0;
+        return Math.round(totalSteps);
     } catch (err) {
         console.error('[GoogleFit] Error obteniendo pasos:', err.message || err);
         return null;
@@ -248,7 +255,9 @@ export async function fetchTodayStepsFromGoogleFit() {
 }
 
 /**
- * Sincroniza los pasos obtenidos de Google Fit en la sesión de entreno de hoy
+ * Sincroniza los pasos obtenidos de Google Fit en la sesión de entreno de HOY.
+ * La API consulta el día real, así que nunca se escribe en la fecha que el
+ * usuario esté viendo si es otra (antes podía contaminar días pasados).
  */
 export async function syncTodayStepsFromGoogleFit(showToast = false) {
     console.log('[GoogleFit] syncTodaySteps called, showToast:', showToast);
@@ -260,13 +269,18 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
         }
         return false;
     }
+    if (steps <= 0) {
+        // Sin pasos no se crea una sesión vacía ni se borra lo ya registrado.
+        if (showToast) showNotification('Google Fit no tiene pasos registrados todavía hoy', 'info');
+        return false;
+    }
 
-    const dateKey = getDateKey(AppState.currentDate);
+    const dateKey = getDateKey(new Date());
     const sessions = getWorkoutSessions();
     let session = sessions[dateKey];
 
     if (!session || typeof session !== 'object') {
-        session = { date: dateKey, exercises: [], duration: 0, restTimeMin: 3, notes: '', finalized: false };
+        session = { date: dateKey, exercises: [], duration: 0, restTimeMin: 3, notes: '', finalized: true };
         sessions[dateKey] = session;
     }
     if (!Array.isArray(session.exercises)) session.exercises = [];
@@ -290,12 +304,28 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
     ));
 
     if (exInSession) {
-        // Merge: actualizar el total de pasos conservando mins y bloques manuales.
-        // El set 0 es el sincronizado con Fit; los demás son manuales del usuario.
-        if (!Array.isArray(exInSession.sets) || exInSession.sets.length === 0) {
-            exInSession.sets = [{ steps: steps, mins: 0, done: true, synced: true }];
+        if (!Array.isArray(exInSession.sets)) exInSession.sets = [];
+        // Solo se actualiza el bloque sincronizado. Los sets manuales del
+        // usuario no se pisan. Los backups antiguos no tienen 'synced': se
+        // migra el set 0 si parece el generado por Fit.
+        let syncedSet = exInSession.sets.find(s => s && s.synced === true);
+        if (!syncedSet) {
+            const legacy = exInSession.sets[0];
+            const looksLegacySynced = legacy && legacy.synced === undefined
+                && parseFloat(legacy.steps) > 0
+                && (parseFloat(legacy.mins) || 0) === 0
+                && legacy.done === true;
+            if (looksLegacySynced) {
+                syncedSet = legacy;
+                syncedSet.synced = true;
+            }
+        }
+        if (syncedSet) {
+            syncedSet.steps = steps;
+            syncedSet.done = true;
+            syncedSet.synced = true;
         } else {
-            exInSession.sets[0] = { ...exInSession.sets[0], steps: steps, done: true, synced: true };
+            exInSession.sets.push({ steps, mins: 0, done: true, synced: true });
         }
         exInSession.trackingType = exInSession.trackingType || 'steps';
     } else {
@@ -306,14 +336,22 @@ export async function syncTodayStepsFromGoogleFit(showToast = false) {
             type: stepsExDB.type,
             category: stepsExDB.category,
             trackingType: 'steps',
-            sets: [{ steps: steps, mins: 0, done: true, synced: true }]
+            sets: [{ steps, mins: 0, done: true, synced: true }]
         });
+    }
+
+    // Una sesión creada solo por pasos es actividad real, no un borrador.
+    const onlySteps = session.exercises.every(ex => (ex.trackingType || '') === 'steps');
+    if (onlySteps) {
+        session.finalized = true;
+        session.onlySteps = true;
     }
 
     // Recalcular gasto calórico de la sesión
     session.estimatedKcal = estimateWorkoutKcal(session);
     sessions[dateKey] = session;
-    safeSet('workoutSessions', sessions);
+    const saved = safeSet('workoutSessions', sessions);
+    if (!saved) return false;
     notifyNutritionChanged();
 
     // Actualizar UI

@@ -2,46 +2,133 @@
 
 import AppState from './state.js';
 import { KCAL_PER_KG_FAT } from './constants.js';
-import { escapeHTML } from './utils.js';
-import { getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, clearAdaptiveTDEECache } from './nutrition.js';
+import { escapeHTML, num } from './utils.js';
+import { getDayNumber, getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, clearAdaptiveTDEECache } from './nutrition.js';
 import { getWorkoutSessions, recomputeSessionKcal } from './workout.js';
-import { getDateKey, saveDays, safeGet, safeSet } from './storage.js';
+import { getDateKey, saveDays, safeGet, safeSet, _sanitizeWeightHistory } from './storage.js';
 import { showNotification } from './ui/notifications.js';
+
+const MIN_WEIGHT_KG = 25;
+const MAX_WEIGHT_KG = 350;
+
+function _todayKey() {
+    return getDateKey(new Date());
+}
+
+// new Date('2026-02-30') no falla: JS la desborda al 2 de marzo. Para las
+// claves de día exigimos que la fecha exista de verdad.
+function _parseDateKeyStrict(key) {
+    if (typeof key !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+    const [y, m, d] = key.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return dt;
+}
+
+// Diferencia exacta en días entre claves YYYY-MM-DD (inmune al cambio de hora)
+function _daysBetweenKeys(fromKey, toKey) {
+    const from = new Date(`${fromKey}T00:00:00`);
+    const to = new Date(`${toKey}T00:00:00`);
+    const fromUTC = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+    const toUTC = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+    return Math.round((toUTC - fromUTC) / 86400000);
+}
+
+// Suma días por UTC y devuelve una fecha local a medianoche: con setDate, un
+// rango que cruza el cambio de hora podía devolver el día anterior/siguiente.
+function _datePlusDays(base, days) {
+    const utc = Date.UTC(base.getFullYear(), base.getMonth(), base.getDate() + days);
+    const d = new Date(utc);
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+function _latestWeightEntry() {
+    const history = Array.isArray(AppState.config.weightHistory) ? AppState.config.weightHistory : [];
+    let latest = null;
+    history.forEach(entry => {
+        if (!entry || typeof entry.date !== 'string') return;
+        const w = parseFloat(entry.weight);
+        if (!Number.isFinite(w) || w < MIN_WEIGHT_KG || w > MAX_WEIGHT_KG) return;
+        if (!latest || entry.date > latest.date) latest = entry;
+    });
+    return latest;
+}
+
+function _recalculateWeightTargets(weight) {
+    if (!Number.isFinite(weight)) return;
+    const pace = AppState.config.lossPace || 'moderado';
+    const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
+    AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
+    AppState.config.surplusTarget = calculateAutoSurplus(weight, AppState.config.gainPace || 'lento');
+    AppState.config.proteinGoal = Math.round(weight * pFactor);
+}
+
+// currentWeight SIEMPRE se deriva del pesaje válido más reciente por fecha.
+// Editar o borrar un peso antiguo ya no pisa el peso actual.
+function _syncCurrentWeightFromHistory() {
+    const latest = _latestWeightEntry();
+    if (!latest) return false;
+    const previous = AppState.config.currentWeight;
+    const changed = parseFloat(previous) !== latest.weight;
+    AppState.config.currentWeight = latest.weight;
+    if (changed) {
+        _recalculateWeightTargets(latest.weight);
+        safeSet('nutrition_config', AppState.config);
+    }
+    return changed;
+}
 
 export function loadWeightHistory() {
     const saved = localStorage.getItem('weight_history');
-    if (saved === null || saved === undefined) {
+    const configHistory = Array.isArray(AppState.config.weightHistory) ? AppState.config.weightHistory : null;
+    let source = null;
+
+    if (saved !== null && saved !== undefined) {
+        const parsed = safeGet('weight_history', null);
+        source = Array.isArray(parsed) ? parsed : [];
+    } else if (configHistory && configHistory.length > 0) {
+        // Compatibilidad: backups antiguos solo tenían config.weightHistory
+        source = configHistory;
+    }
+
+    if (source === null) {
         AppState.config.weightHistory = [];
-        if (AppState.config.startDate && AppState.config.startWeight) {
+        if (AppState.config.startDate && Number.isFinite(AppState.config.startWeight)
+            && AppState.config.startWeight >= MIN_WEIGHT_KG && AppState.config.startWeight <= MAX_WEIGHT_KG) {
             AppState.config.weightHistory.push({
-                date: getDateKey(AppState.config.startDate),
+                date: getDateKey(new Date(AppState.config.startDate)),
                 weight: AppState.config.startWeight,
                 day: 1,
                 predictedWeight: null,
             });
             saveWeightHistory();
         }
-    } else {
-        const parsed = safeGet('weight_history', []);
-        AppState.config.weightHistory = Array.isArray(parsed) ? parsed : [];
-        // Orden canónico por fecha (los gráficos/regresión asumen cronología)
-        AppState.config.weightHistory.sort((a, b) => {
-            const da = a && a.date, db = b && b.date;
-            return da < db ? -1 : da > db ? 1 : 0;
-        });
-        let migratedCount = 0;
-        AppState.config.weightHistory.forEach((entry) => {
-            if (entry.predictedWeight === undefined) {
-                const prediction = calculateNextDayPredictionForDate(entry.date, entry.weight);
-                entry.predictedWeight = prediction?.predictedWeight || null;
+        return;
+    }
+
+    const { clean, dropped } = _sanitizeWeightHistory(source);
+    if (dropped > 0) console.warn(`[Weight History] ${dropped} entrada(s) inválidas descartadas`);
+    AppState.config.weightHistory = clean;
+
+    let migratedCount = 0;
+    AppState.config.weightHistory.forEach((entry) => {
+        if (entry.predictedWeight === undefined || entry.predictedWeight === null) {
+            const prediction = calculateNextDayPredictionForDate(entry.date, entry.weight);
+            const predicted = prediction?.predictedWeight;
+            if (predicted !== undefined) {
+                entry.predictedWeight = predicted;
                 migratedCount++;
             }
-        });
-        if (migratedCount > 0) {
-            console.log(`[Weight History] Migrated ${migratedCount} entries with predicted weights`);
-            saveWeightHistory();
         }
+    });
+    if (migratedCount > 0) {
+        console.log(`[Weight History] Migrated ${migratedCount} entries with predicted weights`);
+        saveWeightHistory();
     }
+
+    // Solo derivar currentWeight si ya existía historial real (no en el alta
+    // inicial, donde currentWeight puede diferir de startWeight).
+    if (clean.length > 0) _syncCurrentWeightFromHistory();
 }
 
 export function saveWeightHistory() {
@@ -49,49 +136,62 @@ export function saveWeightHistory() {
 }
 
 export function recordWeight(date, weight) {
-    if (!AppState.config.weightHistory) AppState.config.weightHistory = [];
-    const dateStr = getDateKey(date);
-    const existingIndex = AppState.config.weightHistory.findIndex(w => w.date === dateStr);
+    let dt;
+    if (date instanceof Date) dt = new Date(date.getTime());
+    else if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) dt = _parseDateKeyStrict(date);
+    else dt = new Date(date);
+    if (!dt || Number.isNaN(dt.getTime())) {
+        showNotification('Fecha de pesaje no válida', 'warning');
+        return false;
+    }
+    const dateStr = getDateKey(dt);
+    if (dateStr > _todayKey()) {
+        showNotification('No puedes registrar un peso con fecha futura', 'warning');
+        return false;
+    }
+    const w = typeof weight === 'number' ? weight : parseFloat(weight);
+    if (!Number.isFinite(w) || w < MIN_WEIGHT_KG || w > MAX_WEIGHT_KG) {
+        showNotification(`El peso debe estar entre ${MIN_WEIGHT_KG} y ${MAX_WEIGHT_KG} kg`, 'warning');
+        return false;
+    }
 
-    const { getDayNumber } = await_getDayNumber();
-    const dayNum = getDayNumber(date);
+    if (!Array.isArray(AppState.config.weightHistory)) AppState.config.weightHistory = [];
+    const existingIndex = AppState.config.weightHistory.findIndex(entry => entry.date === dateStr);
 
-    const prediction = calculateNextDayPredictionForDate(dateStr, weight);
-    const predictedWeight = prediction?.predictedWeight || null;
+    const dayNum = getDayNumber(dt);
+    const prediction = calculateNextDayPredictionForDate(dateStr, w);
+    const predictedWeight = prediction?.predictedWeight ?? null;
 
     // Bayesian: store prediction error if we have yesterday's prediction vs today's actual
     if (AppState.config.weightHistory.length > 0) {
-        const yesterdayDate = new Date(date);
+        const yesterdayDate = new Date(dt);
         yesterdayDate.setDate(yesterdayDate.getDate() - 1);
         const yesterdayKey = getDateKey(yesterdayDate);
-        const yesterdayEntry = AppState.config.weightHistory.find(w => w.date === yesterdayKey);
+        const yesterdayEntry = AppState.config.weightHistory.find(entry => entry.date === yesterdayKey);
         if (yesterdayEntry && yesterdayEntry.predictedWeight) {
-            storePredictionError(weight, yesterdayEntry.predictedWeight);
+            storePredictionError(w, yesterdayEntry.predictedWeight);
         }
     }
 
     if (existingIndex >= 0) {
-        AppState.config.weightHistory[existingIndex].weight = weight;
-        AppState.config.weightHistory[existingIndex].predictedWeight = predictedWeight;
+        AppState.config.weightHistory[existingIndex] = {
+            ...AppState.config.weightHistory[existingIndex],
+            date: dateStr,
+            weight: w,
+            day: dayNum || AppState.config.weightHistory[existingIndex].day,
+            predictedWeight,
+        };
     } else {
-        AppState.config.weightHistory.push({ date: dateStr, weight, day: dayNum, predictedWeight });
+        AppState.config.weightHistory.push({ date: dateStr, weight: w, day: dayNum, predictedWeight });
     }
 
-    AppState.config.weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
-    saveWeightHistory();
+    AppState.config.weightHistory.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (!saveWeightHistory()) return false;
+    _syncCurrentWeightFromHistory();
     clearAdaptiveTDEECache();
     // El estimado de la sesión de ese día usaba el peso anterior: recalcular
     try { recomputeSessionKcal(dateStr); } catch (_) { /* sin sesión, nada que hacer */ }
-}
-
-// Helper síncrono para getDayNumber (evitar circular import)
-function await_getDayNumber() {
-    return { getDayNumber: (date) => {
-        if (!AppState.config.startDate) return 0;
-        const start = new Date(AppState.config.startDate);
-        const diff = date - start;
-        return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
-    }};
+    return true;
 }
 
 export function calculateWeightPrediction() {
@@ -103,8 +203,14 @@ export function calculateWeightPrediction() {
     const first = recentHistory[0];
     const last = recentHistory[recentHistory.length - 1];
 
-    const daysDiff = (new Date(last.date) - new Date(first.date)) / (1000 * 60 * 60 * 24);
-    const weightDiff = first.weight - last.weight;
+    // Días por componentes UTC: un cambio de hora no altera la tasa semanal.
+    const daysDiff = _daysBetweenKeys(first.date, last.date);
+    const firstWeight = parseFloat(first.weight);
+    const lastWeight = parseFloat(last.weight);
+    if (!Number.isFinite(firstWeight) || !Number.isFinite(lastWeight)) {
+        return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
+    }
+    const weightDiff = firstWeight - lastWeight;
 
     if (daysDiff === 0) return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
 
@@ -123,8 +229,7 @@ export function calculateWeightPrediction() {
     if ((goalPhase === 'volumen' || target > current) && target > current && weeklyGain > 0) {
         const remaining = target - current;
         const estimatedDays = Math.ceil((remaining / weeklyGain) * 7);
-        const estimatedDate = new Date();
-        estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
+        const estimatedDate = _datePlusDays(new Date(), estimatedDays);
         return {
             estimatedDays,
             estimatedDate: estimatedDate.toLocaleDateString('es-ES'),
@@ -141,8 +246,7 @@ export function calculateWeightPrediction() {
     }
 
     const estimatedDays = Math.ceil((remainingWeight / weeklyLoss) * 7);
-    const estimatedDate = new Date();
-    estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
+    const estimatedDate = _datePlusDays(new Date(), estimatedDays);
 
     return {
         estimatedDays,
@@ -155,12 +259,28 @@ export function calculateWeightPrediction() {
 
 export function getWeightTrendData() {
     if (!AppState.config.weightHistory || AppState.config.weightHistory.length === 0) return [];
-    return AppState.config.weightHistory.map(w => ({
-        day: w.day,
-        date: w.date,
-        actual: w.weight,
-        theoretical: AppState.config.startWeight - ((w.day - 1) * 0.3),
-    }));
+    const startWeight = parseFloat(AppState.config.startWeight);
+    const phase = AppState.config.goalPhase || 'definicion';
+    const rate = parseFloat(AppState.config.surplusTarget ?? AppState.config.deficitTarget);
+    // Línea teórica coherente con la fase: en volumen sube al ritmo del
+    // superávit, en definición baja al del déficit. Antes bajaba 0,3 kg/día
+    // siempre, incluso en volumen (mentira visual en el gráfico).
+    const dailyChange = Number.isFinite(rate) && Number.isFinite(startWeight)
+        ? (phase === 'volumen' ? Math.abs(rate) : phase === 'mantenimiento' ? 0 : -Math.abs(rate)) / KCAL_PER_KG_FAT
+        : 0;
+    return AppState.config.weightHistory.map((w, index) => {
+        const weight = parseFloat(w.weight);
+        const day = parseFloat(w.day);
+        const dayNum = Number.isFinite(day) && day > 0 ? day : index + 1;
+        return {
+            day: dayNum,
+            date: w.date,
+            actual: Number.isFinite(weight) ? weight : null,
+            theoretical: Number.isFinite(startWeight)
+                ? Math.round((startWeight + (dayNum - 1) * dailyChange) * 100) / 100
+                : null,
+        };
+    });
 }
 
 export function getTrainingTime(dateKey) {
@@ -261,7 +381,8 @@ function _inflammationForKcal(kcal) {
     return 0;
 }
 
-// Kcal del entreno de AYER (para el residuo inflamatorio con decaimiento 48h)
+// Kcal del entreno de AYER (para el residuo inflamatorio con decaimiento 48h).
+// Solo sesiones finalizadas: un borrador no es actividad realizada.
 function _getYesterdayWorkoutKcal(dateKey) {
     try {
         const parts = (dateKey || '').split('-').map(Number);
@@ -269,8 +390,10 @@ function _getYesterdayWorkoutKcal(dateKey) {
         const dt = new Date(parts[0], parts[1] - 1, parts[2]);
         dt.setDate(dt.getDate() - 1);
         const session = getWorkoutSessions()[getDateKey(dt)];
-        const kcal = parseFloat(session && session.estimatedKcal);
-        return Number.isFinite(kcal) ? kcal : 0;
+        if (!session || session.finalized === false || !Array.isArray(session.exercises)
+            || session.exercises.length === 0) return 0;
+        const kcal = parseFloat(session.estimatedKcal);
+        return Number.isFinite(kcal) ? Math.min(20000, Math.max(0, kcal)) : 0;
     } catch (e) { return 0; }
 }
 
@@ -296,6 +419,11 @@ export function calculateNextDayPredictionForDate(dateKey, nextDayWeight = AppSt
             });
         });
     }
+
+    // Sin comida registrada no hay predicción fiable: devolver 0 kcal de déficit
+    // hacía que el peso "predicho" fuese casi el de hoy y contaminaba la
+    // calibración bayesiana con errores falsos.
+    if (mealSlots === 0) return null;
 
     const [year, month, day] = dateKey.split('-').map(Number);
     const dayDate = new Date(year, month - 1, day);
@@ -483,23 +611,18 @@ export function saveDailyWeight() {
     const input = document.getElementById('dailyWeightInput');
     if (!input) return;
 
-    const weight = parseFloat(input.value);
-    if (isNaN(weight) || weight <= 0) {
+    const raw = parseFloat(input.value);
+    if (!Number.isFinite(raw)) {
         showNotification('Ingresa un peso válido', 'warning');
         return;
     }
+    const weight = Math.round(raw * 100) / 100;
+    // recordWeight valida rango, fecha futura, persiste, deriva currentWeight
+    // desde el último pesaje y recalcula metas. Antes esta función duplicaba la
+    // lógica y podía dejar currentWeight distinto al historial.
+    const date = AppState.currentDate instanceof Date ? AppState.currentDate : new Date();
+    if (!recordWeight(date, weight)) return;
 
-    recordWeight(AppState.currentDate, weight);
-    AppState.config.currentWeight = weight;
-
-    // Recalcular proteína y déficit/superávit automático con el nuevo peso
-    const pace = AppState.config.lossPace || 'moderado';
-    const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
-    AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
-    AppState.config.surplusTarget = calculateAutoSurplus(weight, AppState.config.gainPace || 'lento');
-    AppState.config.proteinGoal = Math.round(weight * pFactor);
-
-    safeSet('nutrition_config', AppState.config);
     showNotification(`Peso registrado: ${weight}kg`, 'success');
 
     import('./config-settings.js').then(m => m.updateHeaderInfo());
@@ -519,25 +642,28 @@ export function renderWeightHistory() {
         return;
     }
 
-    container.innerHTML = AppState.config.weightHistory
+    // Copia antes de ordenar: render no debe reordenar el estado en memoria.
+    container.innerHTML = [...AppState.config.weightHistory]
         .sort((a, b) => new Date(a.date) - new Date(b.date))
         .map((entry, index) => {
-            const date = new Date(entry.date + 'T00:00:00');
+            const date = new Date(`${entry.date}T00:00:00`);
             const dayName = date.toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' });
-            const dayNum = entry.day || (index + 1);
+            const dayNum = num(entry.day, index + 1);
+            const dateKey = escapeHTML(String(entry.date || ''));
             return `
                 <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-primary smooth-transition flex items-center justify-between gap-4">
                     <div class="flex-1">
                         <p class="text-white font-semibold">Día ${dayNum}</p>
-                        <p class="text-xs text-slate-400">${dayName}</p>
+                        <p class="text-xs text-slate-400">${escapeHTML(dayName)}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <input type="number" step="0.1" value="${entry.weight}"
+                        <input type="number" step="0.1" value="${num(entry.weight)}"
                                class="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-right focus:outline-none focus:border-accent smooth-transition"
-                               onchange="window.updateWeightEntry('${escapeHTML(entry.date)}', this.value)"
+                               data-date="${dateKey}"
+                               onchange="window.updateWeightEntry(this.dataset.date, this.value)"
                                onkeyup="if(event.key === 'Enter') this.onchange()">
                         <span class="text-slate-400 font-medium">kg</span>
-                        <button onclick="window.deleteWeightEntry('${escapeHTML(entry.date)}')" class="ml-2 p-2 hover:bg-red-600/20 text-red-400 rounded-lg smooth-transition" title="Eliminar">
+                        <button data-date="${dateKey}" onclick="window.deleteWeightEntry(this.dataset.date)" class="ml-2 p-2 hover:bg-red-600/20 text-red-400 rounded-lg smooth-transition" title="Eliminar">
                             <span class="material-icons text-lg">delete</span>
                         </button>
                     </div>
@@ -547,61 +673,69 @@ export function renderWeightHistory() {
 }
 
 export function updateWeightEntry(date, newWeight) {
-    const weight = parseFloat(newWeight);
-    if (isNaN(weight) || weight <= 0) return;
-
-    const index = AppState.config.weightHistory.findIndex(w => w.date === date);
-    if (index >= 0) {
-        AppState.config.weightHistory[index].weight = weight;
-        const prediction = calculateNextDayPredictionForDate(date, weight);
-        AppState.config.weightHistory[index].predictedWeight = prediction?.predictedWeight || null;
-        saveWeightHistory();
-        clearAdaptiveTDEECache();
-        // Sync currentWeight if editing today's entry
-        const todayKey = getDateKey(new Date());
-        if (date === todayKey) {
-            AppState.config.currentWeight = weight;
-            const pace = AppState.config.lossPace || 'moderado';
-            const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
-            AppState.config.deficitTarget = calculateAutoDeficit(weight, pace);
-            AppState.config.surplusTarget = calculateAutoSurplus(weight, AppState.config.gainPace || 'lento');
-            AppState.config.proteinGoal = Math.round(weight * pFactor);
-            safeSet('nutrition_config', AppState.config);
-        }
-        renderWeightHistory();
-        showNotification(`Peso actualizado: ${weight}kg`, 'success');
-        import('./config-settings.js').then(m => m.updateHeaderInfo());
-        updateWeightPrediction();
-        displayNextDayPrediction();
-        import('./meals.js').then(m => m.renderDay());
+    const key = String(date || '');
+    const weight = typeof newWeight === 'number' ? newWeight : parseFloat(newWeight);
+    if (!_parseDateKeyStrict(key)) {
+        showNotification('Fecha de pesaje no válida', 'warning');
+        return false;
     }
+    if (key > _todayKey()) {
+        showNotification('No puedes editar un pesaje con fecha futura', 'warning');
+        return false;
+    }
+    if (!Number.isFinite(weight) || weight < MIN_WEIGHT_KG || weight > MAX_WEIGHT_KG) {
+        showNotification(`El peso debe estar entre ${MIN_WEIGHT_KG} y ${MAX_WEIGHT_KG} kg`, 'warning');
+        return false;
+    }
+
+    if (!Array.isArray(AppState.config.weightHistory)) AppState.config.weightHistory = [];
+    const index = AppState.config.weightHistory.findIndex(w => w.date === key);
+    if (index < 0) return false;
+
+    const entry = AppState.config.weightHistory[index];
+    entry.weight = Math.round(weight * 100) / 100;
+    entry.day = entry.day || getDayNumber(new Date(`${key}T00:00:00`));
+    const prediction = calculateNextDayPredictionForDate(key, entry.weight);
+    entry.predictedWeight = prediction?.predictedWeight ?? null;
+    AppState.config.weightHistory.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (!saveWeightHistory()) return false;
+    // El peso actual SIEMPRE sale del pesaje más reciente, no del editado.
+    _syncCurrentWeightFromHistory();
+    clearAdaptiveTDEECache();
+    try { recomputeSessionKcal(key); } catch (_) { /* sin sesión */ }
+
+    renderWeightHistory();
+    showNotification(`Peso actualizado: ${entry.weight}kg`, 'success');
+    import('./config-settings.js').then(m => m.updateHeaderInfo());
+    updateWeightPrediction();
+    displayNextDayPrediction();
+    import('./meals.js').then(m => m.renderDay());
+    import('./stats.js').then(m => m.updateGoalsDisplay());
+    import('./charts.js').then(m => m.renderWeightPredictionChart());
+    return true;
 }
 
 export function deleteWeightEntry(date) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
-    AppState.config.weightHistory = AppState.config.weightHistory.filter(w => w.date !== date);
-    saveWeightHistory();
+    const key = String(date || '');
+    if (!_parseDateKeyStrict(key)) return false;
+    if (!confirm('¿Estás seguro de que quieres eliminar este registro?')) return false;
+    if (!Array.isArray(AppState.config.weightHistory)) return false;
+    const before = AppState.config.weightHistory.length;
+    AppState.config.weightHistory = AppState.config.weightHistory.filter(w => w.date !== key);
+    if (AppState.config.weightHistory.length === before) return false;
+    if (!saveWeightHistory()) return false;
+    // Si se borra el último pesaje, currentWeight conserva el valor actual:
+    // no hay dato del que derivarlo y poner null rompería TDEE/objetivos.
+    _syncCurrentWeightFromHistory();
     clearAdaptiveTDEECache();
-    // Sync currentWeight if deleting today's entry
-    const todayKey = getDateKey(new Date());
-    if (date === todayKey) {
-        const lastEntry = AppState.config.weightHistory.length > 0
-            ? AppState.config.weightHistory[AppState.config.weightHistory.length - 1]
-            : null;
-        AppState.config.currentWeight = lastEntry ? lastEntry.weight : null;
-        if (AppState.config.currentWeight) {
-            const pace = AppState.config.lossPace || 'moderado';
-            const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
-            AppState.config.deficitTarget = calculateAutoDeficit(AppState.config.currentWeight, pace);
-            AppState.config.surplusTarget = calculateAutoSurplus(AppState.config.currentWeight, AppState.config.gainPace || 'lento');
-            AppState.config.proteinGoal = Math.round(AppState.config.currentWeight * pFactor);
-        }
-        safeSet('nutrition_config', AppState.config);
-    }
+    try { recomputeSessionKcal(key); } catch (_) { /* sin sesión */ }
     renderWeightHistory();
     showNotification('Registro eliminado', 'success');
     import('./config-settings.js').then(m => m.updateHeaderInfo());
     updateWeightPrediction();
     displayNextDayPrediction();
     import('./meals.js').then(m => m.renderDay());
+    import('./stats.js').then(m => m.updateGoalsDisplay());
+    import('./charts.js').then(m => m.renderWeightPredictionChart());
+    return true;
 }

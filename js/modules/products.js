@@ -1,7 +1,8 @@
 ﻿// ==================== BASE DE PRODUCTOS ====================
 
 import AppState from './state.js';
-import { safeGet, safeSet } from './storage.js';
+import { safeGet, safeSet, _sanitizeProduct, _sanitizeProductOverrides } from './storage.js';
+import { escapeHTML, num } from './utils.js';
 import { showNotification } from './ui/notifications.js';
 
 export const PRODUCTS_DB = [
@@ -24,54 +25,112 @@ export const PRODUCTS_DB = [
     { id: 14, name: 'Albóndigas cerdo (5) + patatas', portion: 487, unit: 'g', category: 'platos', kcal: 646, protein: 34, carbs: 54, fats: 33, customUnit: '', customUnitWeight: null },
 ];
 
-export function loadCustomProducts() {
-    const parsed = safeGet('custom_products', []);
-    AppState.customProducts = Array.isArray(parsed) ? parsed : [];
-    const maxId = Math.max(...PRODUCTS_DB.map(p => p.id), 100);
-    AppState.customProducts.forEach((p, index) => {
+// Copia inmutable de la base integrada. PRODUCTS_DB se recompone a partir de
+// esta copia + overrides + personalizados: editar un integrado ya no vive solo
+// en memoria y sobrevive a recargas.
+const BUILTIN_PRODUCTS = PRODUCTS_DB.map(p => ({ ...p }));
+
+function _loadProductOverrides() {
+    // Sanea al cargar: un localStorage manipulado no debe colar strings donde
+    // el resto del código espera números (ni HTML en los modales).
+    const raw = safeGet('product_overrides', {});
+    AppState.productOverrides = _sanitizeProductOverrides(raw) || {};
+}
+
+function _productOverrideKey(id) {
+    return String(id);
+}
+
+export function setProductOverride(productId, patch) {
+    if (!AppState.productOverrides || typeof AppState.productOverrides !== 'object') {
+        AppState.productOverrides = {};
+    }
+    const key = _productOverrideKey(productId);
+    const next = { ...(AppState.productOverrides[key] || {}), ...patch };
+    AppState.productOverrides[key] = next;
+    return safeSet('product_overrides', AppState.productOverrides);
+}
+
+// Recompone la vista PRODUCTS_DB (referencia estable: los demás módulos ya la
+// importaron). No muta la base integrada original.
+export function syncProductsWithOverrides() {
+    if (!AppState.productOverrides || typeof AppState.productOverrides !== 'object') {
+        AppState.productOverrides = {};
+    }
+    PRODUCTS_DB.length = 0;
+    BUILTIN_PRODUCTS.forEach(base => {
+        const patch = AppState.productOverrides[_productOverrideKey(base.id)];
+        PRODUCTS_DB.push({ ...base, ...(patch || {}) });
+    });
+    const customs = Array.isArray(AppState.customProducts) ? AppState.customProducts : [];
+    customs.forEach(p => {
         if (!p || typeof p !== 'object') return;
-        if (!p.id) p.id = maxId + index + 1;
-        if (!PRODUCTS_DB.find(db => db.id === p.id)) {
-            PRODUCTS_DB.push(p);
-        }
+        if (!PRODUCTS_DB.some(db => db.id === p.id)) PRODUCTS_DB.push({ ...p });
     });
 }
 
+export function loadCustomProducts() {
+    const parsed = safeGet('custom_products', []);
+    const list = Array.isArray(parsed) ? parsed : [];
+    AppState.customProducts = list.map(_sanitizeProduct).filter(Boolean);
+    _loadProductOverrides();
+
+    const maxId = Math.max(...BUILTIN_PRODUCTS.map(p => Number(p.id) || 0), 100);
+    AppState.customProducts.forEach((p, index) => {
+        if (typeof p.id === 'number' && Number.isFinite(p.id)) return;
+        const numeric = Number(p.id);
+        if (Number.isFinite(numeric) && numeric > 0) p.id = numeric;
+        else p.id = maxId + index + 1;
+    });
+    syncProductsWithOverrides();
+}
+
 export function saveCustomProducts() {
+    if (!Array.isArray(AppState.customProducts)) AppState.customProducts = [];
     return safeSet('custom_products', AppState.customProducts);
 }
 
 export function addNewProduct() {
-    const name = document.getElementById('newProductName').value.trim();
+    const name = String(document.getElementById('newProductName').value || '').trim().slice(0, 120);
     const category = document.getElementById('newProductCategory').value;
     const kcal = parseFloat(document.getElementById('newProductKcal').value);
     const protein = parseFloat(document.getElementById('newProductProtein').value);
     const carbs = parseFloat(document.getElementById('newProductCarbs').value);
     const fats = parseFloat(document.getElementById('newProductFats').value);
-    const customUnit = document.getElementById('newProductCustomUnit').value.trim();
-    const customUnitWeight = parseFloat(document.getElementById('newProductCustomUnitWeight').value) || null;
+    const customUnit = String(document.getElementById('newProductCustomUnit').value || '').trim().slice(0, 30);
+    const customUnitWeight = parseFloat(document.getElementById('newProductCustomUnitWeight').value);
 
-    if (!name || isNaN(kcal) || isNaN(protein) || isNaN(carbs) || isNaN(fats)) {
-        showNotification('Completa todos los campos', 'error');
+    const macros = [kcal, protein, carbs, fats];
+    if (!name || !macros.every(Number.isFinite) || macros.some(v => v < 0 || v > 100000)) {
+        showNotification('Completa todos los campos con valores válidos', 'error');
+        return;
+    }
+    if (!['bebidas', 'proteinas', 'carbos', 'platos', 'suplementos'].includes(category)) {
+        showNotification('Categoría no válida', 'error');
+        return;
+    }
+    if (customUnit && (!Number.isFinite(customUnitWeight) || customUnitWeight <= 0)) {
+        showNotification('Si pones unidad personalizada, debe tener un peso en gramos válido', 'error');
         return;
     }
 
+    if (!Array.isArray(AppState.customProducts)) AppState.customProducts = [];
     const newProduct = {
         id: Date.now(),
-        name: name,
+        name,
         portion: 100,
         unit: 'g',
-        category: category,
-        kcal: kcal,
-        protein: protein,
-        carbs: carbs,
-        fats: fats,
-        customUnit: customUnit,
-        customUnitWeight: customUnitWeight,
+        category,
+        kcal,
+        protein,
+        carbs,
+        fats,
+        customUnit,
+        customUnitWeight: customUnit ? Math.round(customUnitWeight * 100) / 100 : null,
     };
 
     AppState.customProducts.push(newProduct);
-    PRODUCTS_DB.push(newProduct);
+    syncProductsWithOverrides();
     saveCustomProducts();
 
     document.getElementById('newProductName').value = '';
@@ -88,29 +147,31 @@ export function addNewProduct() {
 }
 
 export function deleteProduct(productId) {
-    const product = PRODUCTS_DB.find(p => p.id === productId);
+    const sameId = (p) => p && String(p.id) === String(productId);
+    const product = PRODUCTS_DB.find(sameId);
     if (!product) return;
 
     // Only allow deleting custom products, not built-in ones
-    const isCustom = AppState.customProducts.some(p => p.id === productId);
+    const isCustom = Array.isArray(AppState.customProducts) && AppState.customProducts.some(sameId);
     if (!isCustom) {
         showNotification('No se pueden eliminar productos integrados', 'warning');
         return;
     }
 
-    if (!confirm(`¿Eliminar "${product.name.replace(/^[^\w]+\s/, '').trim()}"?`)) return;
+    const cleanName = typeof product.name === 'string' ? product.name.replace(/^[^\w]+\s/, '').trim() : '';
+    if (!confirm(`¿Eliminar "${cleanName}"?`)) return;
 
-    const customIndex = AppState.customProducts.findIndex(p => p.id === productId);
+    const customIndex = AppState.customProducts.findIndex(sameId);
     if (customIndex > -1) {
         AppState.customProducts.splice(customIndex, 1);
         saveCustomProducts();
     }
 
-    const dbIndex = PRODUCTS_DB.findIndex(p => p.id === productId);
-    if (dbIndex > -1) PRODUCTS_DB.splice(dbIndex, 1);
+    // Recompone PRODUCTS_DB desde la base integrada + overrides + customs
+    syncProductsWithOverrides();
 
     import('./ui/products-list.js').then(m => m.renderProductsList());
-    showNotification(`Producto eliminado`);
+    showNotification('Producto eliminado');
 }
 
 // Alias por compatibilidad
@@ -122,9 +183,11 @@ export function editProductCustomUnit(productId) {
     const product = PRODUCTS_DB.find(p => p.id == productId);
     if (!product) return;
 
-    const cleanName = product.name.replace(/^[^\w]+\s/, '').trim();
+    const cleanName = String(product.name || '').replace(/^[^\w]+\s/, '').trim();
     const currentUnit = product.customUnit || '';
-    const currentWeight = product.customUnitWeight || '';
+    const currentWeight = Number.isFinite(Number(product.customUnitWeight))
+        ? Number(product.customUnitWeight)
+        : '';
 
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -136,10 +199,10 @@ export function editProductCustomUnit(productId) {
     modal.innerHTML = `
         <div style="background: #1e293b; border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
             <h3 style="color: #fff; font-size: 1.2rem; margin-bottom: 16px;">Editar Unidad Personalizada</h3>
-            <p style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 12px;">${cleanName}</p>
+            <p style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 12px;">${escapeHTML(cleanName)}</p>
             <div style="margin-bottom: 16px;">
                 <label style="color: #cbd5e1; display: block; margin-bottom: 8px; font-size: 0.9rem;">Nombre de la unidad (ej: rebanada, unidad)</label>
-                <input type="text" id="editCustomUnitName" placeholder="Ej: rebanada" value="${currentUnit}" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                <input type="text" id="editCustomUnitName" placeholder="Ej: rebanada" value="${escapeHTML(currentUnit)}" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
             </div>
             <div style="margin-bottom: 20px;">
                 <label style="color: #cbd5e1; display: block; margin-bottom: 8px; font-size: 0.9rem;">Peso en gramos (ej: 11.2)</label>
@@ -147,7 +210,7 @@ export function editProductCustomUnit(productId) {
             </div>
             <div style="display: flex; gap: 10px;">
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="flex: 1; padding: 10px; background: #475569; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Cancelar</button>
-                <button onclick="window.saveProductCustomUnit(${productId})" style="flex: 1; padding: 10px; background: #3B82F6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar</button>
+                <button data-product-id="${escapeHTML(String(productId))}" onclick="window.saveProductCustomUnit(this.dataset.productId)" style="flex: 1; padding: 10px; background: #3B82F6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar</button>
             </div>
         </div>
     `;
@@ -167,17 +230,24 @@ export function saveProductCustomUnit(productId) {
         showNotification('Si pones nombre de unidad, debe tener peso en gramos', 'error');
         return;
     }
+    if (customUnitWeight !== null && (!Number.isFinite(customUnitWeight) || customUnitWeight <= 0)) {
+        showNotification('El peso de la unidad debe ser mayor que 0', 'error');
+        return;
+    }
 
     product.customUnit = customUnit;
     product.customUnitWeight = customUnitWeight;
 
-    const customProd = AppState.customProducts.find(p => p.id === productId);
+    const customProd = AppState.customProducts.find(p => p.id == productId);
     if (customProd) {
         customProd.customUnit = customUnit;
         customProd.customUnitWeight = customUnitWeight;
+        saveCustomProducts();
+    } else {
+        // Producto integrado: persistir el cambio como override
+        setProductOverride(productId, { customUnit, customUnitWeight });
     }
 
-    saveCustomProducts();
     document.querySelector('div[style*="position: fixed"]').remove();
     import('./ui/products-list.js').then(m => m.renderProductsList());
     showNotification(`Unidad personalizada actualizada`);
@@ -187,7 +257,7 @@ export function editProduct(productId) {
     const product = PRODUCTS_DB.find(p => p.id == productId);
     if (!product) return;
 
-    const cleanName = product.name.replace(/^[^\w]+\s/, '').trim();
+    const cleanName = String(product.name || '').replace(/^[^\w]+\s/, '').trim();
 
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -201,12 +271,12 @@ export function editProduct(productId) {
             <h3 style="color: #fff; font-size: 1.3rem; margin-bottom: 20px;">Editar Producto</h3>
             <div style="margin-bottom: 16px;">
                 <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600;">Nombre del producto</label>
-                <input type="text" id="editProdName" placeholder="Ej: Pollo pechuga" value="${cleanName}" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+                <input type="text" id="editProdName" placeholder="Ej: Pollo pechuga" value="${escapeHTML(cleanName)}" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                 <div>
                     <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600;">Porción estándar</label>
-                    <input type="number" id="editProdPortion" placeholder="Ej: 100" value="${product.portion}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+                    <input type="number" id="editProdPortion" placeholder="Ej: 100" value="${num(product.portion)}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
                 </div>
                 <div>
                     <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600;">Unidad</label>
@@ -228,21 +298,21 @@ export function editProduct(productId) {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                     <div>
                         <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Kcal</label>
-                        <input type="number" id="editProdKcal" placeholder="Ej: 100" value="${product.kcal}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                        <input type="number" id="editProdKcal" placeholder="Ej: 100" value="${num(product.kcal)}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
                     </div>
                     <div>
                         <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Proteína (g)</label>
-                        <input type="number" id="editProdProtein" placeholder="Ej: 10" value="${product.protein}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                        <input type="number" id="editProdProtein" placeholder="Ej: 10" value="${num(product.protein)}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Carbos (g)</label>
-                        <input type="number" id="editProdCarbs" placeholder="Ej: 20" value="${product.carbs}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                        <input type="number" id="editProdCarbs" placeholder="Ej: 20" value="${num(product.carbs)}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
                     </div>
                     <div>
                         <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Grasas (g)</label>
-                        <input type="number" id="editProdFats" placeholder="Ej: 5" value="${product.fats}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                        <input type="number" id="editProdFats" placeholder="Ej: 5" value="${num(product.fats)}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
                     </div>
                 </div>
             </div>
@@ -271,13 +341,13 @@ export function editProduct(productId) {
                     </div>
                     <div>
                         <label style="color: #cbd5e1; display: block; margin-bottom: 6px; font-size: 0.85rem;">Peso (g)</label>
-                        <input type="number" id="editProdCustomUnitWeight" placeholder="Ej: 30" value="${product.customUnitWeight || ''}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
+                        <input type="number" id="editProdCustomUnitWeight" placeholder="Ej: 30" value="${Number.isFinite(Number(product.customUnitWeight)) ? Number(product.customUnitWeight) : ''}" step="0.1" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;">
                     </div>
                 </div>
             </div>
             <div style="display: flex; gap: 10px;">
                 <button onclick="this.closest('div[style*=\\'position: fixed\\']').remove()" style="flex: 1; padding: 12px; background: #475569; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Cancelar</button>
-                <button onclick="window.saveProductEdit(${productId})" style="flex: 1; padding: 12px; background: #3B82F6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar Cambios</button>
+                <button data-product-id="${escapeHTML(String(productId))}" onclick="window.saveProductEdit(this.dataset.productId)" style="flex: 1; padding: 12px; background: #3B82F6; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar Cambios</button>
             </div>
         </div>
     `;
@@ -312,13 +382,18 @@ export function saveProductEdit(productId) {
     const customUnit = document.getElementById('editProdCustomUnit').value.trim();
     const customUnitWeight = parseFloat(document.getElementById('editProdCustomUnitWeight').value) || null;
 
-    if (!name || !portion || !unit || isNaN(kcal) || protein === undefined || carbs === undefined || fats === undefined) {
-        showNotification('Por favor completa todos los campos requeridos', 'error');
+    if (!name || !portion || !unit || ![kcal, protein, carbs, fats].every(Number.isFinite)
+        || [portion, kcal, protein, carbs, fats].some(v => v < 0)) {
+        showNotification('Por favor completa todos los campos requeridos con valores válidos', 'error');
         return;
     }
 
     if (customUnit && !customUnitWeight) {
         showNotification('Si pones unidad personalizada, debe tener peso', 'error');
+        return;
+    }
+    if (customUnitWeight !== null && (!Number.isFinite(customUnitWeight) || customUnitWeight <= 0)) {
+        showNotification('El peso de la unidad debe ser mayor que 0', 'error');
         return;
     }
 
@@ -332,20 +407,19 @@ export function saveProductEdit(productId) {
     product.customUnit = customUnit;
     product.customUnitWeight = customUnitWeight;
 
-    const customProd = AppState.customProducts.find(p => p.id === productId);
+    const customProd = AppState.customProducts.find(p => p.id == productId);
     if (customProd) {
-        customProd.name = name;
-        customProd.portion = portion;
-        customProd.unit = unit;
-        customProd.kcal = kcal;
-        customProd.protein = protein;
-        customProd.carbs = carbs;
-        customProd.fats = fats;
-        customProd.customUnit = customUnit;
-        customProd.customUnitWeight = customUnitWeight;
+        Object.assign(customProd, {
+            name, portion, unit, kcal, protein, carbs, fats, customUnit, customUnitWeight,
+        });
+        saveCustomProducts();
+    } else {
+        // Producto integrado: guardar override en localStorage
+        setProductOverride(productId, {
+            name, portion, unit, kcal, protein, carbs, fats, customUnit, customUnitWeight,
+        });
     }
 
-    saveCustomProducts();
     document.querySelector('div[style*="position: fixed"]').remove();
     import('./ui/products-list.js').then(m => m.renderProductsList());
     showNotification(`Producto actualizado: ${name}`);

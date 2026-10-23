@@ -5,6 +5,33 @@ import { calculateNextDayPredictionForDate } from './weight.js';
 import { updateStatistics } from './stats.js';
 import { getDynamicDayTargets } from './nutrition.js';
 
+// Diferencia en días entre claves YYYY-MM-DD sin depender de la zona horaria.
+function _dayDiff(a, b) {
+    const [ay, am, ad] = String(a).split('-').map(Number);
+    const [by, bm, bd] = String(b).split('-').map(Number);
+    if ([ay, am, ad, by, bm, bd].some(n => !Number.isFinite(n))) return 0;
+    return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+}
+
+function _formatDateKey(key) {
+    const [y, m, d] = String(key).split('-').map(Number);
+    if (![y, m, d].every(Number.isFinite)) return String(key);
+    return new Date(y, m - 1, d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+}
+
+function _sumMealMacros(day, key) {
+    if (!day || !day.meals || typeof day.meals !== 'object') return 0;
+    let total = 0;
+    Object.values(day.meals).forEach(meal => {
+        if (!Array.isArray(meal)) return;
+        meal.forEach(food => {
+            const n = parseFloat(food && food[key]);
+            if (Number.isFinite(n)) total += n;
+        });
+    });
+    return total;
+}
+
 export function initializeCharts() {
     if (window.Chart) {
         initWeightChart();
@@ -24,19 +51,19 @@ export function initWeightChart() {
         AppState.charts.weight = null;
     }
 
-    const weightsData = AppState.config.weightHistory || [];
+    const weightsData = (AppState.config.weightHistory || [])
+        .filter(w => w && typeof w.date === 'string' && Number.isFinite(parseFloat(w.weight)));
     // Filtrar entradas iniciales aisladas (p.ej. peso de inicio con gap >30d hasta la siguiente)
     let startIdx = 0;
     while (startIdx < weightsData.length - 1) {
-        const gap = (new Date(weightsData[startIdx + 1].date) - new Date(weightsData[startIdx].date)) / 86400000;
+        const gap = _dayDiff(weightsData[startIdx].date, weightsData[startIdx + 1].date);
         if (gap > 30) startIdx++; else break;
     }
     const displayData = weightsData.slice(startIdx).slice(-30);
-    const labelsText = displayData.map(w => {
-        const d = new Date(w.date);
-        return d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-    });
-    const weights = displayData.map(w => w.weight);
+    if (displayData.length === 0) return; // nada que dibujar (evita min/max = ±Infinity)
+
+    const labelsText = displayData.map(w => _formatDateKey(w.date));
+    const weights = displayData.map(w => parseFloat(w.weight));
 
     // Eje Y dinámico: rango real de los datos ± 0.8 kg
     const minW = Math.min(...weights);
@@ -126,22 +153,16 @@ export function initCaloriesChart() {
     }
 
     const allDates = Object.keys(AppState.allDays).sort();
-    // Filtrar días sin comidas registradas
+    // Filtrar días sin comidas registradas (y días corruptos sin meals)
     const filteredDates = allDates.filter(date => {
         const day = AppState.allDays[date];
-        return Object.values(day.meals).some(meal => meal.length > 0);
+        return day && day.meals && typeof day.meals === 'object'
+            && Object.values(day.meals).some(meal => Array.isArray(meal) && meal.length > 0);
     });
     const displayDates = filteredDates.slice(-30);
-    const caloriesData = displayDates.map(date => {
-        const day = AppState.allDays[date];
-        let totalKcal = 0;
-        Object.values(day.meals).forEach(meal => {
-            meal.forEach(food => { totalKcal += food.kcal; });
-        });
-        return totalKcal;
-    });
+    const caloriesData = displayDates.map(date => _sumMealMacros(AppState.allDays[date], 'kcal'));
 
-    const labelsText = displayDates.map(d => new Date(d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
+    const labelsText = displayDates.map(_formatDateKey);
 
     const dynamicTargetsData = displayDates.map(date => {
         const dyn = getDynamicDayTargets(date);
@@ -207,19 +228,13 @@ export function initProteinChart() {
     const allDates2 = Object.keys(AppState.allDays).sort();
     const filteredDates2 = allDates2.filter(date => {
         const day = AppState.allDays[date];
-        return Object.values(day.meals).some(meal => meal.length > 0);
+        return day && day.meals && typeof day.meals === 'object'
+            && Object.values(day.meals).some(meal => Array.isArray(meal) && meal.length > 0);
     });
     const displayDates2 = filteredDates2.slice(-30);
-    const proteinData = displayDates2.map(date => {
-        const day = AppState.allDays[date];
-        let totalProtein = 0;
-        Object.values(day.meals).forEach(meal => {
-            meal.forEach(food => { totalProtein += food.protein; });
-        });
-        return totalProtein;
-    });
+    const proteinData = displayDates2.map(date => _sumMealMacros(AppState.allDays[date], 'protein'));
 
-    const labelsText = displayDates2.map(d => new Date(d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
+    const labelsText = displayDates2.map(_formatDateKey);
     const proteinGoal = AppState.config.proteinGoal || 160;
 
     AppState.charts.protein = new Chart(ctx, {
@@ -286,12 +301,17 @@ export function initMacroChart() {
 
     dates.forEach(date => {
         const day = AppState.allDays[date];
-        if (!Object.values(day.meals).some(m => m.length > 0)) return;
+        if (!day || !day.meals || typeof day.meals !== 'object') return;
+        if (!Object.values(day.meals).some(m => Array.isArray(m) && m.length > 0)) return;
         Object.values(day.meals).forEach(meal => {
+            if (!Array.isArray(meal)) return;
             meal.forEach(food => {
-                totalProtein += food.protein || 0;
-                totalCarbs   += food.carbs   || 0;
-                totalFats    += food.fats    || 0;
+                const p = parseFloat(food && food.protein);
+                const c = parseFloat(food && food.carbs);
+                const f = parseFloat(food && food.fats);
+                if (Number.isFinite(p)) totalProtein += p;
+                if (Number.isFinite(c)) totalCarbs += c;
+                if (Number.isFinite(f)) totalFats += f;
             });
         });
         count++;
@@ -366,9 +386,13 @@ export function renderWeightPredictionChart() {
     const canvas = document.getElementById('weightPredictionChart');
     const msg = document.getElementById('weightPredictionChartMsg');
     if (!canvas) return;
-    if (!AppState.config.weightHistory || AppState.config.weightHistory.length < 2) {
+    if (typeof Chart === 'undefined') return;
+    const history = (AppState.config.weightHistory || [])
+        .filter(w => w && typeof w.date === 'string' && Number.isFinite(parseFloat(w.weight)));
+    if (history.length < 2) {
         if (msg) msg.classList.remove('hidden');
         canvas.classList.add('hidden');
+        if (canvas.chart) { canvas.chart.destroy(); canvas.chart = null; }
         return;
     }
     if (msg) msg.classList.add('hidden');
@@ -379,10 +403,10 @@ export function renderWeightPredictionChart() {
     const predictedWeights = [];
 
     // Filtrar entradas iniciales aisladas (gap >30d hasta la siguiente)
-    const wh = AppState.config.weightHistory;
+    const wh = history;
     let predStartIdx = 0;
     while (predStartIdx < wh.length - 1) {
-        const gap = (new Date(wh[predStartIdx + 1].date) - new Date(wh[predStartIdx].date)) / 86400000;
+        const gap = _dayDiff(wh[predStartIdx].date, wh[predStartIdx + 1].date);
         if (gap > 30) predStartIdx++; else break;
     }
     const filteredWH = wh.slice(predStartIdx);
@@ -393,8 +417,8 @@ export function renderWeightPredictionChart() {
     const startIdx = Math.max(0, filteredWH.length - 30);
     const recentWH = filteredWH.slice(startIdx);
     recentWH.forEach((entry, idx) => {
-        labels.push(new Date(entry.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
-        realWeights.push(entry.weight);
+        labels.push(_formatDateKey(entry.date));
+        realWeights.push(parseFloat(entry.weight));
 
         const prevEntry = filteredWH[startIdx + idx - 1];
         if (!prevEntry) {

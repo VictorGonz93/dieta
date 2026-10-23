@@ -63,7 +63,7 @@
         /* These base styles are overridden by css/styles.css */
     </style>
 
-    <link rel="stylesheet" href="css/styles.css?v=20250911-13">
+    <link rel="stylesheet" href="css/styles.css?v=20261024-125">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -371,7 +371,7 @@
                     <div class="flex gap-4 items-end">
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-slate-300 mb-2">Peso (kg)</label>
-                            <input type="number" id="dailyWeightInput" step="0.1" placeholder="Ej: 73.5" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-accent smooth-transition text-lg font-semibold">
+                            <input type="number" id="dailyWeightInput" step="0.1" min="25" max="350" inputmode="decimal" aria-label="Peso de hoy en kilogramos" placeholder="Ej: 73.5" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-accent smooth-transition text-lg font-semibold">
                         </div>
                         <button onclick="saveDailyWeight()" class="px-6 py-3 gradient-success text-white font-semibold rounded-lg hover:shadow-lg smooth-transition flex items-center gap-2">
                             <span class="material-icons">save</span>
@@ -589,7 +589,7 @@
                         <div class="mb-6 flex gap-3 items-center flex-wrap sm:flex-nowrap">
                             <div class="relative flex-1 min-w-[180px]">
                                 <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" style="font-size:18px">search</span>
-                                <input type="text" id="searchProduct" placeholder="Buscar producto..." class="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
+                                <input type="text" id="searchProduct" placeholder="Buscar producto..." aria-label="Buscar producto" class="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
                             </div>
                             <button onclick="openBarcodeScanner('database')" class="px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-lg smooth-transition flex items-center gap-1.5 shrink-0 font-semibold text-sm cursor-pointer" title="Escanear código de barras">
                                 <span class="material-icons text-lg">qr_code_scanner</span>
@@ -599,11 +599,12 @@
                                 <span class="material-icons text-lg">download</span>
                                 <span>Exportar</span>
                             </button>
-                            <select id="categoryFilter" class="w-36 shrink-0 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
+                            <select id="categoryFilter" aria-label="Filtrar productos por categoría" class="w-36 shrink-0 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary smooth-transition">
                                 <option value="">Todas</option>
                                 <option value="bebidas">Bebidas</option>
                                 <option value="proteinas">Proteínas</option>
                                 <option value="carbos">Carbos</option>
+                                <option value="platos">Platos</option>
                                 <option value="suplementos">Suplementos</option>
                             </select>
                         </div>
@@ -1004,11 +1005,11 @@
                                 <p class="text-2xl font-bold text-white" id="tmrValue">-</p>
                             </div>
                             <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE Entrenamiento (×1.55)</p>
+                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE Entrenamiento (×1.50)</p>
                                 <p class="text-2xl font-bold text-white" id="tdeeEntrenoValue">-</p>
                             </div>
                             <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE Descanso (×1.30)</p>
+                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE Descanso (×1.25)</p>
                                 <p class="text-2xl font-bold text-white" id="tdeeDescansoValue">-</p>
                             </div>
                             <div class="p-4 bg-slate-800/50 rounded-lg md:col-span-3">
@@ -1158,8 +1159,8 @@
                             <input type="text" id="foodName" placeholder="Nombre del alimento" readonly class="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-300 cursor-not-allowed">
                             
                             <div class="grid grid-cols-2 gap-4">
-                                <input type="number" id="foodQuantity" placeholder="Cantidad" step="0.1" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
-                                <select id="foodUnit" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                                <input type="number" id="foodQuantity" placeholder="Cantidad" step="0.1" min="0" inputmode="decimal" aria-label="Cantidad del alimento" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary smooth-transition">
+                                <select id="foodUnit" aria-label="Unidad del alimento" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
                                     <option value="">Unidad</option>
                                     <option value="g">g (gramos)</option>
                                     <option value="ml">ml (mililitros)</option>
@@ -1208,4 +1209,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=112"></script>
+    <script type="module" src="js/app.js?v=125"></script>

@@ -4,7 +4,7 @@ import AppState from './state.js';
 import { KCAL_PER_KG_FAT, LEAN_GAIN_KCAL_PER_KG } from './constants.js';
 import { num } from './utils.js';
 import { getDateKey } from './storage.js';
-import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus } from './nutrition.js';
+import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, getPhaseProgress } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 
 const HISTORY_PER_PAGE = 10;
@@ -44,7 +44,10 @@ export function getMacroSuggestions() {
     return {
         consumido: { sumKcal, sumProtein, sumCarbs, sumFats },
         falta: missing,
+        targetCals,
+        targetProtein,
         targetCarbs,
+        targetFats,
         porcentajeCals:    targetCals    > 0 ? Math.round((sumKcal    / targetCals)    * 100) : 0,
         porcentajeProtein: targetProtein > 0 ? Math.round((sumProtein / targetProtein) * 100) : 0,
         porcentajeCarbos:  targetCarbs   > 0 ? Math.round((sumCarbs   / targetCarbs)   * 100) : 0,
@@ -68,11 +71,12 @@ export function calculateWeeklyStats() {
         const dateKey = getDateKey(date);
 
         const weightEntry = AppState.config.weightHistory?.find(w => w.date === dateKey);
-        const hasWeighIn = !!(weightEntry && Number.isFinite(parseFloat(weightEntry.weight)));
-        const currentWeight = hasWeighIn ? weightEntry.weight : AppState.config.currentWeight;
+        const entryWeight = parseFloat(weightEntry && weightEntry.weight);
+        const hasWeighIn = Number.isFinite(entryWeight) && entryWeight >= 25 && entryWeight <= 350;
+        const currentWeight = hasWeighIn ? entryWeight : AppState.config.currentWeight;
         if (hasWeighIn) {
             daysWithWeight++;
-            totalWeight += weightEntry.weight;
+            totalWeight += entryWeight;
         }
 
         const dayData = AppState.allDays[dateKey];
@@ -128,7 +132,8 @@ export function calculateWeeklyStats() {
         const firstDate = new Date(weekStart);
         const xs = weightEntries.map(d => {
             const [y, m, dd] = d.date.split('-').map(Number);
-            return (new Date(y, m - 1, dd) - firstDate) / 86400000;
+            // UTC: un cambio de hora no convierte un día en 0,958 días.
+            return (Date.UTC(y, m - 1, dd) - Date.UTC(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate())) / 86400000;
         });
         const ys = weightEntries.map(d => parseFloat(d.weight));
         if (xs.every(Number.isFinite) && ys.every(Number.isFinite)) {
@@ -279,30 +284,31 @@ export function displayMacroSuggestions() {
     const container = document.getElementById('macroSuggestions');
     if (!container || !suggestions) return;
 
-    const { falta, consumido, porcentajeCals, targetCarbs, porcentajeCarbos } = suggestions;
+    const { falta, consumido, porcentajeCals, porcentajeProtein, targetCals, targetProtein, targetCarbs, porcentajeCarbos, targetFats, porcentajeFats } = suggestions;
+    const pct = (v) => Math.min(Math.max(Number.isFinite(v) ? v : 0, 0), 100);
 
     container.innerHTML = `
         <div class="suggestions-card">
             <div class="suggestions-title">Sugerencias de Macros</div>
             <div class="suggestions-content">
                 <div class="progress-item">
-                    <span>Calorías: ${consumido.sumKcal}/${getCalorieTarget()}</span>
-                    <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(porcentajeCals, 100)}%"></div></div>
+                    <span>Calorías: ${consumido.sumKcal}/${targetCals}</span>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${pct(porcentajeCals)}%"></div></div>
                     ${falta.kcal > 0 ? `<small>Te faltan ${falta.kcal} kcal</small>` : '<small>Alcanzada</small>'}
                 </div>
                 <div class="progress-item">
-                    <span>Proteína: ${consumido.sumProtein.toFixed(0)}g / ${AppState.config.proteinGoal}g</span>
-                    <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min((consumido.sumProtein / AppState.config.proteinGoal) * 100, 100)}%"></div></div>
+                    <span>Proteína: ${consumido.sumProtein.toFixed(0)}g / ${targetProtein}g</span>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${pct(porcentajeProtein)}%"></div></div>
                     ${falta.protein > 0 ? `<small>Te faltan ${falta.protein.toFixed(0)}g</small>` : '<small>Alcanzada</small>'}
                 </div>
                 <div class="progress-item">
                     <span>Carbos: ${consumido.sumCarbs.toFixed(0)}g / ${targetCarbs}g</span>
-                    <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(porcentajeCarbos, 100)}%"></div></div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${pct(porcentajeCarbos)}%"></div></div>
                     ${falta.carbs > 0 ? `<small>Te faltan ${falta.carbs.toFixed(0)}g</small>` : '<small>Alcanzada</small>'}
                 </div>
                 <div class="progress-item">
-                    <span>Grasas: ${consumido.sumFats.toFixed(0)}g / ${AppState.config.fatsMax}g</span>
-                    <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min((consumido.sumFats / AppState.config.fatsMax) * 100, 100)}%"></div></div>
+                    <span>Grasas: ${consumido.sumFats.toFixed(0)}g / ${targetFats}g</span>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${pct(porcentajeFats)}%"></div></div>
                     ${falta.fats > 0 ? `<small>Te faltan ${falta.fats.toFixed(0)}g</small>` : '<small>Alcanzada</small>'}
                 </div>
             </div>
@@ -414,17 +420,16 @@ export function displayGoalsTracking() {
 
 export function updateGoalsDisplay() {
     const { startWeight, currentWeight, targetWeight } = AppState.config;
-    const goalPhase = AppState.config.goalPhase || 'definicion';
-    const isBulk = goalPhase === 'volumen' || (targetWeight > currentWeight && targetWeight > startWeight);
-    const totalToLose = (startWeight || 0) - (targetWeight || 0);
-    const alreadyLost = (startWeight || 0) - (currentWeight || 0);
+    const progress = getPhaseProgress();
+    const isBulk = progress.isBulk;
+    // Punto de partida de la fase (fallback a startWeight) compartido con la
+    // cabecera: ambas cifras salen de getPhaseProgress.
+    const phaseStartWeight = progress.startWeight ?? startWeight ?? 0;
+    const totalToLose = phaseStartWeight - (targetWeight || 0);
+    const alreadyLost = phaseStartWeight - (currentWeight || 0);
     const stillToLose = (currentWeight || 0) - (targetWeight || 0);
-    // Progreso espejado en volumen: (actual-inicio)/(meta-inicio)
-    const totalToGain = (targetWeight || 0) - (startWeight || 0);
-    const alreadyGained = (currentWeight || 0) - (startWeight || 0);
-    const progressPercent = isBulk
-        ? (totalToGain > 0 ? Math.round((alreadyGained / totalToGain) * 100) : 0)
-        : (totalToLose > 0 ? Math.round((alreadyLost / totalToLose) * 100) : 0);
+    const alreadyGained = (currentWeight || 0) - phaseStartWeight;
+    const progressPercent = progress.progressPercent;
 
     const w = currentWeight || 75;
     const lossPace = AppState.config.lossPace || 'moderado';
@@ -457,7 +462,7 @@ export function updateGoalsDisplay() {
     const fatsTarget    = dynamic?.fats    ?? 60;
 
     const el = (id) => document.getElementById(id);
-    if (el('goalStartWeight')) el('goalStartWeight').textContent = startWeight ? `${startWeight} kg` : '-';
+    if (el('goalStartWeight')) el('goalStartWeight').textContent = phaseStartWeight ? `${phaseStartWeight} kg` : '-';
     if (el('goalCurrentWeight')) el('goalCurrentWeight').textContent = currentWeight ? `${currentWeight} kg` : '-';
     if (el('goalTargetWeight')) el('goalTargetWeight').textContent = targetWeight ? `${targetWeight} kg` : '-';
     if (el('goalWeightLost')) el('goalWeightLost').textContent = isBulk

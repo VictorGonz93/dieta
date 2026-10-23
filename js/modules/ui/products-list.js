@@ -1,7 +1,7 @@
 // ==================== LISTA DE PRODUCTOS ====================
 
 import AppState from '../state.js';
-import { escapeHTML } from '../utils.js';
+import { escapeHTML, num } from '../utils.js';
 import { PRODUCTS_DB } from '../products.js';
 
 // customProducts se accede desde AppState.customProducts
@@ -18,10 +18,11 @@ export function renderProductsList(resetPage = false) {
     const search = (document.getElementById('searchProduct')?.value || '').toLowerCase();
     const category = document.getElementById('categoryFilter')?.value || '';
 
-    const allProducts = PRODUCTS_DB;
+    const allProducts = PRODUCTS_DB.filter(p => p && typeof p === 'object');
 
     const filtered = allProducts.filter(p => {
-        const matchesSearch = p.name.toLowerCase().includes(search);
+        const name = String(p.name || '').toLowerCase();
+        const matchesSearch = name.includes(search);
         const matchesCategory = !category || p.category === category;
         return matchesSearch && matchesCategory;
     });
@@ -32,8 +33,9 @@ export function renderProductsList(resetPage = false) {
     const paged = filtered.slice(_productsPage * PRODUCTS_PER_PAGE, (_productsPage + 1) * PRODUCTS_PER_PAGE);
 
     const itemsHTML = paged.map(p => {
-        const cleanName = p.name.replace(/^[^\w]+\s/, '').trim();
-        const isCustom = AppState.customProducts.some(cp => cp.id == p.id);
+        const cleanName = String(p.name || '').replace(/^[^\w]+\s/, '').trim();
+        const customs = Array.isArray(AppState.customProducts) ? AppState.customProducts : [];
+        const isCustom = customs.some(cp => cp && String(cp.id) === String(p.id));
 
         const customUnitDisplay = isCustom && p.customUnit && p.customUnitWeight
             ? `<div class="product-custom-unit" style="color: #A78BFA; font-size: 0.85rem; margin-top: 4px;">1 ${escapeHTML(p.customUnit)} = ${escapeHTML(p.customUnitWeight)}g</div>`
@@ -41,6 +43,7 @@ export function renderProductsList(resetPage = false) {
 
         const bgColor = isCustom ? 'rgba(59,130,246,0.1)' : 'rgba(107,114,128,0.1)';
         const borderColor = isCustom ? '#3B82F6' : '#6B7280';
+        const productId = escapeHTML(String(p.id));
 
         return `
             <div class="product-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: ${bgColor}; border-left: 3px solid ${borderColor}; border-radius: 6px;">
@@ -49,15 +52,15 @@ export function renderProductsList(resetPage = false) {
                     <div class="product-portion">${escapeHTML(p.portion)}${escapeHTML(p.unit)}</div>
                     ${customUnitDisplay}
                     <div class="product-macros">
-                        <span class="macro-badge kcal">${p.kcal}kcal</span>
-                        <span class="macro-badge protein">${p.protein}g P</span>
-                        <span class="macro-badge carbs">${p.carbs}g C</span>
-                        <span class="macro-badge fats">${p.fats}g F</span>
+                        <span class="macro-badge kcal">${num(p.kcal)}kcal</span>
+                        <span class="macro-badge protein">${num(p.protein)}g P</span>
+                        <span class="macro-badge carbs">${num(p.carbs)}g C</span>
+                        <span class="macro-badge fats">${num(p.fats)}g F</span>
                     </div>
                 </div>
                 <div style="display: flex; gap: 4px; margin-left: 10px;">
-                    <button onclick="editProduct(${p.id})" style="padding:4px;background:rgba(168,85,247,0.15);color:#A855F7;border:1px solid rgba(168,85,247,0.4);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:30px;height:30px;" title="Editar"><span class="material-icons" style="font-size:16px">edit</span></button>
-                    <button onclick="deleteProduct(${p.id})" style="padding:4px;background:rgba(239,68,68,0.15);color:#EF4444;border:1px solid rgba(239,68,68,0.4);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:30px;height:30px;" title="Eliminar"><span class="material-icons" style="font-size:16px">delete</span></button>
+                    <button data-product-id="${productId}" onclick="editProduct(this.dataset.productId)" style="padding:4px;background:rgba(168,85,247,0.15);color:#A855F7;border:1px solid rgba(168,85,247,0.4);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:30px;height:30px;" title="Editar"><span class="material-icons" style="font-size:16px">edit</span></button>
+                    <button data-product-id="${productId}" onclick="deleteProduct(this.dataset.productId)" style="padding:4px;background:rgba(239,68,68,0.15);color:#EF4444;border:1px solid rgba(239,68,68,0.4);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:30px;height:30px;" title="Eliminar"><span class="material-icons" style="font-size:16px">delete</span></button>
                 </div>
             </div>
         `;
