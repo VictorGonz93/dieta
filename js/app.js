@@ -7,16 +7,17 @@ import { CURRENT_APP_VERSION } from './modules/constants.js';
 // Módulos de lógica
 import { loadCustomProducts, addNewProduct, deleteProduct, editProductCustomUnit, saveProductCustomUnit, editProduct, saveProductEdit } from './modules/products.js';
 import { loadConfig, saveConfig, updateHeaderInfo } from './modules/config-settings.js';
-import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previousDay, nextDay, todayDay, copyYesterdayMeals } from './modules/meals.js';
+import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previousDay, nextDay, todayDay, copyYesterdayMeals, openCopyDayModal, closeCopyDayModal, confirmCopyDayMeals, openMoveFood, duplicateMeal, closeMealPicker, confirmMealPicker, addCloseDaySuggestion } from './modules/meals.js';
 import { loadWeightHistory, saveDailyWeight, updateWeightPrediction, displayNextDayPrediction, renderWeightHistory, updateWeightEntry, deleteWeightEntry } from './modules/weight.js';
 import { loadAllDays, loadMealCombos, exportData, exportCSV, exportDatabaseJSON, exportProductsJSON, exportRangeJSON, exportRangeCSV, setExportRangePreset, initExportRangeUI, importData, clearAllData, autoBackup, restoreFromBackup } from './modules/storage.js';
-import { initializeCharts } from './modules/charts.js';
+import { initializeCharts, setChartRange, exportChartPNG } from './modules/charts.js';
 import { initWorkoutPlan, updateWorkoutPlan, saveWorkoutPlan, resetWorkoutPlan } from './modules/workout.js';
 
 // Módulos de UI
 import { loadDarkMode, toggleDarkMode } from './modules/ui/darkmode.js';
 import { toggleAccordion } from './modules/ui/accordion.js';
 import { setupTabNavigation, showTab } from './modules/ui/tabs.js';
+import { executeDeepLink } from './modules/ui/deeplink.js';
 import { openModal, closeModal, setupTabSearch, selectProduct } from './modules/ui/modal.js';
 import { showOnboarding, closeOnboarding, startOnboarding, setupOnboardingListeners } from './modules/ui/onboarding.js';
 import { renderProductsList } from './modules/ui/products-list.js';
@@ -77,8 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Limpiar el query param de cache-buster (_r) que deja performUpdate en la URL
     if (window.location.search.includes('_r=')) {
-        history.replaceState(null, '', window.location.pathname);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('_r');
+        history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
     }
+
+    // Deep links del manifest: ?tab=, ?action=, ?sport=
+    executeDeepLink().catch(() => { /* nunca bloquear el arranque */ });
 
     // Búsqueda y filtro de productos
     const searchInput = document.getElementById('searchProduct');
@@ -113,6 +119,14 @@ window.previousDay = previousDay;
 window.nextDay = nextDay;
 window.todayDay = todayDay;
 window.copyYesterdayMeals = copyYesterdayMeals;
+window.openCopyDayModal = openCopyDayModal;
+window.closeCopyDayModal = closeCopyDayModal;
+window.confirmCopyDayMeals = confirmCopyDayMeals;
+window.openMoveFood = openMoveFood;
+window.duplicateMeal = duplicateMeal;
+window.closeMealPicker = closeMealPicker;
+window.confirmMealPicker = confirmMealPicker;
+window.addCloseDaySuggestion = addCloseDaySuggestion;
 window.saveDailyWeight = saveDailyWeight;
 window.saveConfig = saveConfig;
 window.exportData = exportData;
@@ -137,6 +151,9 @@ window.updateWeightEntry = updateWeightEntry;
 window.deleteWeightEntry = deleteWeightEntry;
 window.performUpdate = performUpdate;
 window.initializeCharts = initializeCharts;
+window.setChartRange = setChartRange;
+window.exportChartPNG = exportChartPNG;
+window.executeDeepLink = executeDeepLink;
 window.renderWeightHistory = renderWeightHistory;
 window.showNotification = showNotification;
 window.openBarcodeScanner = openBarcodeScanner;

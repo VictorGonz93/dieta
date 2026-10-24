@@ -1,4 +1,4 @@
-const CACHE_VERSION = 125; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 126; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -30,19 +30,22 @@ const urlsToCache = [
     '/dieta/js/modules/ui/products-list.js',
     '/dieta/js/modules/ui/update.js',
     '/dieta/js/modules/ui/workout-ui.js',
+    '/dieta/js/modules/ui/deeplink.js',
     '/dieta/css/styles.css',
+    '/dieta/css/fonts.css',
+    '/dieta/css/tailwind.css',
+    '/dieta/fonts/inter-latin.woff2',
+    '/dieta/fonts/plus-jakarta-sans-latin.woff2',
+    '/dieta/fonts/material-icons.woff2',
     '/dieta/manifest.json',
     '/dieta/icons/icon-192.png',
     '/dieta/icons/icon-512.png',
     '/dieta/icons/apple-touch-icon.png',
     '/dieta/icons/favicon-32x32.png',
     '/dieta/favicon.ico',
-    // CDN Resources
-    'https://cdn.tailwindcss.com',
+    // CDN Resources (Chart.js y escáner; las fuentes y Tailwind ya son locales)
     'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js',
     'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap',
-    'https://fonts.googleapis.com/icon?family=Material+Icons'
 ];
 
 self.addEventListener('install', (event) => {

@@ -26,30 +26,11 @@
         }
     </style>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#10B981',
-                        accent:  '#60A5FA',
-                        success: '#10B981',
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Material Icons -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    
+    <!-- Fuentes e iconos locales (offline y sin depender de Google Fonts) -->
+    <link rel="stylesheet" href="css/fonts.css?v=20261024-126">
+    <!-- Tailwind compilado estáticamente (antes se generaba en runtime desde el CDN) -->
+    <link rel="stylesheet" href="css/tailwind.css?v=20261024-126">
+
     <!-- Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     
@@ -58,12 +39,8 @@
     
     <!-- Google Identity Services (Google Fit API) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    
-    <style>
-        /* These base styles are overridden by css/styles.css */
-    </style>
 
-    <link rel="stylesheet" href="css/styles.css?v=20261024-125">
+    <link rel="stylesheet" href="css/styles.css?v=20261024-126">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -285,33 +262,42 @@
             <div class="tab-content active" id="hoy">
                 <!-- Day Header -->
                 <div class="stat-card mb-8">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center justify-between mb-4 day-header">
                         <div>
                             <h2 id="dayTitle" class="text-3xl font-bold text-white mb-2">Día 140 • Día de Descanso</h2>
                             <p class="text-slate-400" id="dayDate">Monday, May 18, 2026</p>
+                            <span id="loggingStreak" class="streak-chip" style="display:none;"></span>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="previousDay()" class="p-2 hover:bg-slate-700 rounded-lg smooth-transition" title="Previous day">
+                        <div class="flex gap-2 day-header-actions">
+                            <button onclick="previousDay()" class="p-2 hover:bg-slate-700 rounded-lg smooth-transition" title="Día anterior" aria-label="Día anterior">
                                 <span class="material-icons">arrow_back</span>
                             </button>
                             <button onclick="todayDay()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium smooth-transition">Hoy</button>
-                            <button onclick="copyYesterdayMeals()" class="px-3 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium smooth-transition flex items-center gap-1 text-slate-400 hover:text-white" title="Copiar comidas del día anterior">
+                            <button onclick="openCopyDayModal()" class="px-3 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium smooth-transition flex items-center gap-1 text-slate-400 hover:text-white" title="Copiar comidas de otra fecha" aria-label="Copiar comidas de otra fecha">
                                 <span class="material-icons text-lg">content_copy</span>
                             </button>
-                            <button onclick="nextDay()" class="p-2 hover:bg-slate-700 rounded-lg smooth-transition" title="Next day">
+                            <button onclick="nextDay()" class="p-2 hover:bg-slate-700 rounded-lg smooth-transition" title="Día siguiente" aria-label="Día siguiente">
                                 <span class="material-icons">arrow_forward</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
+                <!-- Panel accionable del día -->
+                <div id="todayDashboard" class="today-dashboard mb-8"></div>
+
                 <!-- Meals Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <!-- Breakfast -->
                     <div class="meal-card">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="meal-icon meal-icon-breakfast"><span class="material-icons">wb_sunny</span></div>
-                            <h3 class="text-base font-semibold" style="color:var(--text-1)">Desayuno</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="meal-icon meal-icon-breakfast"><span class="material-icons">wb_sunny</span></div>
+                                <h3 class="text-base font-semibold" style="color:var(--text-1)">Desayuno</h3>
+                            </div>
+                            <button onclick="duplicateMeal('breakfast')" class="meal-action-btn" title="Duplicar esta comida" aria-label="Duplicar desayuno">
+                                <span class="material-icons">content_copy</span>
+                            </button>
                         </div>
                         <div class="meal-items space-y-2 mb-4 min-h-12" id="breakfast-items"></div>
                         <button onclick="openModal('breakfast')" class="w-full py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-sm font-medium text-slate-300 hover:text-white smooth-transition flex items-center justify-center gap-2">
@@ -322,9 +308,14 @@
 
                     <!-- Lunch -->
                     <div class="meal-card">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="meal-icon meal-icon-lunch"><span class="material-icons">restaurant</span></div>
-                            <h3 class="text-base font-semibold" style="color:var(--text-1)">Almuerzo</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="meal-icon meal-icon-lunch"><span class="material-icons">restaurant</span></div>
+                                <h3 class="text-base font-semibold" style="color:var(--text-1)">Almuerzo</h3>
+                            </div>
+                            <button onclick="duplicateMeal('lunch')" class="meal-action-btn" title="Duplicar esta comida" aria-label="Duplicar almuerzo">
+                                <span class="material-icons">content_copy</span>
+                            </button>
                         </div>
                         <div class="meal-items space-y-2 mb-4 min-h-12" id="lunch-items"></div>
                         <button onclick="openModal('lunch')" class="w-full py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-sm font-medium text-slate-300 hover:text-white smooth-transition flex items-center justify-center gap-2">
@@ -335,9 +326,14 @@
 
                     <!-- Snack -->
                     <div class="meal-card">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="meal-icon meal-icon-snack"><span class="material-icons">coffee</span></div>
-                            <h3 class="text-base font-semibold" style="color:var(--text-1)">Merienda / Post-Entreno</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="meal-icon meal-icon-snack"><span class="material-icons">coffee</span></div>
+                                <h3 class="text-base font-semibold" style="color:var(--text-1)">Merienda / Post-Entreno</h3>
+                            </div>
+                            <button onclick="duplicateMeal('snack')" class="meal-action-btn" title="Duplicar esta comida" aria-label="Duplicar merienda">
+                                <span class="material-icons">content_copy</span>
+                            </button>
                         </div>
                         <div class="meal-items space-y-2 mb-4 min-h-12" id="snack-items"></div>
                         <button onclick="openModal('snack')" class="w-full py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-sm font-medium text-slate-300 hover:text-white smooth-transition flex items-center justify-center gap-2">
@@ -348,9 +344,14 @@
 
                     <!-- Dinner -->
                     <div class="meal-card">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="meal-icon meal-icon-dinner"><span class="material-icons">nights_stay</span></div>
-                            <h3 class="text-base font-semibold" style="color:var(--text-1)">Cena</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="meal-icon meal-icon-dinner"><span class="material-icons">nights_stay</span></div>
+                                <h3 class="text-base font-semibold" style="color:var(--text-1)">Cena</h3>
+                            </div>
+                            <button onclick="duplicateMeal('dinner')" class="meal-action-btn" title="Duplicar esta comida" aria-label="Duplicar cena">
+                                <span class="material-icons">content_copy</span>
+                            </button>
                         </div>
                         <div class="meal-items space-y-2 mb-4 min-h-12" id="dinner-items"></div>
                         <button onclick="openModal('dinner')" class="w-full py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-sm font-medium text-slate-300 hover:text-white smooth-transition flex items-center justify-center gap-2">
@@ -849,50 +850,82 @@
 
             <!-- TAB 4: CHARTS -->
             <div class="tab-content" id="historial">
-                <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                    <span class="material-icons text-primary">bar_chart</span>
-                    Gráficos y Progreso
-                </h2>
+                <div class="chart-page-head">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <span class="material-icons text-primary">bar_chart</span>
+                        Gráficos y Progreso
+                    </h2>
+                    <div class="chart-range-group" role="group" aria-label="Rango temporal de los gráficos">
+                        <button class="chart-range-btn" data-chart-range="7" onclick="setChartRange(7)">7 días</button>
+                        <button class="chart-range-btn" data-chart-range="30" onclick="setChartRange(30)">30 días</button>
+                        <button class="chart-range-btn" data-chart-range="90" onclick="setChartRange(90)">90 días</button>
+                    </div>
+                </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span class="material-icons text-accent">trending_down</span>
-                            Peso Predicho vs Real
-                        </h3>
+                        <div class="chart-card-head">
+                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                                <span class="material-icons text-accent">trending_down</span>
+                                Peso Predicho vs Real
+                            </h3>
+                            <button class="chart-export-btn" onclick="exportChartPNG('weightPredictionChart', 'peso-predicho-real')" title="Exportar gráfico como PNG" aria-label="Exportar Peso Predicho vs Real">
+                                <span class="material-icons">download</span>
+                            </button>
+                        </div>
                         <div id="weightPredictionChartMsg" class="hidden text-sm text-slate-400 py-4 text-center">Necesitas al menos 2 registros de peso</div>
                         <canvas id="weightPredictionChart" class="w-full"></canvas>
                     </div>
 
                     <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span class="material-icons text-emerald-400">trending_up</span>
-                            Progresión de Peso
-                        </h3>
+                        <div class="chart-card-head">
+                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                                <span class="material-icons text-emerald-400">trending_up</span>
+                                Progresión de Peso
+                            </h3>
+                            <button class="chart-export-btn" onclick="exportChartPNG('weightChart', 'progresion-peso')" title="Exportar gráfico como PNG" aria-label="Exportar Progresión de Peso">
+                                <span class="material-icons">download</span>
+                            </button>
+                        </div>
                         <canvas id="weightChart" class="w-full"></canvas>
                     </div>
 
                     <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span class="material-icons text-orange-400">local_fire_department</span>
-                            Calorías Diarias
-                        </h3>
+                        <div class="chart-card-head">
+                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                                <span class="material-icons text-orange-400">local_fire_department</span>
+                                Calorías Diarias
+                            </h3>
+                            <button class="chart-export-btn" onclick="exportChartPNG('caloriesChart', 'calorias-diarias')" title="Exportar gráfico como PNG" aria-label="Exportar Calorías Diarias">
+                                <span class="material-icons">download</span>
+                            </button>
+                        </div>
                         <canvas id="caloriesChart" class="w-full"></canvas>
                     </div>
 
                     <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span class="material-icons text-blue-400">fitness_center</span>
-                            Proteína Diaria
-                        </h3>
+                        <div class="chart-card-head">
+                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                                <span class="material-icons text-blue-400">fitness_center</span>
+                                Proteína Diaria
+                            </h3>
+                            <button class="chart-export-btn" onclick="exportChartPNG('proteinChart', 'proteina-diaria')" title="Exportar gráfico como PNG" aria-label="Exportar Proteína Diaria">
+                                <span class="material-icons">download</span>
+                            </button>
+                        </div>
                         <canvas id="proteinChart" class="w-full"></canvas>
                     </div>
 
                     <div class="stat-card lg:col-span-2">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span class="material-icons text-purple-400">pie_chart</span>
-                            Distribución de Macros (promedio)
-                        </h3>
+                        <div class="chart-card-head">
+                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                                <span class="material-icons text-purple-400">pie_chart</span>
+                                Distribución de Macros (promedio)
+                            </h3>
+                            <button class="chart-export-btn" onclick="exportChartPNG('macroChart', 'distribucion-macros')" title="Exportar gráfico como PNG" aria-label="Exportar Distribución de Macros">
+                                <span class="material-icons">download</span>
+                            </button>
+                        </div>
                         <div class="flex justify-center">
                             <canvas id="macroChart" class="w-full" style="max-width:400px;max-height:300px"></canvas>
                         </div>
@@ -1147,6 +1180,9 @@
                         <div id="suggestedProducts" class="suggested-products mt-3 space-y-2"></div>
                     </div>
 
+                    <!-- Alimentos frecuentes -->
+                    <div id="modalFrequentContainer"></div>
+
                     <!-- Combos container -->
                     <div id="modalCombosContainer"></div>
 
@@ -1206,7 +1242,54 @@
                 </div>
             </div>
         </div>
+
+        <!-- MODAL: COPIAR COMIDAS DE OTRA FECHA -->
+        <div id="copyDayModal" class="modal hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full glass-effect">
+                <div class="border-b border-slate-700/50 p-5 flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="material-icons text-primary">content_copy</span>
+                        Copiar comidas
+                    </h2>
+                    <button onclick="closeCopyDayModal()" class="p-2 hover:bg-slate-800 rounded-lg smooth-transition" aria-label="Cerrar">
+                        <span class="material-icons text-xl">close</span>
+                    </button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <p class="text-sm" style="color:var(--text-2)">Copia todas las comidas de otro día a la fecha que estás viendo.</p>
+                    <div>
+                        <label for="copyDaySource" class="block text-sm font-medium mb-2" style="color:var(--text-1)">Día de origen</label>
+                        <input type="date" id="copyDaySource" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-primary smooth-transition">
+                    </div>
+                    <p id="copyDayHint" class="text-xs" style="color:var(--text-2)"></p>
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <button onclick="closeCopyDayModal()" class="py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg smooth-transition">Cancelar</button>
+                        <button onclick="confirmCopyDayMeals()" class="py-3 px-4 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition">Copiar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: ELEGIR COMIDA DESTINO -->
+        <div id="mealPickerModal" class="modal hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full glass-effect">
+                <div class="border-b border-slate-700/50 p-5 flex items-center justify-between">
+                    <h2 id="mealPickerTitle" class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="material-icons text-primary">drive_file_move</span>
+                        Mover alimento
+                    </h2>
+                    <button onclick="closeMealPicker()" class="p-2 hover:bg-slate-800 rounded-lg smooth-transition" aria-label="Cerrar">
+                        <span class="material-icons text-xl">close</span>
+                    </button>
+                </div>
+                <div class="p-5">
+                    <p id="mealPickerSubtitle" class="text-sm mb-4" style="color:var(--text-2)"></p>
+                    <div id="mealPickerOptions" class="space-y-2"></div>
+                    <button onclick="closeMealPicker()" class="mt-4 w-full py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg smooth-transition">Cancelar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=125"></script>
+    <script type="module" src="js/app.js?v=126"></script>

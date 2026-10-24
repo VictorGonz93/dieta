@@ -4,6 +4,9 @@ import AppState from '../state.js';
 import { UNIT_CONVERSIONS } from '../constants.js';
 import { escapeHTML, num } from '../utils.js';
 import { getDateKey } from '../storage.js';
+import { getFrequentMeals } from '../meals.js';
+
+let _frequentMeals = [];
 
 export function openModal(mealType) {
     AppState.currentMealForModal = mealType;
@@ -12,6 +15,7 @@ export function openModal(mealType) {
     modal.classList.add('show');
     resetModalForm();
     setupTabSearch();
+    renderFrequentMealsInModal();
     renderCombosInModal();
 }
 
@@ -92,6 +96,82 @@ export function setupTabSearch() {
 export function getDisplayProductName(name) {
     return String(name || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
 }
+
+/** Muestra los alimentos que más repites para rellenar el formulario con un toque. */
+export function renderFrequentMealsInModal() {
+    const container = document.getElementById('modalFrequentContainer');
+    if (!container) return;
+
+    _frequentMeals = (getFrequentMeals() || []).filter(item => item && typeof item.name === 'string').slice(0, 5);
+    if (_frequentMeals.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="margin-bottom: 14px;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+                🕘 Tus habituales
+                <span style="font-size: 0.7rem; font-weight: 500; text-transform: none; letter-spacing: 0; color: #64748B;">Toca para rellenar el formulario</span>
+            </div>
+            <div class="frequent-meals-list">
+                ${_frequentMeals.map((item, i) => {
+                    const qty = `${item.quantity ?? ''} ${item.unit ?? ''}`.trim();
+                    return `
+                        <button class="frequent-meal-item" data-frequent-index="${i}" onclick="window.fillFoodFromFrequent(this.dataset.frequentIndex)">
+                            <span class="frequent-meal-name">${escapeHTML(item.name)}</span>
+                            <span class="frequent-meal-meta">${escapeHTML(qty)} · ${num(item.kcal).toFixed(0)} kcal · ${num(item.protein).toFixed(0)} g P</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+export function fillFoodFormFromFrequent(index) {
+    const item = _frequentMeals[parseInt(index, 10)];
+    if (!item) return;
+
+    const el = (id) => document.getElementById(id);
+    const quantity = Math.max(0.01, num(item.quantity, 100));
+    const unit = String(item.unit || 'g').trim().slice(0, 20) || 'g';
+
+    el('foodName').value = item.name;
+    el('foodQuantity').value = quantity;
+    el('foodQuantity').dataset.basePortion = quantity;
+    el('foodQuantity').dataset.baseUnit = unit;
+    el('foodQuantity').dataset.customUnit = '';
+    el('foodQuantity').dataset.customUnitWeight = '';
+
+    const unitSelect = el('foodUnit');
+    if (!Array.from(unitSelect.options || []).some(opt => opt.value === unit)) {
+        const option = document.createElement('option');
+        option.value = unit;
+        option.textContent = unit;
+        unitSelect.appendChild(option);
+    }
+    unitSelect.value = unit;
+    unitSelect.dataset.previousUnit = unit;
+
+    const macros = ['foodCals', 'foodProtein', 'foodCarbs', 'foodFats'];
+    const keys = ['kcal', 'protein', 'carbs', 'fats'];
+    macros.forEach((id, i) => {
+        const value = num(item[keys[i]]);
+        el(id).dataset.base = value;
+        el(id).value = value;
+    });
+    el('foodTime').value = '';
+
+    document.getElementById('suggestedProducts').innerHTML = '';
+    showNotificationSafe(`"${item.name}" cargado. Ajusta la cantidad si hace falta.`);
+}
+
+function showNotificationSafe(message) {
+    import('./notifications.js').then(m => m.showNotification(message, 'info')).catch(() => {});
+}
+
+window.fillFoodFromFrequent = fillFoodFormFromFrequent;
 
 export function renderCombosInModal() {
     const container = document.getElementById('modalCombosContainer');

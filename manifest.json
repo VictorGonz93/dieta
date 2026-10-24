@@ -25,10 +25,34 @@
   "categories": ["health", "fitness", "lifestyle"],
   "shortcuts": [
     {
-      "name": "Hoy",
-      "short_name": "Hoy",
-      "description": "Ver registro de hoy",
-      "url": "/dieta/?tab=hoy",
+      "name": "Añadir comida",
+      "short_name": "Comida",
+      "description": "Registrar un alimento o una receta",
+      "url": "/dieta/?tab=hoy&action=add-food",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Registrar peso",
+      "short_name": "Peso",
+      "description": "Anotar el pesaje de hoy",
+      "url": "/dieta/?tab=hoy&action=weight",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Entrenar",
+      "short_name": "Entreno",
+      "description": "Abrir el entreno de hoy",
+      "url": "/dieta/?tab=planteamiento&sport=entreno-hoy",
       "icons": [
         {
           "src": "icons/icon-192.png",

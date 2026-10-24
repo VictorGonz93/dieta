@@ -10,6 +10,71 @@ import { calculateNextDayPredictionForDate } from './weight.js';
 const HISTORY_PER_PAGE = 10;
 let _historyPage = 0;
 
+function _sumDayKcal(day) {
+    if (!day || !day.meals || typeof day.meals !== 'object') return 0;
+    let total = 0;
+    Object.values(day.meals).forEach(meal => {
+        if (!Array.isArray(meal)) return;
+        meal.forEach(food => { total += num(food && food.kcal); });
+    });
+    return total;
+}
+
+function _hasFoodEntries(day) {
+    if (!day || !day.meals || typeof day.meals !== 'object') return false;
+    return Object.values(day.meals).some(meal => Array.isArray(meal)
+        && meal.some(food => food && typeof food === 'object' && String(food.name || '').trim() !== ''));
+}
+
+/** Racha de días consecutivos con al menos una comida registrada. */
+export function getLoggingStreak() {
+    const hasFood = (key) => _hasFoodEntries(AppState.allDays[key]);
+    const cursor = new Date();
+    let includesToday = false;
+    if (hasFood(getDateKey(cursor))) {
+        includesToday = true;
+    } else {
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    let days = 0;
+    // Tope de seguridad: 10 años. Evita bucles si allDays tuviera datos raros.
+    for (let i = 0; i < 3660; i++) {
+        if (!hasFood(getDateKey(cursor))) break;
+        days++;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return { days, includesToday };
+}
+
+/** Adherencia de los últimos N días: días registrados dentro de ±10% del objetivo. */
+export function getWeeklyAdherence(windowDays = 7) {
+    const totalDays = Math.min(90, Math.max(1, parseInt(windowDays, 10) || 7));
+    const cursor = new Date();
+    let logged = 0, onTarget = 0, kcalSum = 0;
+
+    for (let i = 0; i < totalDays; i++) {
+        const key = getDateKey(cursor);
+        const dayKcal = _sumDayKcal(AppState.allDays[key]);
+        if (dayKcal > 0) {
+            logged++;
+            kcalSum += dayKcal;
+            const targets = getDynamicDayTargets(key);
+            const target = targets && Number.isFinite(targets.cals) ? targets.cals : 0;
+            if (target > 0 && Math.abs(dayKcal - target) <= target * 0.10) onTarget++;
+        }
+        cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return {
+        windowDays: totalDays,
+        logged,
+        onTarget,
+        avgKcal: logged > 0 ? Math.round(kcalSum / logged) : 0,
+        percent: logged > 0 ? Math.round((onTarget / logged) * 100) : null,
+    };
+}
+
+
 export function getMacroSuggestions() {
     const dateKey = getDateKey(AppState.currentDate);
     const dayData = AppState.allDays[dateKey];

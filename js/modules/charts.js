@@ -4,6 +4,47 @@ import AppState from './state.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 import { updateStatistics } from './stats.js';
 import { getDynamicDayTargets } from './nutrition.js';
+import { getDateKey } from './storage.js';
+
+const CHART_RANGE_KEY = 'chartRange';
+const CHART_RANGES = [7, 30, 90];
+
+/** Rango activo de los gráficos (7, 30 o 90 días), persistido en localStorage. */
+export function getChartRange() {
+    try {
+        const saved = parseInt(localStorage.getItem(CHART_RANGE_KEY), 10);
+        if (CHART_RANGES.includes(saved)) return saved;
+    } catch (_) { /* localStorage no disponible */ }
+    return 30;
+}
+
+export function setChartRange(days) {
+    const range = parseInt(days, 10);
+    if (!CHART_RANGES.includes(range)) return getChartRange();
+    try { localStorage.setItem(CHART_RANGE_KEY, String(range)); } catch (_) { /* ignore */ }
+    updateChartRangeButtons();
+    initializeCharts();
+    renderWeightPredictionChart();
+    return range;
+}
+
+function updateChartRangeButtons() {
+    if (typeof document === 'undefined' || !document.querySelectorAll) return;
+    const active = getChartRange();
+    document.querySelectorAll('.chart-range-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.chartRange, 10) === active);
+    });
+}
+
+function _rangeCutoffKey(range) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (range - 1));
+    return getDateKey(cutoff);
+}
+
+function _inChartRange(dateKey, range, cutoffKey) {
+    return typeof dateKey === 'string' && dateKey >= (cutoffKey || _rangeCutoffKey(range));
+}
 
 // Diferencia en días entre claves YYYY-MM-DD sin depender de la zona horaria.
 function _dayDiff(a, b) {
@@ -33,6 +74,7 @@ function _sumMealMacros(day, key) {
 }
 
 export function initializeCharts() {
+    updateChartRangeButtons();
     if (window.Chart) {
         initWeightChart();
         initCaloriesChart();
@@ -51,23 +93,29 @@ export function initWeightChart() {
         AppState.charts.weight = null;
     }
 
+    const range = getChartRange();
+    const cutoff = _rangeCutoffKey(range);
     const weightsData = (AppState.config.weightHistory || [])
-        .filter(w => w && typeof w.date === 'string' && Number.isFinite(parseFloat(w.weight)));
+        .filter(w => w && typeof w.date === 'string' && Number.isFinite(parseFloat(w.weight)) && _inChartRange(w.date, range, cutoff))
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
     // Filtrar entradas iniciales aisladas (p.ej. peso de inicio con gap >30d hasta la siguiente)
     let startIdx = 0;
     while (startIdx < weightsData.length - 1) {
         const gap = _dayDiff(weightsData[startIdx].date, weightsData[startIdx + 1].date);
         if (gap > 30) startIdx++; else break;
     }
-    const displayData = weightsData.slice(startIdx).slice(-30);
+    const displayData = weightsData.slice(startIdx);
     if (displayData.length === 0) return; // nada que dibujar (evita min/max = ±Infinity)
 
     const labelsText = displayData.map(w => _formatDateKey(w.date));
     const weights = displayData.map(w => parseFloat(w.weight));
+    const targetWeight = parseFloat(AppState.config.targetWeight);
+    const showTarget = Number.isFinite(targetWeight) && targetWeight >= 25 && targetWeight <= 350;
 
-    // Eje Y dinámico: rango real de los datos ± 0.8 kg
-    const minW = Math.min(...weights);
-    const maxW = Math.max(...weights);
+    // Eje Y dinámico: rango real de los datos (y objetivo) ± 0.8 kg
+    const axisWeights = showTarget ? [...weights, targetWeight] : weights;
+    const minW = Math.min(...axisWeights);
+    const maxW = Math.max(...axisWeights);
     const yPad = 0.8;
     const yMin = Math.floor((minW - yPad) * 10) / 10;
     const yMax = Math.ceil((maxW + yPad) * 10) / 10;
@@ -118,6 +166,17 @@ export function initWeightChart() {
                     pointRadius: 0,
                     order: 2,
                 },
+                ...(showTarget ? [{
+                    label: `Objetivo (${targetWeight.toFixed(1)} kg)`,
+                    data: new Array(labelsText.length).fill(targetWeight),
+                    borderColor: '#FBBF24',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    fill: false,
+                    pointRadius: 0,
+                    order: 0,
+                }] : []),
             ],
         },
         options: {
@@ -153,13 +212,17 @@ export function initCaloriesChart() {
     }
 
     const allDates = Object.keys(AppState.allDays).sort();
+    const range = getChartRange();
+    const cutoff = _rangeCutoffKey(range);
     // Filtrar días sin comidas registradas (y días corruptos sin meals)
     const filteredDates = allDates.filter(date => {
         const day = AppState.allDays[date];
-        return day && day.meals && typeof day.meals === 'object'
+        return _inChartRange(date, range, cutoff)
+            && day && day.meals && typeof day.meals === 'object'
             && Object.values(day.meals).some(meal => Array.isArray(meal) && meal.length > 0);
     });
-    const displayDates = filteredDates.slice(-30);
+    const displayDates = filteredDates.slice(-range);
+    if (displayDates.length === 0) return;
     const caloriesData = displayDates.map(date => _sumMealMacros(AppState.allDays[date], 'kcal'));
 
     const labelsText = displayDates.map(_formatDateKey);
@@ -226,16 +289,23 @@ export function initProteinChart() {
     }
 
     const allDates2 = Object.keys(AppState.allDays).sort();
+    const range2 = getChartRange();
+    const cutoff2 = _rangeCutoffKey(range2);
     const filteredDates2 = allDates2.filter(date => {
         const day = AppState.allDays[date];
-        return day && day.meals && typeof day.meals === 'object'
+        return _inChartRange(date, range2, cutoff2)
+            && day && day.meals && typeof day.meals === 'object'
             && Object.values(day.meals).some(meal => Array.isArray(meal) && meal.length > 0);
     });
-    const displayDates2 = filteredDates2.slice(-30);
+    const displayDates2 = filteredDates2.slice(-range2);
+    if (displayDates2.length === 0) return;
     const proteinData = displayDates2.map(date => _sumMealMacros(AppState.allDays[date], 'protein'));
 
     const labelsText = displayDates2.map(_formatDateKey);
-    const proteinGoal = AppState.config.proteinGoal || 160;
+    const proteinTargets = displayDates2.map(date => {
+        const dyn = getDynamicDayTargets(date);
+        return dyn && Number.isFinite(dyn.protein) ? dyn.protein : (AppState.config.proteinGoal || 160);
+    });
 
     AppState.charts.protein = new Chart(ctx, {
         type: 'line',
@@ -255,8 +325,8 @@ export function initProteinChart() {
                     order: 2,
                 },
                 {
-                    label: `Objetivo (${proteinGoal}g)`,
-                    data: new Array(labelsText.length).fill(proteinGoal),
+                    label: 'Objetivo diario',
+                    data: proteinTargets,
                     borderColor: '#60A5FA',
                     borderWidth: 1.5,
                     borderDash: [6, 4],
@@ -297,9 +367,12 @@ export function initMacroChart() {
     }
 
     const dates = Object.keys(AppState.allDays).sort();
+    const range = getChartRange();
+    const cutoff = _rangeCutoffKey(range);
     let totalProtein = 0, totalCarbs = 0, totalFats = 0, count = 0;
 
     dates.forEach(date => {
+        if (!_inChartRange(date, range, cutoff)) return;
         const day = AppState.allDays[date];
         if (!day || !day.meals || typeof day.meals !== 'object') return;
         if (!Object.values(day.meals).some(m => Array.isArray(m) && m.length > 0)) return;
@@ -387,8 +460,11 @@ export function renderWeightPredictionChart() {
     const msg = document.getElementById('weightPredictionChartMsg');
     if (!canvas) return;
     if (typeof Chart === 'undefined') return;
+    const range = getChartRange();
+    const cutoff = _rangeCutoffKey(range);
     const history = (AppState.config.weightHistory || [])
-        .filter(w => w && typeof w.date === 'string' && Number.isFinite(parseFloat(w.weight)));
+        .filter(w => w && typeof w.date === 'string' && Number.isFinite(parseFloat(w.weight)) && _inChartRange(w.date, range, cutoff))
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
     if (history.length < 2) {
         if (msg) msg.classList.remove('hidden');
         canvas.classList.add('hidden');
@@ -411,16 +487,15 @@ export function renderWeightPredictionChart() {
     }
     const filteredWH = wh.slice(predStartIdx);
 
-    // Ventana de 30 + alineación correcta: el predictedWeight guardado en la
-    // entrada[i] predice el día i+1, así que se grafica desplazado a la derecha.
+    // Ventana del rango elegido. El predictedWeight guardado en la entrada[i]
+    // predice el día i+1, así que se grafica desplazado a la derecha.
     // idx 0 siempre null (sin día previo en la ventana).
-    const startIdx = Math.max(0, filteredWH.length - 30);
-    const recentWH = filteredWH.slice(startIdx);
+    const recentWH = filteredWH;
     recentWH.forEach((entry, idx) => {
         labels.push(_formatDateKey(entry.date));
         realWeights.push(parseFloat(entry.weight));
 
-        const prevEntry = filteredWH[startIdx + idx - 1];
+        const prevEntry = filteredWH[idx - 1];
         if (!prevEntry) {
             predictedWeights.push(null);
         } else if (prevEntry.predictedWeight !== undefined && prevEntry.predictedWeight !== null) {
@@ -459,6 +534,16 @@ export function renderWeightPredictionChart() {
                     borderDash: [5, 5],
                     pointRadius: 2,
                 },
+                ...(Number.isFinite(parseFloat(AppState.config.targetWeight)) ? [{
+                    label: `Objetivo (${parseFloat(AppState.config.targetWeight).toFixed(1)} kg)`,
+                    data: new Array(labels.length).fill(parseFloat(AppState.config.targetWeight)),
+                    borderColor: '#FBBF24',
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    pointRadius: 0,
+                }] : []),
             ],
         },
         options: {
@@ -483,4 +568,53 @@ export function renderWeightPredictionChart() {
             },
         },
     });
+}
+
+/**
+ * Exporta un canvas de Chart.js como PNG con el fondo del tema y una marca de
+ * fecha. Devuelve false si el gráfico no está visible o no hay soporte.
+ */
+export function exportChartPNG(canvasId, filename = 'grafico') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || typeof canvas.toDataURL !== 'function' || !canvas.width || !canvas.height) return false;
+
+    const out = document.createElement('canvas');
+    const width = canvas.width;
+    const height = canvas.height;
+    const scale = (typeof canvas.clientWidth === 'number' && canvas.clientWidth > 0)
+        ? Math.max(1, width / canvas.clientWidth)
+        : 1;
+    const footer = Math.max(26, Math.round(30 * scale));
+    out.width = width;
+    out.height = height + footer;
+
+    const ctx = out.getContext('2d');
+    if (!ctx) return false;
+
+    const css = (typeof getComputedStyle === 'function') ? getComputedStyle(document.documentElement) : null;
+    const bg = (css && css.getPropertyValue('--bg-card') || '#101928').trim() || '#101928';
+    const fg = (css && css.getPropertyValue('--text-2') || '#6B8BAE').trim() || '#6B8BAE';
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, 0, 0);
+
+    const fontSize = Math.max(10, Math.round(footer * 0.38));
+    ctx.fillStyle = fg;
+    ctx.font = `${fontSize}px Inter, Arial, sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+        `Apex Nutrition · ${new Date().toLocaleDateString('es-ES')}`,
+        Math.round(footer * 0.35),
+        height + footer / 2
+    );
+
+    const link = document.createElement('a');
+    link.download = `apex-${filename}-${getDateKey(new Date())}.png`;
+    link.href = out.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    if (link.remove) link.remove();
+    else if (link.parentNode) link.parentNode.removeChild(link);
+    return true;
 }
