@@ -317,7 +317,9 @@ export function updateHeaderInfo() {
     if (document.getElementById('dayCounter')) document.getElementById('dayCounter').textContent = dayNumber;
     if (document.getElementById('currentWeight')) document.getElementById('currentWeight').textContent = `${currentWeight} kg`;
     if (document.getElementById('progressPercent')) {
-        document.getElementById('progressPercent').textContent = `${progress.progressPercent}%`;
+        document.getElementById('progressPercent').textContent = progress.progressPercent === null
+            ? '—'
+            : `${progress.progressPercent}%`;
     }
 
     const dayTypeEl = document.getElementById('dayType');

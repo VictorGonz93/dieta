@@ -29,32 +29,45 @@ export function getPhaseProgress() {
     const phase = AppState.config.goalPhase || 'definicion';
     const currentWeight = parseFloat(AppState.config.currentWeight);
     const targetWeight = parseFloat(AppState.config.targetWeight);
-    const phaseStart = parseFloat(AppState.config.phaseStartWeight);
-    const startWeight = Number.isFinite(phaseStart) && phaseStart >= 25 && phaseStart <= 350
-        ? phaseStart
-        : parseFloat(AppState.config.startWeight);
+    const isBulk = phase === 'volumen';
+    const isMaintenance = phase === 'mantenimiento';
 
-    const isBulk = phase === 'volumen'
-        || (Number.isFinite(targetWeight) && Number.isFinite(currentWeight)
-            && Number.isFinite(startWeight) && targetWeight > currentWeight && targetWeight > startWeight);
-    const totalMove = isBulk ? targetWeight - startWeight : startWeight - targetWeight;
-    const moved = isBulk ? currentWeight - startWeight : startWeight - currentWeight;
-    let progressPercent = 0;
-    if (Number.isFinite(totalMove) && totalMove > 0 && Number.isFinite(moved)) {
+    // Punto de partida de la fase. Si el cambio de fase es antiguo y no dejó
+    // phaseStartWeight, se recupera del último tramo de phaseHistory.
+    const phaseStart = parseFloat(AppState.config.phaseStartWeight);
+    const history = Array.isArray(AppState.config.phaseHistory) ? AppState.config.phaseHistory : [];
+    const lastPhaseEntry = [...history].reverse().find(e => e && e.phase === phase);
+    const historyStart = lastPhaseEntry ? parseFloat(lastPhaseEntry.startWeight) : NaN;
+    const baseStart = parseFloat(AppState.config.startWeight);
+    const startWeight = [phaseStart, historyStart, baseStart]
+        .find(w => Number.isFinite(w) && w >= 25 && w <= 350) ?? null;
+
+    // La fase manda: una meta en dirección contraria no convierte la fase en
+    // volumen por la puerta de atrás. Eso hacía que mantenimiento pareciera un
+    // objetivo de ganancia y que definición mostrara progreso inverso.
+    const totalMove = isMaintenance ? null
+        : isBulk ? targetWeight - startWeight : startWeight - targetWeight;
+    const moved = isMaintenance ? 0
+        : isBulk ? currentWeight - startWeight : startWeight - currentWeight;
+    let progressPercent = null;
+    if (!isMaintenance && Number.isFinite(totalMove) && totalMove > 0 && Number.isFinite(moved)) {
         progressPercent = Math.min(100, Math.max(0, Math.round((moved / totalMove) * 100)));
     }
 
     return {
         phase,
         isBulk,
-        startWeight: Number.isFinite(startWeight) ? startWeight : null,
-        startDateKey: AppState.config.phaseStartDate || (AppState.config.startDate ? getDateKey(new Date(AppState.config.startDate)) : null),
+        isMaintenance,
+        startWeight,
+        startDateKey: AppState.config.phaseStartDate
+            || lastPhaseEntry?.date
+            || (AppState.config.startDate ? getDateKey(new Date(AppState.config.startDate)) : null),
         currentWeight: Number.isFinite(currentWeight) ? currentWeight : null,
         targetWeight: Number.isFinite(targetWeight) ? targetWeight : null,
         moved: Number.isFinite(moved) ? moved : 0,
-        remaining: Number.isFinite(currentWeight) && Number.isFinite(targetWeight)
-            ? (isBulk ? targetWeight - currentWeight : currentWeight - targetWeight)
-            : 0,
+        remaining: isMaintenance || !Number.isFinite(currentWeight) || !Number.isFinite(targetWeight)
+            ? 0
+            : (isBulk ? targetWeight - currentWeight : currentWeight - targetWeight),
         progressPercent,
     };
 }

@@ -1,9 +1,9 @@
 ﻿// ==================== PREDICCIÓN Y GESTIÓN DE PESO ====================
 
 import AppState from './state.js';
-import { KCAL_PER_KG_FAT } from './constants.js';
+import { KCAL_PER_KG_FAT, LEAN_GAIN_KCAL_PER_KG } from './constants.js';
 import { escapeHTML, num } from './utils.js';
-import { getDayNumber, getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, clearAdaptiveTDEECache, calculateRobustWeightTrend } from './nutrition.js';
+import { getDayNumber, getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, clearAdaptiveTDEECache, calculateRobustWeightTrend, getPhaseProgress } from './nutrition.js';
 import { getWorkoutSessions, recomputeSessionKcal } from './workout.js';
 import { getDateKey, saveDays, safeGet, safeSet, _sanitizeWeightHistory } from './storage.js';
 import { showNotification } from './ui/notifications.js';
@@ -186,7 +186,10 @@ export function recordWeight(date, weight) {
 }
 
 export function calculateWeightPrediction() {
-    const empty = { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
+    const empty = {
+        estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null,
+        confidence: 'low', reason: 'insufficient_data',
+    };
     const history = (Array.isArray(AppState.config.weightHistory) ? AppState.config.weightHistory : [])
         .filter(e => e && typeof e.date === 'string')
         .slice()
@@ -201,14 +204,12 @@ export function calculateWeightPrediction() {
     const weeklyLoss = -trend.slope * 7; // + pierde, - gana
     const weeklyGain = trend.slope * 7;
     const target = parseFloat(AppState.config.targetWeight);
-    if (!Number.isFinite(target)) return empty;
-
-    // Base robusta: peso suavizado en el último pesaje. Evita que el último
-    // registro (comida salada, sesión dura) fije toda la proyección.
     const baseline = trend.fittedLastWeight;
     if (!Number.isFinite(baseline) || !Number.isFinite(weeklyLoss)) return empty;
 
     const goalPhase = AppState.config.goalPhase || 'definicion';
+    const progress = getPhaseProgress();
+    const phaseStart = progress.startWeight;
     const actualCurrent = parseFloat(AppState.config.currentWeight);
     const current = Number.isFinite(actualCurrent) ? actualCurrent : trend.lastActualWeight;
 
@@ -227,16 +228,21 @@ export function calculateWeightPrediction() {
         pointsUsed: trend.pointsUsed,
         pointsTotal: trend.pointsTotal,
         spanDays: trend.spanDays,
+        phaseStartWeight: Number.isFinite(phaseStart) ? phaseStart : null,
     };
+    const noEta = (reason) => ({ ...base, estimatedDays: null, estimatedDate: null, reason });
 
     // Mantenimiento: no hay fecha de llegada que calcular. Devolver la tasa
     // observada sin ETA evita "días hasta meta" absurdos.
-    if (goalPhase === 'mantenimiento') {
-        return { ...base, estimatedDays: null, estimatedDate: null };
-    }
+    if (goalPhase === 'mantenimiento') return noEta('maintenance');
+    if (!Number.isFinite(target)) return noEta('no_target');
 
-    // Volumen (o target por encima del actual): ETA por ritmo de ganancia.
-    if ((goalPhase === 'volumen' || target > current) && target > current && weeklyGain > 0 && target > baseline) {
+    if (goalPhase === 'volumen') {
+        // La meta de volumen debe estar por encima del inicio de fase. Si no,
+        // es una meta heredada: no se inventa un ETA ni se castiga la confianza.
+        if (Number.isFinite(phaseStart) && target <= phaseStart) return noEta('target_invalid');
+        if (target <= baseline || (Number.isFinite(current) && current >= target)) return noEta('target_reached');
+        if (weeklyGain <= 0) return noEta('no_gain_trend');
         const remaining = target - baseline;
         const estimatedDays = Math.ceil((remaining / weeklyGain) * 7);
         const estimatedDate = _datePlusDays(new Date(), estimatedDays);
@@ -244,14 +250,16 @@ export function calculateWeightPrediction() {
             ...base,
             estimatedDays,
             estimatedDate: estimatedDate.toLocaleDateString('es-ES'),
+            reason: 'ok',
         };
     }
 
+    // Definición: la meta debe estar por debajo del inicio de fase. No se usa
+    // "target > current" para cambiar de fase en silencio.
+    if (Number.isFinite(phaseStart) && target >= phaseStart) return noEta('target_invalid');
     const remainingWeight = baseline - target;
-
-    if (weeklyLoss <= 0 || remainingWeight <= 0 || current <= target) {
-        return { ...base, estimatedDays: null, estimatedDate: null, confidence: weeklyLoss > 0 ? confidence : 'low' };
-    }
+    if (remainingWeight <= 0 || (Number.isFinite(current) && current <= target)) return noEta('target_reached');
+    if (weeklyLoss <= 0) return noEta('no_loss_trend');
 
     const estimatedDays = Math.ceil((remainingWeight / weeklyLoss) * 7);
     const estimatedDate = _datePlusDays(new Date(), estimatedDays);
@@ -261,6 +269,7 @@ export function calculateWeightPrediction() {
         estimatedDays,
         estimatedDate: estimatedDate.toLocaleDateString('es-ES'),
         weeklyLoss: Math.abs(weeklyLoss).toFixed(2),
+        reason: 'ok',
     };
 }
 
@@ -272,8 +281,11 @@ export function getWeightTrendData() {
     // Línea teórica coherente con la fase: en volumen sube al ritmo del
     // superávit, en definición baja al del déficit. Antes bajaba 0,3 kg/día
     // siempre, incluso en volumen (mentira visual en el gráfico).
+    // La ganancia magra cuesta ~6000 kcal/kg, no 7700: usar el mismo factor que
+    // el ETA y las metas evita una línea teórica más lenta que la realidad.
+    const kcalPerKg = phase === 'volumen' ? LEAN_GAIN_KCAL_PER_KG : KCAL_PER_KG_FAT;
     const dailyChange = Number.isFinite(rate) && Number.isFinite(startWeight)
-        ? (phase === 'volumen' ? Math.abs(rate) : phase === 'mantenimiento' ? 0 : -Math.abs(rate)) / KCAL_PER_KG_FAT
+        ? (phase === 'volumen' ? Math.abs(rate) : phase === 'mantenimiento' ? 0 : -Math.abs(rate)) / kcalPerKg
         : 0;
     return AppState.config.weightHistory.map((w, index) => {
         const weight = parseFloat(w.weight);
@@ -542,8 +554,28 @@ export function updateWeightPrediction() {
     const goalPhase = AppState.config.goalPhase || 'definicion';
     const isBulk = goalPhase === 'volumen';
     const isMaintenance = goalPhase === 'mantenimiento';
+    const progress = getPhaseProgress();
+    const target = parseFloat(AppState.config.targetWeight);
+    const phaseStart = progress.startWeight;
     const rateValue = isBulk ? pred.weeklyGain : pred.weeklyLoss;
     const rateLabel = isBulk ? 'Ganancia semanal:' : 'Pérdida semanal:';
+    const confidenceLine = Number.isFinite(pred.pointsUsed)
+        ? `(Confianza: ${pred.confidence} · ${pred.pointsUsed}/${pred.pointsTotal} pesajes)`
+        : '';
+
+    const renderNotice = (notice, detail, showConfidence = true) => {
+        predictionEl.innerHTML = `
+            <div class="prediction-card">
+                <div class="prediction-title">Proyección de Peso</div>
+                <div class="prediction-content">
+                    <div class="prediction-stat"><span>Estado:</span><strong>${notice}</strong></div>
+                    <small>${detail}</small>
+                    ${showConfidence && confidenceLine ? `<div class="prediction-confidence">${confidenceLine}</div>` : ''}
+                </div>
+            </div>
+        `;
+    };
+
     if (isMaintenance && Number.isFinite(parseFloat(pred.weeklyGain))) {
         // En mantenimiento no hay meta de peso que alcanzar: mostrar la
         // tendencia observada y "Mantener" evita un ETA inventado.
@@ -554,7 +586,7 @@ export function updateWeightPrediction() {
                 <div class="prediction-content">
                     <div class="prediction-stat"><span>Tendencia semanal:</span><strong>${weeklyChange >= 0 ? '+' : ''}${weeklyChange.toFixed(2)} kg</strong></div>
                     <div class="prediction-stat"><span>ETA:</span><strong>Mantener</strong></div>
-                    <div class="prediction-confidence">(Confianza: ${pred.confidence} · ${pred.pointsUsed}/${pred.pointsTotal} pesajes)</div>
+                    <div class="prediction-confidence">${confidenceLine}</div>
                 </div>
             </div>
         `;
@@ -566,19 +598,43 @@ export function updateWeightPrediction() {
                     <div class="prediction-stat"><span>${rateLabel}</span><strong>${parseFloat(rateValue).toFixed(2)} kg</strong></div>
                     <div class="prediction-stat"><span>Días para meta:</span><strong>${pred.estimatedDays}</strong></div>
                     <div class="prediction-stat"><span>Fecha estimada:</span><strong>${pred.estimatedDate}</strong></div>
-                    <div class="prediction-confidence">(Confianza: ${pred.confidence} · ${pred.pointsUsed}/${pred.pointsTotal} pesajes)</div>
+                    <div class="prediction-confidence">${confidenceLine}</div>
                 </div>
             </div>
         `;
+    } else if (pred.reason === 'target_invalid') {
+        let detail;
+        if (isBulk) {
+            detail = Number.isFinite(target)
+                ? `Tu meta (${target} kg) debe estar por encima del peso al iniciar la fase (${phaseStart} kg).`
+                : 'Define un peso objetivo por encima de tu peso actual.';
+        } else {
+            detail = Number.isFinite(target)
+                ? `Tu meta (${target} kg) debe estar por debajo del peso al iniciar la fase (${phaseStart} kg).`
+                : 'Define un peso objetivo por debajo de tu peso actual.';
+        }
+        renderNotice('Ajusta tu meta', detail);
+    } else if (pred.reason === 'target_reached') {
+        renderNotice(
+            'Objetivo alcanzado',
+            Number.isFinite(target)
+                ? `Has llegado a ${target} kg. Define una nueva meta o pasa a mantenimiento.`
+                : 'Define una nueva meta o pasa a mantenimiento.'
+        );
+    } else if (pred.reason === 'no_gain_trend') {
+        const weeklyChange = parseFloat(pred.weeklyGain);
+        renderNotice(
+            'Sin tendencia de ganancia',
+            `Cambio semanal: ${weeklyChange > 0 ? '+' : ''}${weeklyChange.toFixed(2)} kg. Revisa el superávit y los pesajes.`
+        );
+    } else if (pred.reason === 'no_loss_trend') {
+        const weeklyChange = parseFloat(pred.weeklyGain);
+        renderNotice(
+            'Sin tendencia de pérdida',
+            `Cambio semanal: ${weeklyChange > 0 ? '+' : ''}${weeklyChange.toFixed(2)} kg. Revisa el déficit y los pesajes.`
+        );
     } else {
-        predictionEl.innerHTML = `
-            <div class="prediction-card">
-                <div class="prediction-title">Proyección de Peso</div>
-                <div class="prediction-content">
-                    <small>Registra tu peso regularmente para ver la predicción</small>
-                </div>
-            </div>
-        `;
+        renderNotice('Sin datos suficientes', 'Registra tu peso regularmente para ver la predicción.', false);
     }
 }
 
@@ -591,11 +647,27 @@ export function displayNextDayPrediction() {
     const sign = nextPred.deficitVsTDEE < 0 ? '&#8600;' : '&#8599;';
     const weightChange = nextPred.predictedWeight - todayWeight;
     const weightChangeSign = weightChange > 0 ? '+' : '';
-    const weightColor = weightChange > 0 ? 'var(--color-red)' : 'var(--primary)';
+    const goalPhase = nextPred.goalPhase || 'definicion';
+    const isBulkPhase = goalPhase === 'volumen';
+    const isMaintenancePhase = goalPhase === 'mantenimiento';
+    // En volumen ganar es el objetivo (verde); en definición, perder. En
+    // mantenimiento cualquier cambio se muestra neutro.
+    let weightColor = 'var(--text-2)';
+    if (!isMaintenancePhase && Math.abs(weightChange) >= 0.015) {
+        const isGood = isBulkPhase ? weightChange > 0 : weightChange < 0;
+        weightColor = isGood ? 'var(--primary)' : 'var(--color-red)';
+    }
     const structuralDeficit = nextPred.tdee - nextPred.calorieTarget;
-    const isBulkPhase = (nextPred.goalPhase || 'definicion') === 'volumen';
-    const structuralLabel = isBulkPhase ? 'Superávit diario estructural' : 'Déficit diario estructural';
+    const structuralLabel = isBulkPhase
+        ? 'Superávit diario estructural'
+        : isMaintenancePhase ? 'Balance diario estructural' : 'Déficit diario estructural';
     const structuralValue = isBulkPhase ? -structuralDeficit : structuralDeficit;
+    const metaBalance = nextPred.deficitVsMeta;
+    const metaLabel = metaBalance < 0 ? 'Déficit vs meta'
+        : metaBalance > 0 ? 'Superávit vs meta' : 'Balance vs meta';
+    const realBalance = nextPred.deficitVsTDEE;
+    const realLabel = realBalance < 0 ? 'Déficit real vs TDEE'
+        : realBalance > 0 ? 'Superávit real vs TDEE' : 'Balance real vs TDEE';
 
     predictionEl.innerHTML = `
         <div class="next-day-card">
@@ -615,8 +687,8 @@ export function displayNextDayPrediction() {
                     <div class="factor"><span class="factor-label">Meta calorías</span><span class="factor-value">${nextPred.calorieTarget || '-'} kcal</span></div>
                     <div class="factor"><span class="factor-label">TDEE (gasto total)</span><span class="factor-value">${nextPred.tdee || '-'} kcal</span></div>
                     ${nextPred.workoutKcal > 0 ? `<div class="factor"><span class="factor-label">↳ Entreno registrado</span><span class="factor-value">+${nextPred.workoutKcal} kcal</span></div>` : ''}
-                    <div class="factor"><span class="factor-label">Déficit vs meta</span><span class="factor-value">${nextPred.deficitVsMeta} kcal</span></div>
-                    <div class="factor"><span class="factor-label">Déficit real vs TDEE</span><span class="factor-value">${nextPred.deficitVsTDEE} kcal</span></div>
+                    <div class="factor"><span class="factor-label">${metaLabel}</span><span class="factor-value">${nextPred.deficitVsMeta} kcal</span></div>
+                    <div class="factor"><span class="factor-label">${realLabel}</span><span class="factor-value">${nextPred.deficitVsTDEE} kcal</span></div>
                     <div class="factor"><span class="factor-label">${structuralLabel}</span><span class="factor-value">${structuralValue} kcal/día</span></div>
                     <div class="factor"><span class="factor-label">Carbohidratos</span><span class="factor-value">${nextPred.carbsConsumed}g</span></div>
                     <div class="factor"><span class="factor-label">Comidas</span><span class="factor-value">${nextPred.mealCount || '-'}</span></div>

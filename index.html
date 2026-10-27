@@ -27,9 +27,9 @@
     </style>
     
     <!-- Fuentes e iconos locales (offline y sin depender de Google Fonts) -->
-    <link rel="stylesheet" href="css/fonts.css?v=20261027-127">
+    <link rel="stylesheet" href="css/fonts.css?v=20261027-128">
     <!-- Tailwind compilado estáticamente (antes se generaba en runtime desde el CDN) -->
-    <link rel="stylesheet" href="css/tailwind.css?v=20261027-127">
+    <link rel="stylesheet" href="css/tailwind.css?v=20261027-128">
 
     <!-- Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
@@ -40,7 +40,7 @@
     <!-- Google Identity Services (Google Fit API) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <link rel="stylesheet" href="css/styles.css?v=20261027-127">
+    <link rel="stylesheet" href="css/styles.css?v=20261027-128">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -420,7 +420,7 @@
                         <div class="space-y-4">
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                 <div class="bg-slate-800/50 rounded-lg p-4">
-                                    <p class="text-xs text-slate-400 mb-1">Peso Inicial</p>
+                                    <p class="text-xs text-slate-400 mb-1">Inicio de fase</p>
                                     <p class="text-2xl font-bold text-white" id="goalStartWeight">-</p>
                                 </div>
                                 <div class="bg-slate-800/50 rounded-lg p-4">
@@ -432,13 +432,13 @@
                                     <p class="text-2xl font-bold text-blue-400" id="goalTargetWeight">-</p>
                                 </div>
                                 <div class="bg-slate-800/50 rounded-lg p-4">
-                                    <p class="text-xs text-slate-400 mb-1">Perdidos</p>
+                                    <p class="text-xs text-slate-400 mb-1" id="goalWeightLostLabel">Perdidos</p>
                                     <p class="text-2xl font-bold text-purple-400" id="goalWeightLost">-</p>
                                 </div>
                             </div>
                             
                             <!-- Weight Progress Bar -->
-                            <div>
+                            <div id="goalProgressBlock">
                                 <div class="flex justify-between mb-3">
                                     <span class="text-sm font-medium text-slate-300">Progreso General</span>
                                     <span class="text-sm font-semibold text-primary" id="goalProgressPercent">0%</span>
@@ -1327,4 +1327,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=127"></script>
+    <script type="module" src="js/app.js?v=128"></script>

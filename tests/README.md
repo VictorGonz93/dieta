@@ -12,6 +12,7 @@ Ejecuta en procesos independientes, contra datos sintéticos y sin tocar datos r
 - `audit-tdee-p1.mjs`: estimador Theil-Sen/MAD, aislamiento por fase, macros, suelo y ETA de mantenimiento.
 - `audit-tdee-ui.mjs`: render de “Tus Objetivos” con DOM falso (badges, avisos, hold y ETA).
 - `audit-tdee-p2.mjs`: predicción de peso robusta y eje temporal real en los gráficos (Chart.js simulado).
+- `audit-tdee-p3.mjs`: progreso de peso por fase (definición, mantenimiento y volumen): etiquetas, ETA, tarjeta semanal, meta inválida y predicción de mañana.
 
 ## Diagnóstico
 

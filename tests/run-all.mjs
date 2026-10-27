@@ -10,6 +10,7 @@ const suites = [
     'audit-tdee-p1.mjs',
     'audit-tdee-ui.mjs',
     'audit-tdee-p2.mjs',
+    'audit-tdee-p3.mjs',
 ];
 
 let failed = 0;
