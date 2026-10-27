@@ -281,5 +281,91 @@ function renderAll() {
     ok('mañana definición: etiqueta Déficit vs meta', html('nextDayPrediction').includes('Déficit vs meta'));
 }
 
+// ── 12. Volumen empezado en 66,6 tras un déficit desde 85,4 ────────────────
+{
+    resetConfig({
+        goalPhase: 'volumen', startWeight: 85.4, currentWeight: 66.6, targetWeight: 70,
+        phaseStartWeight: 66.6, phaseStartDate: key(0), phaseHistory: [],
+    });
+    seedDays({ startW: 66.6, deltaPerDay: 0.25 / 7, kcal: 2600, targetWeight: 70 });
+    renderAll();
+    const p = N.getPhaseProgress();
+    const pred = W.calculateWeightPrediction();
+
+    ok('inicio de fase explícito: usa 66,6 y no 85,4', p.startWeight === 66.6, `start=${p.startWeight}`);
+    ok('inicio de fase explícito: tarjeta muestra 66.6 kg', text('goalStartWeight') === '66.6 kg',
+        text('goalStartWeight'));
+    ok('inicio de fase explícito: progreso desde la fase, no desde el déficit',
+        p.progressPercent >= 25 && p.progressPercent <= 30, `%=${p.progressPercent}`);
+    ok('inicio de fase explícito: etiqueta Ganados', text('goalWeightLostLabel') === 'Ganados',
+        text('goalWeightLostLabel'));
+    ok('inicio de fase explícito: ETA de volumen válido',
+        pred.reason === 'ok' && pred.estimatedDays > 0, `reason=${pred.reason} days=${pred.estimatedDays}`);
+}
+
+// ── 13. Sin peso de inicio de fase no se usa el peso del déficit ────────────
+{
+    resetConfig({
+        goalPhase: 'volumen', startWeight: 85.4, currentWeight: 66.6, targetWeight: 70,
+        phaseStartWeight: null, phaseStartDate: null, phaseHistory: [],
+    });
+    seedDays({ startW: 66.6, deltaPerDay: 0.25 / 7, kcal: 2600, targetWeight: 70 });
+    AppState.config.phaseStartWeight = null;
+    AppState.config.phaseStartDate = null;
+    AppState.config.phaseHistory = [];
+    renderAll();
+    const p = N.getPhaseProgress();
+    const pred = W.calculateWeightPrediction();
+
+    ok('sin inicio de fase: no cae en 85,4', p.startWeight === null, `start=${p.startWeight}`);
+    ok('sin inicio de fase: tarjeta sin peso inicial', text('goalStartWeight') === '-', text('goalStartWeight'));
+    ok('sin inicio de fase: cambio en fase sin inventar', text('goalWeightLost') === '—', text('goalWeightLost'));
+    ok('sin inicio de fase: ETA pide definirla', text('goalTimeEstimate') === 'Define inicio de fase',
+        text('goalTimeEstimate'));
+    ok('sin inicio de fase: aviso visible', warningsText().includes('Falta el peso al inicio'), warningsText());
+    ok('sin inicio de fase: predicción no inventa ETA', pred.reason === 'no_phase_start', `reason=${pred.reason}`);
+    ok('sin inicio de fase: tarjeta explica dónde ponerlo',
+        html('weightPrediction').includes('Define el inicio de fase'), html('weightPrediction').replace(/\s+/g, ' ').slice(0, 180));
+}
+
+// ── 14. Fecha de fase + histórico permiten recuperar el peso de inicio ──────
+{
+    resetConfig({
+        goalPhase: 'volumen', startWeight: 85.4, currentWeight: 66.6, targetWeight: 75,
+        phaseStartWeight: null, phaseStartDate: null, phaseHistory: [],
+    });
+    seedDays({ startW: 66.6, deltaPerDay: 0.1, kcal: 2600, targetWeight: 75 });
+    AppState.config.phaseStartWeight = null;
+    AppState.config.phaseStartDate = key(14);
+    AppState.config.phaseHistory = [];
+    const p = N.getPhaseProgress();
+
+    ok('fecha de fase: recupera el peso cercano del histórico',
+        Math.abs(p.startWeight - 68.0) < 0.01, `start=${p.startWeight}`);
+    ok('fecha de fase: usa la fecha indicada', p.startDateKey === key(14), `date=${p.startDateKey}`);
+    ok('fecha de fase: progreso coherente', p.progressPercent >= 18 && p.progressPercent <= 20,
+        `%=${p.progressPercent}`);
+}
+
+// ── 15. Mantenimiento sin inicio de fase: sin barra y sin dato falso ────────
+{
+    resetConfig({
+        goalPhase: 'mantenimiento', startWeight: 85.4, currentWeight: 66.6, targetWeight: 66.6,
+        phaseStartWeight: null, phaseStartDate: null, phaseHistory: [],
+    });
+    seedDays({ startW: 66.6, deltaPerDay: 0, kcal: 2400, phase: 'mantenimiento', targetWeight: 66.6 });
+    AppState.config.phaseStartWeight = null;
+    AppState.config.phaseStartDate = null;
+    AppState.config.phaseHistory = [];
+    renderAll();
+    const p = N.getPhaseProgress();
+
+    ok('mantenimiento sin inicio: no usa 85,4', p.startWeight === null, `start=${p.startWeight}`);
+    ok('mantenimiento sin inicio: barra oculta', elements.get('goalProgressBlock').style.display === 'none');
+    ok('mantenimiento sin inicio: cambio en fase —', text('goalWeightLost') === '—', text('goalWeightLost'));
+    ok('mantenimiento sin inicio: ETA Mantener', text('goalTimeEstimate') === 'Mantener', text('goalTimeEstimate'));
+    ok('mantenimiento sin inicio: aviso visible', warningsText().includes('Falta el peso al inicio'), warningsText());
+}
+
 console.log(`\n${failures === 0 ? 'ALL P3 CHECKS PASSED' : failures + ' CHECK(S) FAILED'}`);
 process.exitCode = failures === 0 ? 0 : 1;

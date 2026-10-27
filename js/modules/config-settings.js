@@ -46,16 +46,28 @@ function parseNum(id, currentVal, isInt = false) {
     return isNaN(num) ? currentVal : num;
 }
 
+// Igual que parseNum, pero un campo vacío significa "sin dato" (null), no
+// "conserva el valor anterior". Permite corregir o borrar el inicio de fase.
+function parseOptionalNum(id, currentVal) {
+    const el = document.getElementById(id);
+    if (!el) return currentVal;
+    const v = el.value?.trim();
+    if (v === '' || v === null || v === undefined) return null;
+    const num = parseFloat(v);
+    return Number.isFinite(num) ? num : currentVal;
+}
+
 export function saveConfig() {
     const oldWeight = AppState.config.currentWeight;
     const newWeight = parseNum('currentWeightInput', AppState.config.currentWeight);
     const startWeightInput = parseNum('startWeight', AppState.config.startWeight);
     const targetWeightInput = parseNum('targetWeight', AppState.config.targetWeight);
+    const phaseStartWeightInput = parseOptionalNum('phaseStartWeight', AppState.config.phaseStartWeight ?? null);
     const heightInput = parseNum('height', AppState.config.height, true);
     const ageInput = parseNum('age', AppState.config.age, true);
 
     // Rangos humanos: un 700 kg (o negativo) corrompía TDEE, macros y gráficos.
-    const badWeight = [newWeight, startWeightInput, targetWeightInput].find(
+    const badWeight = [newWeight, startWeightInput, targetWeightInput, phaseStartWeightInput].find(
         v => Number.isFinite(v) && (v < 25 || v > 350)
     );
     if (badWeight !== undefined) {
@@ -74,6 +86,17 @@ export function saveConfig() {
     AppState.config.startWeight = startWeightInput;
     AppState.config.currentWeight = newWeight;
     AppState.config.targetWeight = targetWeightInput;
+
+    const phaseStartDateEl = document.getElementById('phaseStartDate');
+    let phaseStartDateInput = AppState.config.phaseStartDate || null;
+    if (phaseStartDateEl) {
+        phaseStartDateInput = null;
+        const raw = phaseStartDateEl.value?.trim();
+        if (raw) {
+            const dt = new Date(`${raw}T00:00:00`);
+            if (!Number.isNaN(dt.getTime())) phaseStartDateInput = getDateKey(dt);
+        }
+    }
 
     const startDateInput = document.getElementById('startDate')?.value;
     if (startDateInput) {
@@ -132,10 +155,18 @@ export function saveConfig() {
 
     const phaseChanged = prevPhase !== AppState.config.goalPhase;
     // La barra de progreso se reinicia al cambiar de fase: la cabecera y
-    // Objetivos comparten este punto de partida (getPhaseProgress).
+    // Objetivos comparten este punto de partida (getPhaseProgress). Si el
+    // usuario ya escribió un peso/fecha en el formulario, se respeta.
     if (phaseChanged) {
-        AppState.config.phaseStartWeight = AppState.config.currentWeight;
-        AppState.config.phaseStartDate = getDateKey(new Date());
+        AppState.config.phaseStartWeight = Number.isFinite(phaseStartWeightInput)
+            ? phaseStartWeightInput
+            : AppState.config.currentWeight;
+        AppState.config.phaseStartDate = phaseStartDateInput || getDateKey(new Date());
+    } else {
+        AppState.config.phaseStartWeight = Number.isFinite(phaseStartWeightInput)
+            ? phaseStartWeightInput
+            : null;
+        AppState.config.phaseStartDate = phaseStartDateInput;
     }
 
     const tdeeModeEl = document.getElementById('tdeeModeSelect');
@@ -214,6 +245,12 @@ export function updateConfigUI() {
     if (el('lossPaceSelect')) el('lossPaceSelect').value = AppState.config.lossPace || 'moderado';
     if (el('deficitTargetInput')) el('deficitTargetInput').value = AppState.config.deficitTarget || 500;
     if (el('goalPhaseSelect')) el('goalPhaseSelect').value = AppState.config.goalPhase || 'definicion';
+    if (el('phaseStartWeight')) {
+        el('phaseStartWeight').value = Number.isFinite(parseFloat(AppState.config.phaseStartWeight))
+            ? AppState.config.phaseStartWeight
+            : '';
+    }
+    if (el('phaseStartDate')) el('phaseStartDate').value = AppState.config.phaseStartDate || '';
     if (el('gainPaceSelect')) el('gainPaceSelect').value = AppState.config.gainPace || 'lento';
     if (el('surplusTargetInput')) el('surplusTargetInput').value = AppState.config.surplusTarget || 150;
     if (el('tdeeModeSelect')) el('tdeeModeSelect').value = AppState.config.tdeeMode || 'formula';
@@ -333,3 +370,13 @@ export function updateHeaderInfo() {
         }
     }
 }
+
+// Atajo para el caso habitual: la fase empieza hoy con el peso actual.
+window._useCurrentWeightForPhase = function() {
+    const inputWeight = parseFloat(document.getElementById('currentWeightInput')?.value);
+    const current = Number.isFinite(inputWeight) ? inputWeight : parseFloat(AppState.config.currentWeight);
+    const weightEl = document.getElementById('phaseStartWeight');
+    const dateEl = document.getElementById('phaseStartDate');
+    if (weightEl && Number.isFinite(current)) weightEl.value = current;
+    if (dateEl) dateEl.value = getDateKey(new Date());
+};

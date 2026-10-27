@@ -22,9 +22,33 @@ export function getDayType(date) {
     return routine[dayName] || { type: 'descanso', label: 'Descanso', templateId: '' };
 }
 
+// Peso registrado más cercano a la fecha de inicio de fase (máx. 7 días).
+// Sirve para migrar datos antiguos que tienen la fecha pero no el peso, y para
+// no caer en el peso inicial del déficit cuando la fase actual empezó después.
+function _weightNearDateKey(dateKey) {
+    if (!dateKey || typeof dateKey !== 'string') return null;
+    const entries = (Array.isArray(AppState.config.weightHistory) ? AppState.config.weightHistory : [])
+        .filter(e => e && typeof e.date === 'string' && Number.isFinite(parseFloat(e.weight)))
+        .slice()
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    let best = null;
+    let bestDiff = Infinity;
+    for (const entry of entries) {
+        const days = _daysBetweenDateKeys(dateKey, entry.date);
+        if (!Number.isFinite(days)) continue;
+        const diff = Math.abs(days);
+        if (diff > 7) continue;
+        if (diff < bestDiff) {
+            best = parseFloat(entry.weight);
+            bestDiff = diff;
+        }
+    }
+    return Number.isFinite(best) ? best : null;
+}
+
 // Progreso de la FASE actual, compartido por la cabecera y "Tus Objetivos".
-// Si existe phaseStartWeight/phaseStartDate se usa ese punto de partida; si no,
-// startWeight/startDate. Así la cabecera y la tarjeta nunca muestran % distintos.
+// El punto de partida es el de la fase (phaseStartWeight/phaseStartDate), no el
+// del proceso de déficit: quien empieza volumen en 66,6 kg no debe ver 85,4 kg.
 export function getPhaseProgress() {
     const phase = AppState.config.goalPhase || 'definicion';
     const currentWeight = parseFloat(AppState.config.currentWeight);
@@ -32,22 +56,33 @@ export function getPhaseProgress() {
     const isBulk = phase === 'volumen';
     const isMaintenance = phase === 'mantenimiento';
 
-    // Punto de partida de la fase. Si el cambio de fase es antiguo y no dejó
-    // phaseStartWeight, se recupera del último tramo de phaseHistory.
     const phaseStart = parseFloat(AppState.config.phaseStartWeight);
     const history = Array.isArray(AppState.config.phaseHistory) ? AppState.config.phaseHistory : [];
     const lastPhaseEntry = [...history].reverse().find(e => e && e.phase === phase);
     const historyStart = lastPhaseEntry ? parseFloat(lastPhaseEntry.startWeight) : NaN;
     const baseStart = parseFloat(AppState.config.startWeight);
-    const startWeight = [phaseStart, historyStart, baseStart]
-        .find(w => Number.isFinite(w) && w >= 25 && w <= 350) ?? null;
+    // La fecha de inicio del déficit solo es un fallback válido en definición.
+    const explicitPhaseStartDate = AppState.config.phaseStartDate || lastPhaseEntry?.date || null;
+    const phaseStartDate = explicitPhaseStartDate
+        || (phase === 'definicion' && AppState.config.startDate
+            ? getDateKey(new Date(AppState.config.startDate))
+            : null);
+    // Solo inferir desde el histórico si hay una fecha de fase explícita: el
+    // startDate global no debe sustituir al peso inicial configurado.
+    const inferredStart = explicitPhaseStartDate ? _weightNearDateKey(explicitPhaseStartDate) : null;
+    const startWeight = [
+        phaseStart,
+        inferredStart,
+        historyStart,
+        phase === 'definicion' ? baseStart : null,
+    ].find(w => Number.isFinite(w) && w >= 25 && w <= 350) ?? null;
 
     // La fase manda: una meta en dirección contraria no convierte la fase en
     // volumen por la puerta de atrás. Eso hacía que mantenimiento pareciera un
     // objetivo de ganancia y que definición mostrara progreso inverso.
-    const totalMove = isMaintenance ? null
+    const totalMove = isMaintenance || !Number.isFinite(startWeight) ? null
         : isBulk ? targetWeight - startWeight : startWeight - targetWeight;
-    const moved = isMaintenance ? 0
+    const moved = isMaintenance || !Number.isFinite(startWeight) ? 0
         : isBulk ? currentWeight - startWeight : startWeight - currentWeight;
     let progressPercent = null;
     if (!isMaintenance && Number.isFinite(totalMove) && totalMove > 0 && Number.isFinite(moved)) {
@@ -59,9 +94,7 @@ export function getPhaseProgress() {
         isBulk,
         isMaintenance,
         startWeight,
-        startDateKey: AppState.config.phaseStartDate
-            || lastPhaseEntry?.date
-            || (AppState.config.startDate ? getDateKey(new Date(AppState.config.startDate)) : null),
+        startDateKey: phaseStartDate,
         currentWeight: Number.isFinite(currentWeight) ? currentWeight : null,
         targetWeight: Number.isFinite(targetWeight) ? targetWeight : null,
         moved: Number.isFinite(moved) ? moved : 0,

@@ -168,7 +168,10 @@ function sortWeights() {
 
 // ── 4. Volumen: ETA por tendencia robusta ───────────────────────────────────
 {
-    resetConfig({ goalPhase: 'volumen', startWeight: 75, currentWeight: 75.95, targetWeight: 77 });
+    resetConfig({
+        goalPhase: 'volumen', startWeight: 75, currentWeight: 75.95, targetWeight: 77,
+        phaseStartWeight: 75, phaseStartDate: dayKeyAgo(27),
+    });
     for (let i = 27; i >= 0; i--) addWeightAgo(i, 75 + (27 - i) * (0.25 / 7));
     sortWeights();
     AppState.config.currentWeight = AppState.config.weightHistory.at(-1).weight;

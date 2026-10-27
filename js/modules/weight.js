@@ -242,6 +242,9 @@ export function calculateWeightPrediction() {
         // es una meta heredada: no se inventa un ETA ni se castiga la confianza.
         if (Number.isFinite(phaseStart) && target <= phaseStart) return noEta('target_invalid');
         if (target <= baseline || (Number.isFinite(current) && current >= target)) return noEta('target_reached');
+        // Sin peso de inicio de fase no se puede validar la meta ni medir el
+        // progreso: mejor pedirlo que usar el peso inicial del déficit.
+        if (!Number.isFinite(phaseStart)) return noEta('no_phase_start');
         if (weeklyGain <= 0) return noEta('no_gain_trend');
         const remaining = target - baseline;
         const estimatedDays = Math.ceil((remaining / weeklyGain) * 7);
@@ -259,6 +262,7 @@ export function calculateWeightPrediction() {
     if (Number.isFinite(phaseStart) && target >= phaseStart) return noEta('target_invalid');
     const remainingWeight = baseline - target;
     if (remainingWeight <= 0 || (Number.isFinite(current) && current <= target)) return noEta('target_reached');
+    if (!Number.isFinite(phaseStart)) return noEta('no_phase_start');
     if (weeklyLoss <= 0) return noEta('no_loss_trend');
 
     const estimatedDays = Math.ceil((remainingWeight / weeklyLoss) * 7);
@@ -602,6 +606,11 @@ export function updateWeightPrediction() {
                 </div>
             </div>
         `;
+    } else if (pred.reason === 'no_phase_start') {
+        renderNotice(
+            'Define el inicio de fase',
+            'Ve a la pestaña Objetivos > Fase del Objetivo y pon el peso con el que empezaste esta fase (por ejemplo, 66,6 kg) para calcular el ETA real.'
+        );
     } else if (pred.reason === 'target_invalid') {
         let detail;
         if (isBulk) {

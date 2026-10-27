@@ -452,12 +452,14 @@ export function displayWeeklyProgress() {
         } else if (isMaintenance) {
             etaText = 'Mantenimiento';
         } else if (isBulk) {
-            if (!Number.isFinite(target) || !Number.isFinite(start) || target <= start) etaText = 'Ajusta tu meta';
+            if (!Number.isFinite(start)) etaText = 'Define inicio de fase';
+            else if (!Number.isFinite(target) || target <= start) etaText = 'Ajusta tu meta';
             else if (Number.isFinite(current) && current >= target) etaText = 'Objetivo alcanzado';
             else if ((parseFloat(progress.expectedWeeklyGain) || 0) <= 0) etaText = 'Sin superávit';
             else etaText = 'Sin tendencia de ganancia';
         } else {
-            if (!Number.isFinite(target) || !Number.isFinite(start) || target >= start) etaText = 'Ajusta tu meta';
+            if (!Number.isFinite(start)) etaText = 'Define inicio de fase';
+            else if (!Number.isFinite(target) || target >= start) etaText = 'Ajusta tu meta';
             else if (Number.isFinite(current) && current <= target) etaText = 'Objetivo alcanzado';
             else if ((parseFloat(progress.expectedWeeklyLoss) || 0) <= 0) etaText = 'Sin déficit';
             else etaText = 'Sin tendencia de pérdida';
@@ -693,7 +695,25 @@ function _renderGoalBreakdown(dynamic) {
     const phaseProgress = getPhaseProgress();
     const targetW = parseFloat(AppState.config.targetWeight);
     const phaseStartW = phaseProgress.startWeight;
-    if (dynamic.goalPhase === 'volumen' && Number.isFinite(targetW) && Number.isFinite(phaseStartW) && targetW <= phaseStartW) {
+    const globalStartW = parseFloat(AppState.config.startWeight);
+    const currentW = phaseProgress.currentWeight;
+    if (!Number.isFinite(phaseStartW)) {
+        addWarning(
+            'Falta el peso al inicio de esta fase. Ve a Objetivos > Fase del Objetivo y pon el peso con el que empezaste mantenimiento o volumen para medir el progreso real.',
+            'amber'
+        );
+    } else if (dynamic.goalPhase !== 'definicion'
+        && Number.isFinite(globalStartW)
+        && Math.abs(phaseStartW - globalStartW) < 0.05
+        && Number.isFinite(currentW)
+        && Math.abs(currentW - globalStartW) > 5) {
+        // Señal típica de dato heredado: el inicio de fase es exactamente el
+        // peso del déficit, pero el peso actual está muy lejos.
+        addWarning(
+            `El peso al inicio de esta fase coincide con el peso inicial del déficit (${globalStartW} kg). Si empezaste mantenimiento/volumen en otro peso (p. ej. al terminar la definición), corrígelo en Objetivos > Fase del Objetivo.`,
+            'amber'
+        );
+    } else if (dynamic.goalPhase === 'volumen' && Number.isFinite(targetW) && targetW <= phaseStartW) {
         addWarning(
             `En volumen la meta debe estar por encima del peso al iniciar la fase (${phaseStartW} kg). Ahora está en ${targetW} kg: ajústala en Config para calcular un ETA real.`,
             'amber'
@@ -721,18 +741,17 @@ function _renderGoalBreakdown(dynamic) {
 }
 
 export function updateGoalsDisplay() {
-    const { startWeight, currentWeight, targetWeight } = AppState.config;
+    const { currentWeight, targetWeight } = AppState.config;
     const progress = getPhaseProgress();
     const isBulk = progress.isBulk;
     const isMaintenance = progress.isMaintenance;
-    // Punto de partida de la fase (fallback a startWeight) compartido con la
-    // cabecera: ambas cifras salen de getPhaseProgress.
-    const phaseStartWeight = Number.isFinite(progress.startWeight)
-        ? progress.startWeight
-        : (parseFloat(startWeight) || 0);
+    // Punto de partida de la fase, compartido con la cabecera. Sin dato no se
+    // usa startWeight: en volumen/mantenimiento ese peso es el del déficit y
+    // mostraría un progreso falso (p. ej. 85,4 kg en vez de 66,6 kg).
+    const phaseStartWeight = Number.isFinite(progress.startWeight) ? progress.startWeight : null;
     const currentW = Number.isFinite(progress.currentWeight) ? progress.currentWeight : parseFloat(currentWeight) || 0;
     const targetW = Number.isFinite(progress.targetWeight) ? progress.targetWeight : parseFloat(targetWeight);
-    const phaseChange = currentW - phaseStartWeight;
+    const phaseChange = Number.isFinite(phaseStartWeight) ? currentW - phaseStartWeight : null;
     const stillToLose = currentW - (Number.isFinite(targetW) ? targetW : currentW);
     const stillToGain = (Number.isFinite(targetW) ? targetW : currentW) - currentW;
     const progressPercent = progress.progressPercent;
@@ -770,15 +789,25 @@ export function updateGoalsDisplay() {
     if (el('goalCurrentWeight')) el('goalCurrentWeight').textContent = currentW ? `${currentW} kg` : '-';
     if (el('goalTargetWeight')) el('goalTargetWeight').textContent = Number.isFinite(targetW) ? `${targetW} kg` : '-';
     if (el('goalWeightLostLabel')) {
-        el('goalWeightLostLabel').textContent = isBulk ? 'Ganados' : isMaintenance ? 'Cambio en fase' : 'Perdidos';
+        // Si el cambio va en contra de la fase (p. ej. datos heredados), la
+        // etiqueta "Ganados" con un número negativo sería contradictoria.
+        const movingAgainstGoal = !isMaintenance && Number.isFinite(phaseChange)
+            && ((isBulk && phaseChange < -0.05) || (!isBulk && phaseChange > 0.05));
+        el('goalWeightLostLabel').textContent = isMaintenance || movingAgainstGoal
+            ? 'Cambio en fase'
+            : isBulk ? 'Ganados' : 'Perdidos';
     }
     if (el('goalWeightLost')) {
-        const tiny = Math.abs(phaseChange) < 0.05;
-        const value = tiny ? '0 kg'
-            : isBulk || isMaintenance
-                ? `${phaseChange > 0 ? '+' : ''}${phaseChange.toFixed(1)} kg`
-                : phaseChange <= 0 ? `${Math.abs(phaseChange).toFixed(1)} kg` : `-${phaseChange.toFixed(1)} kg`;
-        el('goalWeightLost').textContent = value;
+        if (!Number.isFinite(phaseChange)) {
+            el('goalWeightLost').textContent = '—';
+        } else {
+            const tiny = Math.abs(phaseChange) < 0.05;
+            const value = tiny ? '0 kg'
+                : isBulk || isMaintenance
+                    ? `${phaseChange > 0 ? '+' : ''}${phaseChange.toFixed(1)} kg`
+                    : phaseChange <= 0 ? `${Math.abs(phaseChange).toFixed(1)} kg` : `-${phaseChange.toFixed(1)} kg`;
+            el('goalWeightLost').textContent = value;
+        }
     }
     const progressBlock = el('goalProgressBlock');
     if (progressBlock) progressBlock.style.display = isMaintenance ? 'none' : '';
@@ -806,9 +835,14 @@ export function updateGoalsDisplay() {
     let timeEstimate = '-', timeExplain = '';
     if (isMaintenance) {
         timeEstimate = 'Mantener';
-        timeExplain = 'Objetivo de mantenimiento: no hay fecha de llegada; el ETA no aplica.';
+        timeExplain = Number.isFinite(phaseStartWeight)
+            ? 'Objetivo de mantenimiento: no hay fecha de llegada; el ETA no aplica.'
+            : 'Objetivo de mantenimiento: no hay fecha de llegada. Define el peso al inicio de la fase en Config para medir el cambio.';
     } else if (isBulk) {
-        if (!targetAboveStart) {
+        if (!Number.isFinite(phaseStartWeight)) {
+            timeEstimate = 'Define inicio de fase';
+            timeExplain = 'Ve a Objetivos > Fase del Objetivo y pon el peso con el que empezaste volumen (por ejemplo, 66,6 kg).';
+        } else if (!targetAboveStart) {
             timeEstimate = 'Ajusta tu meta';
             timeExplain = Number.isFinite(targetW)
                 ? `En volumen la meta (${targetW} kg) debe estar por encima del peso al iniciar la fase (${phaseStartWeight} kg).`
@@ -823,7 +857,10 @@ export function updateGoalsDisplay() {
             ({ estimate: timeEstimate, explain: timeExplain } = etaFromRate(stillToGain));
         }
     } else {
-        if (!targetBelowStart) {
+        if (!Number.isFinite(phaseStartWeight)) {
+            timeEstimate = 'Define inicio de fase';
+            timeExplain = 'Ve a Objetivos > Fase del Objetivo y pon el peso con el que empezaste esta fase.';
+        } else if (!targetBelowStart) {
             timeEstimate = 'Ajusta tu meta';
             timeExplain = Number.isFinite(targetW)
                 ? `En definición la meta (${targetW} kg) debe estar por debajo del peso al iniciar la fase (${phaseStartWeight} kg).`
@@ -952,6 +989,24 @@ window._onGainPaceChange = function() {
 
 window._onGoalPhaseChange = function() {
     refreshPhaseExplanations();
+    const select = document.getElementById('goalPhaseSelect');
+    const weightEl = document.getElementById('phaseStartWeight');
+    const dateEl = document.getElementById('phaseStartDate');
+    if (!select || !weightEl || !dateEl) return;
+    const savedPhase = AppState.config.goalPhase || 'definicion';
+    if (select.value !== savedPhase) {
+        // Fase nueva: el punto de partida natural es el peso actual de hoy.
+        // Se puede corregir antes de guardar (p. ej. si la fase empezó antes).
+        const input = document.getElementById('currentWeightInput');
+        const current = parseFloat(input?.value);
+        if (Number.isFinite(current)) weightEl.value = current;
+        dateEl.value = getDateKey(new Date());
+    } else {
+        weightEl.value = Number.isFinite(parseFloat(AppState.config.phaseStartWeight))
+            ? AppState.config.phaseStartWeight
+            : '';
+        dateEl.value = AppState.config.phaseStartDate || '';
+    }
 };
 
 export function updateStatistics() {
