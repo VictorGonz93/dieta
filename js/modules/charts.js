@@ -3,7 +3,7 @@
 import AppState from './state.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 import { updateStatistics } from './stats.js';
-import { getDynamicDayTargets } from './nutrition.js';
+import { getDynamicDayTargets, calculateRobustWeightTrend } from './nutrition.js';
 import { getDateKey } from './storage.js';
 
 const CHART_RANGE_KEY = 'chartRange';
@@ -60,6 +60,29 @@ function _formatDateKey(key) {
     return new Date(y, m - 1, d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
 }
 
+// Eje temporal real: cada día del rango ocupa su sitio, aunque no haya pesaje o
+// comida registrada. Antes el gráfico encogía los huecos y una semana sin datos
+// parecía un día, falseando la pendiente visual.
+function _keyToDayNumber(dateKey) {
+    const [y, m, d] = String(dateKey).split('-').map(Number);
+    if (![y, m, d].every(Number.isFinite)) return null;
+    return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+}
+
+function _dayNumberToKey(dayNumber) {
+    const d = new Date(dayNumber * 86400000);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function _continuousDateKeys(startKey, endKey) {
+    const start = _keyToDayNumber(startKey);
+    const end = _keyToDayNumber(endKey);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return [];
+    const keys = [];
+    for (let d = start; d <= end; d++) keys.push(_dayNumberToKey(d));
+    return keys;
+}
+
 function _sumMealMacros(day, key) {
     if (!day || !day.meals || typeof day.meals !== 'object') return 0;
     let total = 0;
@@ -107,33 +130,31 @@ export function initWeightChart() {
     const displayData = weightsData.slice(startIdx);
     if (displayData.length === 0) return; // nada que dibujar (evita min/max = ±Infinity)
 
-    const labelsText = displayData.map(w => _formatDateKey(w.date));
-    const weights = displayData.map(w => parseFloat(w.weight));
+    // Días continuos entre el primer y el último pesaje: los huecos se ven como
+    // huecos y el eje X refleja fechas reales, no posiciones de array.
+    const continuousKeys = _continuousDateKeys(displayData[0].date, displayData[displayData.length - 1].date);
+    const weightByDate = new Map(displayData.map(w => [w.date, parseFloat(w.weight)]));
+    const labelsText = continuousKeys.map(_formatDateKey);
+    const weights = continuousKeys.map(k => weightByDate.has(k) ? weightByDate.get(k) : null);
     const targetWeight = parseFloat(AppState.config.targetWeight);
     const showTarget = Number.isFinite(targetWeight) && targetWeight >= 25 && targetWeight <= 350;
 
     // Eje Y dinámico: rango real de los datos (y objetivo) ± 0.8 kg
-    const axisWeights = showTarget ? [...weights, targetWeight] : weights;
+    const axisWeights = showTarget ? [...displayData.map(w => parseFloat(w.weight)), targetWeight] : displayData.map(w => parseFloat(w.weight));
     const minW = Math.min(...axisWeights);
     const maxW = Math.max(...axisWeights);
     const yPad = 0.8;
     const yMin = Math.floor((minW - yPad) * 10) / 10;
     const yMax = Math.ceil((maxW + yPad) * 10) / 10;
 
-    // Línea de tendencia (regresión lineal)
-    function linearRegression(data) {
-        const n = data.length;
-        if (n < 2) return data.map(() => null);
-        const xs = data.map((_, i) => i);
-        const sumX = xs.reduce((a, b) => a + b, 0);
-        const sumY = data.reduce((a, b) => a + b, 0);
-        const sumXY = xs.reduce((sum, x, i) => sum + x * data[i], 0);
-        const sumX2 = xs.reduce((sum, x) => sum + x * x, 0);
-        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-        const intercept = (sumY - slope * sumX) / n;
-        return xs.map(x => Math.round((slope * x + intercept) * 100) / 100);
-    }
-    const trendData = linearRegression(weights);
+    // Tendencia robusta (Theil-Sen + MAD) evaluada en cada día del eje.
+    const fit = calculateRobustWeightTrend(displayData);
+    const trendData = fit
+        ? continuousKeys.map(k => {
+            const x = _keyToDayNumber(k);
+            return Math.round((fit.intercept + fit.slope * x) * 100) / 100;
+        })
+        : continuousKeys.map(() => null);
 
     AppState.charts.weight = new Chart(ctx, {
         type: 'line',
@@ -164,6 +185,7 @@ export function initWeightChart() {
                     fill: false,
                     tension: 0,
                     pointRadius: 0,
+                    spanGaps: true,
                     order: 2,
                 },
                 ...(showTarget ? [{
@@ -223,14 +245,18 @@ export function initCaloriesChart() {
     });
     const displayDates = filteredDates.slice(-range);
     if (displayDates.length === 0) return;
-    const caloriesData = displayDates.map(date => _sumMealMacros(AppState.allDays[date], 'kcal'));
-
-    const labelsText = displayDates.map(_formatDateKey);
-
-    const dynamicTargetsData = displayDates.map(date => {
+    // Eje temporal continuo: los días sin registro quedan como huecos, no se
+    // comprimen contra los días con comida.
+    const continuousKeys = _continuousDateKeys(displayDates[0], displayDates[displayDates.length - 1]);
+    const kcalByDate = new Map(displayDates.map((date, i) => [date, _sumMealMacros(AppState.allDays[date], 'kcal')]));
+    const targetByDate = new Map(displayDates.map(date => {
         const dyn = getDynamicDayTargets(date);
-        return dyn ? dyn.cals : 1800;
-    });
+        return [date, dyn ? dyn.cals : 1800];
+    }));
+    const caloriesData = continuousKeys.map(k => kcalByDate.has(k) ? kcalByDate.get(k) : null);
+    const dynamicTargetsData = continuousKeys.map(k => targetByDate.has(k) ? targetByDate.get(k) : null);
+
+    const labelsText = continuousKeys.map(_formatDateKey);
 
     AppState.charts.calories = new Chart(ctx, {
         type: 'bar',
@@ -240,7 +266,11 @@ export function initCaloriesChart() {
                 {
                     label: 'Calorías Consumidas',
                     data: caloriesData,
-                    backgroundColor: caloriesData.map((val, i) => val > dynamicTargetsData[i] ? 'rgba(248,113,113,0.85)' : 'rgba(16,185,129,0.85)'),
+                    backgroundColor: caloriesData.map((val, i) => val == null
+                        ? 'transparent'
+                        : val > (dynamicTargetsData[i] ?? 0)
+                            ? 'rgba(248,113,113,0.85)'
+                            : 'rgba(16,185,129,0.85)'),
                     borderRadius: 5,
                     borderSkipped: false,
                     order: 2,
@@ -254,6 +284,7 @@ export function initCaloriesChart() {
                     borderDash: [5, 4],
                     pointRadius: 2,
                     fill: false,
+                    spanGaps: true,
                     order: 1,
                 },
             ],
@@ -299,13 +330,17 @@ export function initProteinChart() {
     });
     const displayDates2 = filteredDates2.slice(-range2);
     if (displayDates2.length === 0) return;
-    const proteinData = displayDates2.map(date => _sumMealMacros(AppState.allDays[date], 'protein'));
-
-    const labelsText = displayDates2.map(_formatDateKey);
-    const proteinTargets = displayDates2.map(date => {
+    // Eje temporal continuo, igual que en calorías.
+    const continuousKeys = _continuousDateKeys(displayDates2[0], displayDates2[displayDates2.length - 1]);
+    const proteinByDate = new Map(displayDates2.map(date => [date, _sumMealMacros(AppState.allDays[date], 'protein')]));
+    const proteinTargetByDate = new Map(displayDates2.map(date => {
         const dyn = getDynamicDayTargets(date);
-        return dyn && Number.isFinite(dyn.protein) ? dyn.protein : (AppState.config.proteinGoal || 160);
-    });
+        return [date, dyn && Number.isFinite(dyn.protein) ? dyn.protein : (AppState.config.proteinGoal || 160)];
+    }));
+    const proteinData = continuousKeys.map(k => proteinByDate.has(k) ? proteinByDate.get(k) : null);
+
+    const labelsText = continuousKeys.map(_formatDateKey);
+    const proteinTargets = continuousKeys.map(k => proteinTargetByDate.has(k) ? proteinTargetByDate.get(k) : null);
 
     AppState.charts.protein = new Chart(ctx, {
         type: 'line',
@@ -332,6 +367,7 @@ export function initProteinChart() {
                     borderDash: [6, 4],
                     pointRadius: 0,
                     fill: false,
+                    spanGaps: true,
                     order: 1,
                 }
             ],
@@ -474,37 +510,36 @@ export function renderWeightPredictionChart() {
     if (msg) msg.classList.add('hidden');
     canvas.classList.remove('hidden');
 
-    const labels = [];
-    const realWeights = [];
-    const predictedWeights = [];
-
     // Filtrar entradas iniciales aisladas (gap >30d hasta la siguiente)
-    const wh = history;
     let predStartIdx = 0;
-    while (predStartIdx < wh.length - 1) {
-        const gap = _dayDiff(wh[predStartIdx].date, wh[predStartIdx + 1].date);
+    while (predStartIdx < history.length - 1) {
+        const gap = _dayDiff(history[predStartIdx].date, history[predStartIdx + 1].date);
         if (gap > 30) predStartIdx++; else break;
     }
-    const filteredWH = wh.slice(predStartIdx);
+    const filteredWH = history.slice(predStartIdx);
 
-    // Ventana del rango elegido. El predictedWeight guardado en la entrada[i]
-    // predice el día i+1, así que se grafica desplazado a la derecha.
-    // idx 0 siempre null (sin día previo en la ventana).
-    const recentWH = filteredWH;
-    recentWH.forEach((entry, idx) => {
-        labels.push(_formatDateKey(entry.date));
-        realWeights.push(parseFloat(entry.weight));
+    // Eje temporal continuo entre el primer y el último pesaje del rango.
+    const continuousKeys = _continuousDateKeys(filteredWH[0].date, filteredWH[filteredWH.length - 1].date);
+    const realByDate = new Map(filteredWH.map(entry => [entry.date, parseFloat(entry.weight)]));
+    const predictedByDate = new Map();
 
+    // El predictedWeight guardado en la entrada[i] predice el día i+1, así que
+    // se pinta en la fecha del pesaje siguiente.
+    filteredWH.forEach((entry, idx) => {
+        if (idx === 0) return;
         const prevEntry = filteredWH[idx - 1];
-        if (!prevEntry) {
-            predictedWeights.push(null);
-        } else if (prevEntry.predictedWeight !== undefined && prevEntry.predictedWeight !== null) {
-            predictedWeights.push(prevEntry.predictedWeight);
-        } else {
+        let predicted = prevEntry.predictedWeight;
+        if (predicted === undefined || predicted === null) {
             const pred = calculateNextDayPredictionForDate(prevEntry.date, prevEntry.weight);
-            predictedWeights.push(pred ? pred.predictedWeight : null);
+            predicted = pred ? pred.predictedWeight : null;
         }
+        predicted = parseFloat(predicted);
+        if (Number.isFinite(predicted)) predictedByDate.set(entry.date, predicted);
     });
+
+    const labels = continuousKeys.map(_formatDateKey);
+    const realWeights = continuousKeys.map(k => realByDate.has(k) ? realByDate.get(k) : null);
+    const predictedWeights = continuousKeys.map(k => predictedByDate.has(k) ? predictedByDate.get(k) : null);
 
     if (canvas.chart) canvas.chart.destroy();
 
@@ -533,6 +568,7 @@ export function renderWeightPredictionChart() {
                     borderWidth: 2,
                     borderDash: [5, 5],
                     pointRadius: 2,
+                    spanGaps: true,
                 },
                 ...(Number.isFinite(parseFloat(AppState.config.targetWeight)) ? [{
                     label: `Objetivo (${parseFloat(AppState.config.targetWeight).toFixed(1)} kg)`,

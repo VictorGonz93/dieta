@@ -22,6 +22,7 @@ const AppState = {
         fatsMax: null,
         customGymRoutine: null,
         weightHistory: [],
+        phaseHistory: [],
     },
     customProducts: [],
     mealHistory: [],

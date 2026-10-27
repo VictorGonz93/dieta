@@ -4,7 +4,7 @@ import AppState from './state.js';
 import { KCAL_PER_KG_FAT, LEAN_GAIN_KCAL_PER_KG } from './constants.js';
 import { num } from './utils.js';
 import { getDateKey } from './storage.js';
-import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, getPhaseProgress } from './nutrition.js';
+import { getDayType, calculateTDEE, getCalorieTarget, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, getPhaseProgress, getAdaptiveConfidenceLabel, getAdaptiveFallbackLabel } from './nutrition.js';
 import { calculateNextDayPredictionForDate } from './weight.js';
 
 const HISTORY_PER_PAGE = 10;
@@ -254,7 +254,7 @@ export function getWeeklyProgress() {
         const target = AppState.config.targetWeight;
         const daysToGoal = (target > currentWeight && gainActual > 0)
             ? Math.round((target - currentWeight) / (gainActual / 7))
-            : 0;
+            : null;
         return {
             status,
             weeklyLoss: stats.weeklyLoss,
@@ -262,7 +262,9 @@ export function getWeeklyProgress() {
             expectedWeeklyGain,
             diff: diff.toFixed(2),
             daysToGoal,
-            estimatedDate: new Date(Date.now() + daysToGoal * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+            estimatedDate: daysToGoal
+                ? new Date(Date.now() + daysToGoal * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES')
+                : null,
         };
     }
 
@@ -278,25 +280,28 @@ export function getWeeklyProgress() {
             weeklyLoss: stats.weeklyLoss,
             expectedWeeklyLoss: 0,
             diff: actualLoss.toFixed(2),
-            daysToGoal: 0,
-            estimatedDate: new Date().toLocaleDateString('es-ES'),
+            daysToGoal: null,
+            estimatedDate: null,
         };
     }
 
-    // DEFINICIÓN: lógica original (déficit real del día o calculado)
-    const dailyDeficit = (todayTargets && Number.isFinite(todayTargets.actualDeficit) && todayTargets.actualDeficit > 0)
-        ? todayTargets.actualDeficit
+    // DEFINICIÓN: déficit REAL del día (0 si el suelo/macros lo anulan). No
+    // sustituirlo por el teórico: prometería una pérdida que no existe.
+    const dailyDeficit = todayTargets && Number.isFinite(todayTargets.actualDeficit)
+        ? Math.max(0, todayTargets.actualDeficit)
         : calculateAutoDeficit(currentWeight, lossPace);
     const expectedWeeklyLoss = parseFloat(((dailyDeficit * 7) / KCAL_PER_KG_FAT).toFixed(2));
     const diff = actualLoss - expectedWeeklyLoss;
     // weeklyLoss con signo: positivo = perdiendo, negativo = ganando
-    const status = actualLoss < -0.05 ? 'Ganando peso'
+    const status = expectedWeeklyLoss <= 0 ? 'Sin déficit'
+        : actualLoss < -0.05 ? 'Ganando peso'
         : diff > -0.05 ? 'En camino'
         : diff > -0.2 ? 'Algo lento' : 'Muy lento';
 
-    const daysToGoal = AppState.config.currentWeight > AppState.config.targetWeight
+    const daysToGoal = (expectedWeeklyLoss > 0
+        && AppState.config.currentWeight > AppState.config.targetWeight)
         ? Math.round((AppState.config.currentWeight - AppState.config.targetWeight) / (expectedWeeklyLoss / 7))
-        : 0;
+        : null;
 
     return {
         status,
@@ -304,7 +309,9 @@ export function getWeeklyProgress() {
         expectedWeeklyLoss,
         diff: diff.toFixed(2),
         daysToGoal,
-        estimatedDate: new Date(Date.now() + daysToGoal * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+        estimatedDate: daysToGoal
+            ? new Date(Date.now() + daysToGoal * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES')
+            : null,
     };
 }
 
@@ -398,8 +405,16 @@ export function displayWeeklyProgress() {
                     </div>
                 </div>
                 <div class="goal-info">
-                    <div class="info-item"><span>Días hasta meta:</span><strong>${progress.daysToGoal} días</strong></div>
-                    <div class="info-item"><span>Fecha estimada:</span><strong>${progress.estimatedDate}</strong></div>
+                    ${progress.daysToGoal
+                        ? `<div class="info-item"><span>Días hasta meta:</span><strong>${progress.daysToGoal} días</strong></div>
+                           <div class="info-item"><span>Fecha estimada:</span><strong>${progress.estimatedDate}</strong></div>`
+                        : `<div class="info-item"><span>ETA:</span><strong>${
+                            (AppState.config.goalPhase || 'definicion') === 'mantenimiento'
+                                ? 'Mantenimiento'
+                                : (AppState.config.currentWeight || 0) <= (AppState.config.targetWeight || 0)
+                                    ? 'Objetivo alcanzado'
+                                    : 'Sin estimación'
+                        }</strong></div>`}
                 </div>
             </div>
         </div>
@@ -483,6 +498,145 @@ export function displayGoalsTracking() {
     import('./weight.js').then(m => m.renderWeightHistory());
 }
 
+// Desglose visible del objetivo: TMB → mantenimiento → ajuste → objetivo, más
+// la calidad del dato y los avisos que antes solo existían en el código.
+function _renderGoalBreakdown(dynamic) {
+    const el = (id) => document.getElementById(id);
+    if (!el('goalBreakdown')) return;
+    if (!dynamic) {
+        ['goalTmr', 'goalMaintenance', 'goalAdjustment', 'goalFinalCals'].forEach(id => {
+            if (el(id)) el(id).textContent = '-';
+        });
+        if (el('goalSourceDetail')) el('goalSourceDetail').textContent = 'Sin datos suficientes para calcular el objetivo.';
+        if (el('goalWarnings')) el('goalWarnings').replaceChildren();
+        return;
+    }
+
+    const adaptive = dynamic.adaptiveTDEE;
+    const isAdaptive = dynamic.tdeeSource === 'adaptive';
+    const held = isAdaptive && adaptive?.transitionHold === true;
+    const adjustment = Math.round(dynamic.cals - dynamic.tdee);
+
+    if (el('goalTmr')) el('goalTmr').textContent = `${Math.round(dynamic.tmr)} kcal`;
+    if (el('goalMaintenance')) el('goalMaintenance').textContent = `${Math.round(dynamic.tdee)} kcal`;
+    if (el('goalMaintenanceHint')) {
+        el('goalMaintenanceHint').textContent = held
+            ? 'Congelado por cambio de fase'
+            : isAdaptive ? 'TDEE adaptativo' : 'Fórmula + entreno';
+    }
+    if (el('goalAdjustment')) {
+        el('goalAdjustment').textContent = `${adjustment > 0 ? '+' : ''}${adjustment} kcal`;
+    }
+    if (el('goalAdjustmentHint')) {
+        el('goalAdjustmentHint').textContent = dynamic.goalPhase === 'definicion'
+            ? 'Déficit real'
+            : dynamic.goalPhase === 'volumen' ? 'Superávit real' : 'Sin ajuste';
+    }
+    if (el('goalFinalCals')) el('goalFinalCals').textContent = `${Math.round(dynamic.cals)} kcal`;
+
+    const badge = el('goalQualityBadge');
+    if (badge) {
+        let label = 'Fórmula';
+        let cls = 'text-xs px-3 py-1 rounded-full border border-slate-600 text-slate-300';
+        if (isAdaptive) {
+            const conf = adaptive?.confidence;
+            label = `Adaptativo · confianza ${getAdaptiveConfidenceLabel(conf)}`;
+            cls = conf === 'high'
+                ? 'text-xs px-3 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                : 'text-xs px-3 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300';
+        } else if (adaptive && (adaptive.confidence !== 'none' || adaptive.fallbackReason)) {
+            label = 'Fórmula · adaptativo descartado';
+            cls = 'text-xs px-3 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300';
+        }
+        badge.textContent = label;
+        badge.className = cls;
+    }
+
+    const coverageText = adaptive && Number.isFinite(adaptive.coverage)
+        ? `${Math.round(adaptive.coverage * 100)} %`
+        : null;
+    let sourceDetail = '';
+    if (isAdaptive && adaptive) {
+        sourceDetail = `TDEE adaptativo con ${adaptive.weighIns} pesajes en ${adaptive.spanDays} días`
+            + `${coverageText ? ` y cobertura de comida del ${coverageText}` : ''}`
+            + ` · ${adaptive.daysUsed} días de comida · confianza ${getAdaptiveConfidenceLabel(adaptive.confidence)}.`;
+        if (held) {
+            sourceDetail += ` Objetivo congelado durante el cambio de fase: quedan ${adaptive.holdDaysLeft} días.`;
+        }
+    } else if (adaptive && (adaptive.confidence !== 'none' || adaptive.fallbackReason)) {
+        sourceDetail = `Fórmula Mifflin-St Jeor ×1.25 + entreno del día. `
+            + `Adaptativo descartado: ${getAdaptiveFallbackLabel(dynamic.adaptiveFallbackReason || adaptive.fallbackReason)}.`;
+        if (coverageText) sourceDetail += ` Cobertura de comida: ${coverageText}.`;
+    } else {
+        sourceDetail = 'Fórmula Mifflin-St Jeor ×1.25'
+            + (dynamic.workoutKcal > 0 ? ` + ${Math.round(dynamic.workoutKcal)} kcal de entreno` : '')
+            + '.';
+    }
+    if (el('goalSourceDetail')) el('goalSourceDetail').textContent = sourceDetail;
+
+    const warnings = el('goalWarnings');
+    if (!warnings) return;
+    warnings.replaceChildren();
+    const addWarning = (text, tone) => {
+        const palette = tone === 'red'
+            ? { box: 'bg-red-500/10 border-red-500/20 text-red-200', icon: 'error_outline' }
+            : tone === 'blue'
+                ? { box: 'bg-blue-500/10 border-blue-500/20 text-blue-200', icon: 'schedule' }
+                : { box: 'bg-amber-500/10 border-amber-500/20 text-amber-200', icon: 'info' };
+        const box = document.createElement('div');
+        box.className = `flex items-start gap-2 p-3 rounded-lg border text-xs leading-relaxed ${palette.box}`;
+        const icon = document.createElement('span');
+        icon.className = 'material-icons text-sm';
+        icon.textContent = palette.icon;
+        const label = document.createElement('span');
+        label.textContent = text;
+        box.append(icon, label);
+        warnings.appendChild(box);
+    };
+
+    if (dynamic.macroOverflow) {
+        addWarning(
+            `Ni con los mínimos de grasa y proteína caben las kcal objetivo: el objetivo real sube a ${Math.round(dynamic.cals)} kcal. Revisa el ritmo o el factor de proteína.`,
+            'red'
+        );
+    } else if (dynamic.proteinCompromised || dynamic.fatReduced) {
+        const parts = [];
+        if (dynamic.proteinCompromised) {
+            parts.push(`la proteína baja de ${Math.round(dynamic.proteinDesired)} a ${Math.round(dynamic.protein)} g`);
+        }
+        if (dynamic.fatReduced) {
+            parts.push(`las grasas bajan de ${Math.round(dynamic.fatsPreferred)} a ${Math.round(dynamic.fats)} g`);
+        }
+        addWarning(
+            `Para no superar las ${Math.round(dynamic.targetCals)} kcal, ${parts.join(' y ')}. Los carbohidratos absorben el resto.`,
+            'amber'
+        );
+    }
+    if (dynamic.belowFloor) {
+        addWarning(
+            `El suelo calórico (${Math.round(dynamic.calorieFloor || 1500)} kcal) supera el mantenimiento estimado (${Math.round(dynamic.tdee)} kcal). En definición no habrá déficit real: usa mantenimiento o revisa los datos.`,
+            'red'
+        );
+    } else if (dynamic.floorApplied) {
+        addWarning(
+            `El suelo calórico (${Math.round(dynamic.calorieFloor || 1500)} kcal) eleva el objetivo calculado (${Math.round(dynamic.rawCals)} kcal) para no bajar de un mínimo seguro.`,
+            'amber'
+        );
+    }
+    if (held) {
+        addWarning(
+            `Cambio de fase: el mantenimiento queda congelado durante 14 días para no confundir agua/glucógeno con grasa. Quedan ${adaptive.holdDaysLeft} días.`,
+            'blue'
+        );
+    }
+    if (!isAdaptive && dynamic.adaptiveFallbackReason) {
+        addWarning(
+            `El TDEE adaptativo no fija el objetivo (${getAdaptiveFallbackLabel(dynamic.adaptiveFallbackReason)}). Se usa la fórmula hasta que haya datos suficientes y con cobertura.`,
+            'amber'
+        );
+    }
+}
+
 export function updateGoalsDisplay() {
     const { startWeight, currentWeight, targetWeight } = AppState.config;
     const progress = getPhaseProgress();
@@ -503,20 +657,22 @@ export function updateGoalsDisplay() {
     const dateKey = getDateKey(AppState.currentDate);
     const dynamic = getDynamicDayTargets(dateKey);
 
-    // ETA con el déficit REAL del día (piso calórico / macros mínimas pueden
-    // recortarlo respecto al teórico). Fallback al objetivo si no hay dato.
-    // En volumen se usa el superávit equivalente (LEAN_GAIN_KCAL_PER_KG).
-    const effectiveDeficit = (dynamic && Number.isFinite(dynamic.actualDeficit) && dynamic.actualDeficit > 0)
+    const goalPhase = AppState.config.goalPhase || 'definicion';
+
+    // ETA con el ajuste REAL del día (piso calórico / macros pueden recortarlo
+    // respecto al teórico). NO hacer fallback al déficit teórico cuando el real
+    // es 0 o negativo: eso prometía una pérdida que no existe.
+    const effectiveDeficit = dynamic && Number.isFinite(dynamic.actualDeficit)
         ? dynamic.actualDeficit
         : deficitTarget;
-    const weeklyLossKg = (effectiveDeficit * 7) / KCAL_PER_KG_FAT; // kg/semana equivalentes
-    const effectiveSurplus = (dynamic && Number.isFinite(dynamic.surplusTarget) && dynamic.surplusTarget > 0)
-        ? dynamic.surplusTarget
-        : calculateAutoSurplus(w, AppState.config.gainPace || 'lento');
+    const weeklyLossKg = Math.max(0, (effectiveDeficit * 7) / KCAL_PER_KG_FAT);
+    const effectiveSurplus = dynamic && Number.isFinite(dynamic.cals) && Number.isFinite(dynamic.tdee)
+        ? Math.max(0, dynamic.cals - dynamic.tdee)
+        : Math.max(0, dynamic?.surplusTarget ?? calculateAutoSurplus(w, AppState.config.gainPace || 'lento'));
     const weeklyGainKg = (effectiveSurplus * 7) / LEAN_GAIN_KCAL_PER_KG;
     const stillToGain = (targetWeight || 0) - (currentWeight || 0);
-    const weeklyRateKg = isBulk ? weeklyGainKg : weeklyLossKg;
-    const stillToGo = isBulk ? stillToGain : stillToLose;
+    const weeklyRateKg = goalPhase === 'volumen' ? weeklyGainKg : weeklyLossKg;
+    const stillToGo = goalPhase === 'volumen' ? stillToGain : stillToLose;
     const weeksRemaining = weeklyRateKg > 0 && stillToGo > 0 ? Math.ceil(stillToGo / weeklyRateKg) : 0;
     const daysRemaining = weeksRemaining * 7;
 
@@ -538,8 +694,16 @@ export function updateGoalsDisplay() {
 
     const rateExplain = `(${weeklyRateKg.toFixed(2)} kg/semana)`;
     let timeEstimate = '-', timeExplain = '';
-    if (stillToGo > 0) {
-        if (weeksRemaining === 0) {
+    if (goalPhase === 'mantenimiento') {
+        timeEstimate = 'Mantener';
+        timeExplain = 'Objetivo de mantenimiento: no hay fecha de llegada; el ETA no aplica.';
+    } else if (stillToGo > 0) {
+        if (weeklyRateKg <= 0) {
+            timeEstimate = goalPhase === 'volumen' ? 'Sin superávit' : 'Sin déficit';
+            timeExplain = goalPhase === 'volumen'
+                ? 'El objetivo actual no genera un superávit real; revisa el cálculo o los macros.'
+                : 'El objetivo actual no genera un déficit real; revisa el suelo, los macros o el TDEE.';
+        } else if (weeksRemaining === 0) {
             timeEstimate = '¡Ya casi!';
             timeExplain = 'Estás muy cerca de tu objetivo';
         } else if (weeksRemaining < 4) {
@@ -550,7 +714,7 @@ export function updateGoalsDisplay() {
             timeEstimate = `${months} mes${months > 1 ? 'es' : ''}`;
             timeExplain = `Aproximadamente ${weeksRemaining} semanas ${rateExplain}`;
         }
-    } else if (isBulk) {
+    } else if (goalPhase === 'volumen') {
         timeEstimate = 'Define tu meta';
         timeExplain = 'En volumen la meta debe estar por encima de tu peso actual';
     } else {
@@ -564,6 +728,8 @@ export function updateGoalsDisplay() {
     if (el('goalProtein')) el('goalProtein').textContent = Math.round(proteinTarget);
     if (el('goalCarbs')) el('goalCarbs').textContent = Math.round(carbsTarget);
     if (el('goalFats')) el('goalFats').textContent = Math.round(fatsTarget);
+
+    _renderGoalBreakdown(dynamic);
 
     if (el('lossPaceSelect')) el('lossPaceSelect').value = lossPace;
     if (el('deficitTargetInput')) el('deficitTargetInput').value = deficitTarget;

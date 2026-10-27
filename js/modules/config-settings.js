@@ -2,7 +2,7 @@
 
 import AppState from './state.js';
 import { safeSet, getDateKey, sanitizeConfig } from './storage.js';
-import { getDayNumber, getPhaseProgress, calculateTMR, calculateTDEE, getDayType, calculateAutoDeficit, calculateAutoSurplus, calculateAdaptiveTDEE, clearAdaptiveTDEECache } from './nutrition.js';
+import { getDayNumber, getPhaseProgress, calculateTMR, calculateTDEE, getDayType, calculateAutoDeficit, calculateAutoSurplus, calculateAdaptiveTDEE, clearAdaptiveTDEECache, getAdaptiveConfidenceLabel, getAdaptiveFallbackLabel } from './nutrition.js';
 import { recordWeight, updateWeightPrediction, displayNextDayPrediction } from './weight.js';
 import { showNotification } from './ui/notifications.js';
 
@@ -130,9 +130,10 @@ export function saveConfig() {
         }
     }
 
+    const phaseChanged = prevPhase !== AppState.config.goalPhase;
     // La barra de progreso se reinicia al cambiar de fase: la cabecera y
     // Objetivos comparten este punto de partida (getPhaseProgress).
-    if (prevPhase !== AppState.config.goalPhase) {
+    if (phaseChanged) {
         AppState.config.phaseStartWeight = AppState.config.currentWeight;
         AppState.config.phaseStartDate = getDateKey(new Date());
     }
@@ -142,6 +143,21 @@ export function saveConfig() {
         AppState.config.tdeeMode = tdeeModeEl.value;
     } else {
         AppState.config.tdeeMode = AppState.config.tdeeMode || 'formula';
+    }
+
+    // Historial de fases: imprescindible para no mezclar definición,
+    // mantenimiento y volumen al estimar el TDEE y para poder auditar después.
+    if (phaseChanged) {
+        const history = Array.isArray(AppState.config.phaseHistory)
+            ? AppState.config.phaseHistory.slice(-99)
+            : [];
+        history.push({
+            date: getDateKey(new Date()),
+            phase: AppState.config.goalPhase,
+            startWeight: AppState.config.currentWeight,
+            tdeeMode: AppState.config.tdeeMode,
+        });
+        AppState.config.phaseHistory = history;
     }
 
     const pFactorEl = document.getElementById('proteinFactorSelect');
@@ -242,16 +258,25 @@ export function updateCalculatedValues() {
         }
     }
     if (el('tdeeAdaptiveDetail')) {
+        const coverage = Number.isFinite(adaptive.coverage)
+            ? `${Math.round(adaptive.coverage * 100)} %`
+            : null;
+        const dataText = `${adaptive.weighIns ?? adaptive.daysUsed ?? 0} pesajes`
+            + (adaptive.spanDays ? ` / ${adaptive.spanDays} días` : '')
+            + (coverage ? ` · cobertura ${coverage}` : '')
+            + ` · ${adaptive.daysUsed ?? 0} días de comida`;
         if (adaptive.source === 'formula' && adaptive.confidence !== 'none') {
-            el('tdeeAdaptiveDetail').textContent = `Sin estimación adaptativa fiable (${adaptive.daysUsed} días); usando fórmula + entreno del día.`;
+            el('tdeeAdaptiveDetail').textContent = `Sin estimación fiable: ${getAdaptiveFallbackLabel(adaptive.fallbackReason)}. ${dataText}. Usando fórmula + entreno del día.`;
             el('tdeeAdaptiveDetail').style.display = 'block';
         } else if (adaptive.confidence !== 'none') {
             const diff = adaptive.tdee - adaptive.formulaTDEE;
             const sign = diff > 0 ? '+' : '';
-            el('tdeeAdaptiveDetail').textContent = `Fórmula: ${adaptive.formulaTDEE} | Diferencia: ${sign}${diff} | Confianza: ${adaptive.confidence} | Datos: ${adaptive.daysUsed} días`;
+            el('tdeeAdaptiveDetail').textContent = `Fórmula: ${adaptive.formulaTDEE} · Diferencia: ${sign}${diff} · Confianza: ${getAdaptiveConfidenceLabel(adaptive.confidence)} · ${dataText}`
+                + (adaptive.transitionHold ? ` · Congelado por cambio de fase (quedan ${adaptive.holdDaysLeft} días)` : '');
             el('tdeeAdaptiveDetail').style.display = 'block';
         } else {
-            el('tdeeAdaptiveDetail').style.display = 'none';
+            el('tdeeAdaptiveDetail').textContent = 'Necesita al menos 14 pesajes y días de comida registrados para estimar tu TDEE real.';
+            el('tdeeAdaptiveDetail').style.display = 'block';
         }
     }
     updateStorageInfo();

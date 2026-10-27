@@ -27,9 +27,9 @@
     </style>
     
     <!-- Fuentes e iconos locales (offline y sin depender de Google Fonts) -->
-    <link rel="stylesheet" href="css/fonts.css?v=20261024-126">
+    <link rel="stylesheet" href="css/fonts.css?v=20261027-127">
     <!-- Tailwind compilado estáticamente (antes se generaba en runtime desde el CDN) -->
-    <link rel="stylesheet" href="css/tailwind.css?v=20261024-126">
+    <link rel="stylesheet" href="css/tailwind.css?v=20261027-127">
 
     <!-- Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
@@ -40,7 +40,7 @@
     <!-- Google Identity Services (Google Fit API) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <link rel="stylesheet" href="css/styles.css?v=20261024-126">
+    <link rel="stylesheet" href="css/styles.css?v=20261027-127">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -493,6 +493,40 @@
                             </div>
                         </div>
 
+                        <!-- Desglose del cálculo y calidad del dato -->
+                        <div id="goalBreakdown" class="bg-slate-800/50 p-5 rounded-xl border border-slate-700/60 mb-6">
+                            <div class="flex items-start justify-between gap-3 flex-wrap mb-4">
+                                <div>
+                                    <h4 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Cálculo de hoy</h4>
+                                    <p class="text-xs text-slate-400 mt-1" id="goalSourceDetail">—</p>
+                                </div>
+                                <span id="goalQualityBadge" class="text-xs px-3 py-1 rounded-full border border-slate-600 text-slate-300">—</span>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div class="bg-slate-900/40 rounded-lg p-3">
+                                    <p class="text-[11px] uppercase tracking-wide text-slate-400">TMB</p>
+                                    <p class="text-lg font-semibold text-white" id="goalTmr">-</p>
+                                    <p class="text-[11px] text-slate-500">Mifflin-St Jeor</p>
+                                </div>
+                                <div class="bg-slate-900/40 rounded-lg p-3">
+                                    <p class="text-[11px] uppercase tracking-wide text-slate-400">Mantenimiento</p>
+                                    <p class="text-lg font-semibold text-white" id="goalMaintenance">-</p>
+                                    <p class="text-[11px] text-slate-500" id="goalMaintenanceHint">TDEE del día</p>
+                                </div>
+                                <div class="bg-slate-900/40 rounded-lg p-3">
+                                    <p class="text-[11px] uppercase tracking-wide text-slate-400">Ajuste de fase</p>
+                                    <p class="text-lg font-semibold text-white" id="goalAdjustment">-</p>
+                                    <p class="text-[11px] text-slate-500" id="goalAdjustmentHint">—</p>
+                                </div>
+                                <div class="bg-slate-900/40 rounded-lg p-3">
+                                    <p class="text-[11px] uppercase tracking-wide text-slate-400">Objetivo</p>
+                                    <p class="text-lg font-semibold text-white" id="goalFinalCals">-</p>
+                                    <p class="text-[11px] text-slate-500">kcal/día</p>
+                                </div>
+                            </div>
+                            <div id="goalWarnings" class="mt-3 space-y-2"></div>
+                        </div>
+
                         <!-- Ajuste de Preferencias de Cálculo -->
                         <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700/60 space-y-4">
                             <h4 class="text-sm font-semibold text-white uppercase tracking-wider text-slate-300">Ajuste de Parámetros de Objetivo</h4>
@@ -541,7 +575,7 @@
                                         <option value="formula">🧮 Fórmula (TMR × factor actividad)</option>
                                         <option value="adaptive">📊 Adaptativo (basado en tu historial real)</option>
                                     </select>
-                                    <p class="text-xs text-slate-400 mt-1.5">Adaptativo se ajusta según tu peso y comida real. Fórmula usa valores fijos.</p>
+                                    <p class="text-xs text-slate-400 mt-1.5">Adaptativo usa tus pesajes y comidas reales. Si la cobertura es baja o la confianza no es suficiente, se usa la fórmula como respaldo y se indica en Objetivos.</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">Nivel de Proteína (g por kg de peso)</label>
@@ -555,7 +589,7 @@
                             </div>
                             <div class="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 leading-relaxed flex items-center gap-2">
                                 <span class="material-icons text-base text-blue-400">info</span>
-                                <span><strong>Cálculo Automático:</strong> Las Grasas se fijan saludablemente en 0.8g por kg de peso corporal. Los Carbohidratos absorben todas las calorías restantes según tu presupuesto diario.</span>
+                                <span><strong>Cálculo Automático:</strong> Las grasas se fijan en 0.8 g/kg y la proteína según el nivel elegido. Si no caben en el objetivo, las grasas bajan hasta 0.5 g/kg y después la proteína hasta 1.2 g/kg. Los carbohidratos absorben el resto; si ni así cabe, verás un aviso y el objetivo subirá a esas kcal mínimas.</span>
                             </div>
                             <button onclick="saveConfig()" class="w-full py-3 gradient-primary text-white font-semibold rounded-lg hover:shadow-lg smooth-transition cursor-pointer">
                                 <span class="material-icons inline text-lg mr-2">save</span>Guardar Preferencias de Objetivos
@@ -1028,21 +1062,22 @@
                     </div>
 
                     <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                        <h3 class="text-lg font-semibold text-white mb-2 flex items-center gap-2">
                             <span class="material-icons">calculated</span>
                             Valores Calculados (Mifflin-St Jeor)
                         </h3>
+                        <p class="text-xs text-slate-400 mb-6">Referencia de fórmula. El objetivo diario usa TMR ×1.25 + las kcal del entreno registrado o estimado.</p>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="p-4 bg-slate-800/50 rounded-lg">
                                 <p class="text-xs text-slate-400 font-medium mb-2">TMB</p>
                                 <p class="text-2xl font-bold text-white" id="tmrValue">-</p>
                             </div>
                             <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE Entrenamiento (×1.50)</p>
+                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE con entreno (referencia ×1.50)</p>
                                 <p class="text-2xl font-bold text-white" id="tdeeEntrenoValue">-</p>
                             </div>
                             <div class="p-4 bg-slate-800/50 rounded-lg">
-                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE Descanso (×1.25)</p>
+                                <p class="text-xs text-slate-400 font-medium mb-2">TDEE en descanso (referencia ×1.25)</p>
                                 <p class="text-2xl font-bold text-white" id="tdeeDescansoValue">-</p>
                             </div>
                             <div class="p-4 bg-slate-800/50 rounded-lg md:col-span-3">
@@ -1292,4 +1327,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=126"></script>
+    <script type="module" src="js/app.js?v=127"></script>

@@ -3,7 +3,7 @@
 import AppState from './state.js';
 import { KCAL_PER_KG_FAT } from './constants.js';
 import { escapeHTML, num } from './utils.js';
-import { getDayNumber, getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, clearAdaptiveTDEECache } from './nutrition.js';
+import { getDayNumber, getDayType, calculateTDEE, calculateTMR, getDynamicDayTargets, calculateAutoDeficit, calculateAutoSurplus, clearAdaptiveTDEECache, calculateRobustWeightTrend } from './nutrition.js';
 import { getWorkoutSessions, recomputeSessionKcal } from './workout.js';
 import { getDateKey, saveDays, safeGet, safeSet, _sanitizeWeightHistory } from './storage.js';
 import { showNotification } from './ui/notifications.js';
@@ -23,15 +23,6 @@ function _parseDateKeyStrict(key) {
     const dt = new Date(y, m - 1, d);
     if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
     return dt;
-}
-
-// Diferencia exacta en días entre claves YYYY-MM-DD (inmune al cambio de hora)
-function _daysBetweenKeys(fromKey, toKey) {
-    const from = new Date(`${fromKey}T00:00:00`);
-    const to = new Date(`${toKey}T00:00:00`);
-    const fromUTC = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
-    const toUTC = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
-    return Math.round((toUTC - fromUTC) / 86400000);
 }
 
 // Suma días por UTC y devuelve una fecha local a medianoche: con setDate, un
@@ -195,65 +186,81 @@ export function recordWeight(date, weight) {
 }
 
 export function calculateWeightPrediction() {
-    if (!AppState.config.weightHistory || AppState.config.weightHistory.length < 2) {
-        return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
-    }
+    const empty = { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
+    const history = (Array.isArray(AppState.config.weightHistory) ? AppState.config.weightHistory : [])
+        .filter(e => e && typeof e.date === 'string')
+        .slice()
+        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (history.length < 2) return empty;
 
-    const recentHistory = AppState.config.weightHistory.slice(-14);
-    const first = recentHistory[0];
-    const last = recentHistory[recentHistory.length - 1];
+    // Misma ventana que el TDEE adaptativo (28 pesajes). La tendencia se ajusta
+    // con Theil-Sen + limpieza MAD: un pico aislado de agua ya no cambia el ETA.
+    const trend = calculateRobustWeightTrend(history.slice(-28));
+    if (!trend) return empty;
 
-    // Días por componentes UTC: un cambio de hora no altera la tasa semanal.
-    const daysDiff = _daysBetweenKeys(first.date, last.date);
-    const firstWeight = parseFloat(first.weight);
-    const lastWeight = parseFloat(last.weight);
-    if (!Number.isFinite(firstWeight) || !Number.isFinite(lastWeight)) {
-        return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
-    }
-    const weightDiff = firstWeight - lastWeight;
+    const weeklyLoss = -trend.slope * 7; // + pierde, - gana
+    const weeklyGain = trend.slope * 7;
+    const target = parseFloat(AppState.config.targetWeight);
+    if (!Number.isFinite(target)) return empty;
 
-    if (daysDiff === 0) return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
+    // Base robusta: peso suavizado en el último pesaje. Evita que el último
+    // registro (comida salada, sesión dura) fije toda la proyección.
+    const baseline = trend.fittedLastWeight;
+    if (!Number.isFinite(baseline) || !Number.isFinite(weeklyLoss)) return empty;
 
-    const weeklyLoss = (weightDiff / daysDiff) * 7; // + pierde, - gana
-    const weeklyGain = -weeklyLoss;
-    const current = AppState.config.currentWeight;
-    const target = AppState.config.targetWeight;
-    // Sin pesos configurados no hay ETA posible (evita Invalid Date)
-    if (!Number.isFinite(current) || !Number.isFinite(target)) {
-        return { estimatedDays: null, estimatedDate: null, weeklyLoss: null, weeklyGain: null, confidence: 'low' };
-    }
     const goalPhase = AppState.config.goalPhase || 'definicion';
-    const confidence = AppState.config.weightHistory.length > 20 ? 'high' : 'medium';
+    const actualCurrent = parseFloat(AppState.config.currentWeight);
+    const current = Number.isFinite(actualCurrent) ? actualCurrent : trend.lastActualWeight;
 
-    // Volumen (o target por encima del actual): ETA por ritmo de ganancia
-    if ((goalPhase === 'volumen' || target > current) && target > current && weeklyGain > 0) {
-        const remaining = target - current;
+    // Confianza por calidad del ajuste, no solo por tamaño del histórico.
+    const cleanPoints = trend.pointsUsed >= Math.ceil(trend.pointsTotal * 0.8);
+    const confidence = trend.pointsUsed >= 14 && trend.spanDays >= 21 && cleanPoints
+        ? 'high'
+        : trend.pointsUsed >= 7 && trend.spanDays >= 7
+            ? 'medium'
+            : 'low';
+    const base = {
+        weeklyLoss: weeklyLoss.toFixed(2),
+        weeklyGain: weeklyGain.toFixed(2),
+        confidence,
+        baselineWeight: Math.round(baseline * 100) / 100,
+        pointsUsed: trend.pointsUsed,
+        pointsTotal: trend.pointsTotal,
+        spanDays: trend.spanDays,
+    };
+
+    // Mantenimiento: no hay fecha de llegada que calcular. Devolver la tasa
+    // observada sin ETA evita "días hasta meta" absurdos.
+    if (goalPhase === 'mantenimiento') {
+        return { ...base, estimatedDays: null, estimatedDate: null };
+    }
+
+    // Volumen (o target por encima del actual): ETA por ritmo de ganancia.
+    if ((goalPhase === 'volumen' || target > current) && target > current && weeklyGain > 0 && target > baseline) {
+        const remaining = target - baseline;
         const estimatedDays = Math.ceil((remaining / weeklyGain) * 7);
         const estimatedDate = _datePlusDays(new Date(), estimatedDays);
         return {
+            ...base,
             estimatedDays,
             estimatedDate: estimatedDate.toLocaleDateString('es-ES'),
-            weeklyLoss: weeklyLoss.toFixed(2),
-            weeklyGain: weeklyGain.toFixed(2),
-            confidence,
         };
     }
 
-    const remainingWeight = current - target;
+    const remainingWeight = baseline - target;
 
-    if (weeklyLoss <= 0 || remainingWeight <= 0) {
-        return { estimatedDays: null, estimatedDate: null, weeklyLoss: weeklyLoss.toFixed(2), weeklyGain: weeklyGain.toFixed(2), confidence: 'low' };
+    if (weeklyLoss <= 0 || remainingWeight <= 0 || current <= target) {
+        return { ...base, estimatedDays: null, estimatedDate: null, confidence: weeklyLoss > 0 ? confidence : 'low' };
     }
 
     const estimatedDays = Math.ceil((remainingWeight / weeklyLoss) * 7);
     const estimatedDate = _datePlusDays(new Date(), estimatedDays);
 
     return {
+        ...base,
         estimatedDays,
         estimatedDate: estimatedDate.toLocaleDateString('es-ES'),
         weeklyLoss: Math.abs(weeklyLoss).toFixed(2),
-        weeklyGain: weeklyGain.toFixed(2),
-        confidence,
     };
 }
 
@@ -532,10 +539,26 @@ export function updateWeightPrediction() {
     const predictionEl = document.getElementById('weightPrediction');
     if (!predictionEl) return;
 
-    const isBulk = (AppState.config.goalPhase || 'definicion') === 'volumen';
+    const goalPhase = AppState.config.goalPhase || 'definicion';
+    const isBulk = goalPhase === 'volumen';
+    const isMaintenance = goalPhase === 'mantenimiento';
     const rateValue = isBulk ? pred.weeklyGain : pred.weeklyLoss;
     const rateLabel = isBulk ? 'Ganancia semanal:' : 'Pérdida semanal:';
-    if (pred.estimatedDays && parseFloat(rateValue) > 0) {
+    if (isMaintenance && Number.isFinite(parseFloat(pred.weeklyGain))) {
+        // En mantenimiento no hay meta de peso que alcanzar: mostrar la
+        // tendencia observada y "Mantener" evita un ETA inventado.
+        const weeklyChange = parseFloat(pred.weeklyGain);
+        predictionEl.innerHTML = `
+            <div class="prediction-card">
+                <div class="prediction-title">Proyección de Peso</div>
+                <div class="prediction-content">
+                    <div class="prediction-stat"><span>Tendencia semanal:</span><strong>${weeklyChange >= 0 ? '+' : ''}${weeklyChange.toFixed(2)} kg</strong></div>
+                    <div class="prediction-stat"><span>ETA:</span><strong>Mantener</strong></div>
+                    <div class="prediction-confidence">(Confianza: ${pred.confidence} · ${pred.pointsUsed}/${pred.pointsTotal} pesajes)</div>
+                </div>
+            </div>
+        `;
+    } else if (pred.estimatedDays && parseFloat(rateValue) > 0) {
         predictionEl.innerHTML = `
             <div class="prediction-card">
                 <div class="prediction-title">Proyección de Peso</div>
@@ -543,7 +566,7 @@ export function updateWeightPrediction() {
                     <div class="prediction-stat"><span>${rateLabel}</span><strong>${parseFloat(rateValue).toFixed(2)} kg</strong></div>
                     <div class="prediction-stat"><span>Días para meta:</span><strong>${pred.estimatedDays}</strong></div>
                     <div class="prediction-stat"><span>Fecha estimada:</span><strong>${pred.estimatedDate}</strong></div>
-                    <div class="prediction-confidence">(Confianza: ${pred.confidence})</div>
+                    <div class="prediction-confidence">(Confianza: ${pred.confidence} · ${pred.pointsUsed}/${pred.pointsTotal} pesajes)</div>
                 </div>
             </div>
         `;

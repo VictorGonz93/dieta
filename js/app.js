@@ -6,7 +6,7 @@ import { CURRENT_APP_VERSION } from './modules/constants.js';
 
 // Módulos de lógica
 import { loadCustomProducts, addNewProduct, deleteProduct, editProductCustomUnit, saveProductCustomUnit, editProduct, saveProductEdit } from './modules/products.js';
-import { loadConfig, saveConfig, updateHeaderInfo } from './modules/config-settings.js';
+import { loadConfig, saveConfig, updateHeaderInfo, updateCalculatedValues } from './modules/config-settings.js';
 import { loadMealHistory, initializeToday, renderDay, addFood, deleteFood, previousDay, nextDay, todayDay, copyYesterdayMeals, openCopyDayModal, closeCopyDayModal, confirmCopyDayMeals, openMoveFood, duplicateMeal, closeMealPicker, confirmMealPicker, addCloseDaySuggestion } from './modules/meals.js';
 import { loadWeightHistory, saveDailyWeight, updateWeightPrediction, displayNextDayPrediction, renderWeightHistory, updateWeightEntry, deleteWeightEntry } from './modules/weight.js';
 import { loadAllDays, loadMealCombos, exportData, exportCSV, exportDatabaseJSON, exportProductsJSON, exportRangeJSON, exportRangeCSV, setExportRangePreset, initExportRangeUI, importData, clearAllData, autoBackup, restoreFromBackup } from './modules/storage.js';
@@ -59,6 +59,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMealCombos();
     loadWeightHistory();
     loadAllDays();
+    // loadConfig calcula la tarjeta de TDEE antes de que existan los días de
+    // comida: recalcular aquí evita mostrar "0 días de comida" hasta guardar.
+    updateCalculatedValues();
     initExportRangeUI();
     autoBackup();
     initializeToday();

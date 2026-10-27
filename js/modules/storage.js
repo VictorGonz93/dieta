@@ -95,6 +95,9 @@ export function loadAllDays() {
         console.log('loadAllDays: No se encontraron datos en localStorage');
         AppState.allDays = {};
     }
+    // Los días son una entrada del TDEE adaptativo: cualquier resultado
+    // cacheado antes de esta carga (p. ej. loadConfig al arrancar) es obsoleto.
+    clearAdaptiveTDEECache();
 }
 
 export function exportData() {
@@ -920,6 +923,36 @@ function _sanitizeConfig(raw, warnings) {
         const { clean, dropped } = _sanitizeWeightHistory(raw.weightHistory);
         out.weightHistory = clean;
         if (dropped > 0) warn(`Historial de peso: ${dropped} entrada(s) inválida(s) descartada(s)`);
+    }
+    if ('phaseHistory' in raw) {
+        const allowedPhases = new Set(['definicion', 'mantenimiento', 'volumen']);
+        const todayKey = getDateKey(new Date());
+        let dropped = 0;
+        out.phaseHistory = (Array.isArray(raw.phaseHistory) ? raw.phaseHistory : [])
+            .filter(e => {
+                // Una fase no puede empezar en el futuro ni tener un peso fuera
+                // del rango humano: ambos casos envenenarían el histórico y los
+                // cálculos de progreso.
+                const ok = _isPlainObject(e)
+                    && typeof e.date === 'string'
+                    && _parseDateKey(e.date)
+                    && e.date <= todayKey
+                    && allowedPhases.has(e.phase);
+                if (!ok) dropped++;
+                return ok;
+            })
+            .map(e => {
+                const w = _finiteNumber(e.startWeight);
+                return {
+                    date: e.date,
+                    phase: e.phase,
+                    startWeight: w !== null && w >= 25 && w <= 350 ? _round2(w) : null,
+                    tdeeMode: e.tdeeMode === 'adaptive' ? 'adaptive' : 'formula',
+                };
+            })
+            .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+            .slice(-100);
+        if (dropped > 0) warn(`Historial de fases: ${dropped} entrada(s) inválida(s) descartada(s)`);
     }
     return out;
 }

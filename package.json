@@ -1,0 +1,9 @@
+{
+  "name": "dieta",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/run-all.mjs",
+    "diagnose": "node tests/diagnostics/run-all.mjs"
+  }
+}

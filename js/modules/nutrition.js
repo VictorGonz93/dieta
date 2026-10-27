@@ -107,6 +107,51 @@ export function clearAdaptiveTDEECache() {
     _adaptiveTDEECache.clear();
 }
 
+// ─── Calidad y transiciones del TDEE adaptativo ──────────────────────────────
+// Un registro incompleto no es "un dato que falta": es un sesgo sistemático.
+// La estimación adaptativa solo puede usarse para objetivos si la cobertura del
+// periodo es suficiente y no estamos en la ventana de rebote de un cambio de
+// fase (agua/glucógeno). Estas constantes son conservadoras y se pueden
+// recalibrar con datos reales.
+const ADAPTIVE_MIN_WEIGH_INS = 14;
+const ADAPTIVE_WINDOW_WEIGH_INS = 28;
+const ADAPTIVE_HIGH_WEIGH_INS = 21;
+const ADAPTIVE_MAX_SPAN_DAYS = 45;
+const ADAPTIVE_MIN_COVERAGE = 0.60;
+const ADAPTIVE_MEDIUM_COVERAGE = 0.70;
+const ADAPTIVE_HIGH_COVERAGE = 0.80;
+const TRANSITION_HOLD_DAYS = 14;
+// Días iniciales de una fase que se excluyen de la tendencia: el rebote de
+// agua/glucógeno del cambio de fase no es tejido y falsea el TDEE.
+const PHASE_WARMUP_DAYS = 5;
+
+function _dateKeyOffset(dateKey, deltaDays) {
+    const [y, m, d] = String(dateKey).split('-').map(Number);
+    if (![y, m, d].every(Number.isFinite)) return null;
+    const dt = new Date(y, m - 1, d);
+    if (Number.isNaN(dt.getTime())) return null;
+    dt.setDate(dt.getDate() + deltaDays);
+    return getDateKey(dt);
+}
+
+function _daysBetweenDateKeys(a, b) {
+    const [ay, am, ad] = String(a).split('-').map(Number);
+    const [by, bm, bd] = String(b).split('-').map(Number);
+    if (![ay, am, ad, by, bm, bd].every(Number.isFinite)) return null;
+    return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+}
+
+// Devuelve datos si dateKey cae en los 14 días posteriores a un cambio de fase.
+// phaseStartDate se actualiza al guardar la fase; no hace falta un historial
+// completo para proteger la transición actual.
+function _phaseTransitionHold(dateKey) {
+    const start = AppState.config.phaseStartDate;
+    if (!start || typeof start !== 'string') return null;
+    const elapsed = _daysBetweenDateKeys(start, dateKey);
+    if (elapsed === null || elapsed < 0 || elapsed >= TRANSITION_HOLD_DAYS) return null;
+    return { start, elapsed, daysLeft: TRANSITION_HOLD_DAYS - elapsed };
+}
+
 function _getWorkoutKcalForDate(dateKey, sessions) {
     try {
         const session = sessions[dateKey];
@@ -148,50 +193,173 @@ function _getFormulaTMR(weightKg) {
         : (10 * w) + (6.25 * h) - (5 * a) - 161;
 }
 
-/**
- * Promedio de pesos alrededor de un índice (suavizado ±halfWindow PESAJES).
- * Solo incluye vecinos a ≤4 días: evita arrastrar valores a través de gaps
- * semanales (antes promediaba por índice sin mirar fechas).
- * Ignora pesos no numéricos (imports corruptos).
- */
-function _avgWeight(entries, index, halfWindow) {
-    if (!entries || entries.length === 0) return 0;
-    const anchor = entries[index];
-    const anchorW = parseFloat(anchor && anchor.weight);
-    if (!Number.isFinite(anchorW)) return 0;
-    const anchorT = new Date(anchor.date).getTime();
-    let sum = anchorW, n = 1;
-    for (let k = 1; k <= halfWindow; k++) {
-        for (const j of [index - k, index + k]) {
-            if (j < 0 || j >= entries.length) continue;
-            const w = parseFloat(entries[j] && entries[j].weight);
-            if (!Number.isFinite(w)) continue;
-            const gapDays = Math.abs(new Date(entries[j].date).getTime() - anchorT) / 86400000;
-            if (gapDays <= 4) { sum += w; n++; }
-        }
-    }
-    return sum / n;
+/** Mediana robusta; null si no hay valores. */
+function _median(values) {
+    if (!Array.isArray(values) || values.length === 0) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Estima TDEE sobre un subconjunto de pesajes con su propio sub-rango de fechas:
-// promedio de ingesta de TODOS los días del rango + Δ peso × KCAL_PER_KG_FAT / días.
-// Devuelve null si no hay suficientes días válidos (evita estimaciones ruidosas).
+/** Día absoluto desde una clave YYYY-MM-DD (UTC, sin horas ni DST). */
+function _dateToDayNumber(dateKey) {
+    const [y, m, d] = String(dateKey).split('-').map(Number);
+    if (![y, m, d].every(Number.isFinite)) return null;
+    return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+}
+
+/** Fecha local a medianoche para iterar días con getDateKey (sin saltos UTC). */
+function _dateFromKey(dateKey) {
+    return new Date(String(dateKey) + 'T00:00:00');
+}
+
+/** Ajuste de Theil-Sen: mediana de pendientes por pares (robusto a outliers). */
+function _theilSenFit(points) {
+    if (!points || points.length < 2) return null;
+    const slopes = [];
+    for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+            const dx = points[j].x - points[i].x;
+            if (dx >= 2) slopes.push((points[j].y - points[i].y) / dx);
+        }
+    }
+    // Pocos pesajes o todos muy juntos: aceptar también pares de 1 día.
+    if (slopes.length < 3) {
+        slopes.length = 0;
+        for (let i = 0; i < points.length; i++) {
+            for (let j = i + 1; j < points.length; j++) {
+                const dx = points[j].x - points[i].x;
+                if (dx >= 1) slopes.push((points[j].y - points[i].y) / dx);
+            }
+        }
+    }
+    if (slopes.length === 0) return null;
+    const slope = _median(slopes);
+    const intercept = _median(points.map(p => p.y - slope * p.x));
+    return { slope, intercept };
+}
+
+/**
+ * Tendencia de peso robusta (kg/día). Theil-Sen + segunda pasada que descarta
+ * pesajes con residuo > 3 MAD. Un pico aislado de 2 kg ya no mueve el TDEE
+ * cientos de kcal, y una meseta real sigue detectándose.
+ */
+function _robustWeightTrend(entries) {
+    const points = (entries || [])
+        .map(e => ({
+            // Acepta tanto entradas {date, weight} como puntos ya normalizados
+            // {x, y}: el estimador se reutiliza en predicción y gráficos.
+            x: Number.isFinite(e?.x) ? e.x : _dateToDayNumber(e?.date),
+            y: parseFloat(e?.weight ?? e?.y),
+        }))
+        .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y) && p.y >= 25 && p.y <= 350)
+        .sort((a, b) => a.x - b.x);
+    if (points.length < 3) return null;
+
+    let fit = _theilSenFit(points);
+    if (!fit) return null;
+    let pointsUsed = points.length;
+
+    const residuals = points.map(p => p.y - (fit.intercept + fit.slope * p.x));
+    const medianResidual = _median(residuals);
+    const mad = _median(residuals.map(r => Math.abs(r - medianResidual)));
+    if (mad > 0.05) {
+        const kept = points.filter((p, i) =>
+            Math.abs(residuals[i] - medianResidual) <= 3 * mad
+        );
+        if (kept.length >= Math.max(5, Math.ceil(points.length * 0.6))) {
+            const refit = _theilSenFit(kept);
+            if (refit) {
+                fit = refit;
+                pointsUsed = kept.length;
+            }
+        }
+    }
+
+    return {
+        slope: fit.slope, // kg/día; positivo = ganancia
+        intercept: fit.intercept,
+        pointsUsed,
+        pointsTotal: points.length,
+    };
+}
+
+/**
+ * Tendencia robusta reutilizable por la predicción de peso y el ETA.
+ * Devuelve kg/día, la recta ajustada y el peso suavizado en el último pesaje.
+ * Con solo 2 pesajes cae a la pendiente simple para no perder la estimación.
+ */
+export function calculateRobustWeightTrend(entries) {
+    const points = (entries || [])
+        .map(e => ({
+            date: e?.date,
+            x: _dateToDayNumber(e?.date),
+            y: parseFloat(e?.weight),
+        }))
+        .filter(p => typeof p.date === 'string'
+            && Number.isFinite(p.x)
+            && Number.isFinite(p.y)
+            && p.y >= 25 && p.y <= 350)
+        .sort((a, b) => a.x - b.x);
+    if (points.length < 2) return null;
+
+    let trend = _robustWeightTrend(points);
+    if (!trend) {
+        const first = points[0];
+        const last = points[points.length - 1];
+        const dx = last.x - first.x;
+        if (dx < 1) return null;
+        const slope = (last.y - first.y) / dx;
+        trend = {
+            slope,
+            intercept: first.y - slope * first.x,
+            pointsUsed: 2,
+            pointsTotal: 2,
+        };
+    }
+
+    const first = points[0];
+    const last = points[points.length - 1];
+    return {
+        slope: trend.slope,
+        intercept: trend.intercept,
+        pointsUsed: trend.pointsUsed,
+        pointsTotal: trend.pointsTotal,
+        firstDate: first.date,
+        lastDate: last.date,
+        spanDays: last.x - first.x,
+        lastActualWeight: last.y,
+        fittedLastWeight: trend.intercept + trend.slope * last.x,
+    };
+}
+
+// Estima TDEE sobre un subconjunto de pesajes: promedio de ingesta de TODOS los
+// días del rango − tendencia de peso × KCAL_PER_KG_FAT. La tendencia es robusta,
+// no la diferencia entre el primer y el último pesaje.
 function _tdeeFromEntries(entries, minValidDays) {
     if (!entries || entries.length < 2) return null;
-    const first = new Date(entries[0].date);
-    const last = new Date(entries[entries.length - 1].date);
-    const span = Math.max(1, (last - first) / 86400000);
+    const trend = _robustWeightTrend(entries);
+    if (!trend) return null;
+
+    const first = _dateFromKey(entries[0].date);
+    const last = _dateFromKey(entries[entries.length - 1].date);
+    const span = Math.max(1, (_dateToDayNumber(entries[entries.length - 1].date)
+        - _dateToDayNumber(entries[0].date)));
     if (span < 3) return null;
+
     let cals = 0, days = 0;
     for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
         const k = _sumDayKcal(getDateKey(d));
         if (k > 500) { cals += k; days++; }
     }
     if (days < minValidDays) return null;
-    const w0 = _avgWeight(entries, 0, 1);
-    const w1 = _avgWeight(entries, entries.length - 1, 1);
-    if (w0 === 0 || w1 === 0) return null;
-    return { tdee: cals / days + ((w0 - w1) * KCAL_PER_KG_FAT / span), validDays: days };
+
+    return {
+        tdee: cals / days - trend.slope * KCAL_PER_KG_FAT,
+        validDays: days,
+        slope: trend.slope,
+        pointsUsed: trend.pointsUsed,
+    };
 }
 
 /**
@@ -203,6 +371,10 @@ function _tdeeFromEntries(entries, minValidDays) {
  * @returns {{ tdee, confidence, source, daysUsed, formulaTDEE, avgWorkoutPerDay, ... }}
  */
 export function calculateAdaptiveTDEEForDate(dateKey) {
+    return _calculateAdaptiveTDEEForDate(dateKey, true);
+}
+
+function _calculateAdaptiveTDEEForDate(dateKey, allowTransitionHold) {
     if (_adaptiveTDEECache.has(dateKey)) {
         return _adaptiveTDEECache.get(dateKey);
     }
@@ -222,24 +394,92 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
         : AppState.config.currentWeight;
     const formulaTDEE = Math.round(_getFormulaTMR(lastHistoricalWeight) * 1.25);
 
-    if (historicalWeights.length < 14) {
-        const result = { tdee: formulaTDEE, confidence: 'none', source: 'formula', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
+    // Protección de transición: durante los 14 días posteriores a un cambio de
+    // fase se conserva la estimación previa. El rebote de agua/glucógeno no debe
+    // convertir un mantenimiento o un volumen en un déficit involuntario.
+    if (allowTransitionHold) {
+        const hold = _phaseTransitionHold(dateKey);
+        if (hold) {
+            const preKey = _dateKeyOffset(hold.start, -1);
+            const pre = preKey ? _calculateAdaptiveTDEEForDate(preKey, false) : null;
+            // Solo congelar una base fiable. Si la estimación previa era baja o
+            // tenía poca cobertura, el hold la convertiría en un objetivo
+            // "protegido" pero igualmente malo.
+            const preUsable = pre
+                && pre.source === 'adaptive'
+                && pre.confidence !== 'low'
+                && Number.isFinite(pre.coverage)
+                && pre.coverage >= ADAPTIVE_MEDIUM_COVERAGE;
+            if (preUsable) {
+                const result = {
+                    ...pre,
+                    tdee: pre.tdee,
+                    transitionHold: true,
+                    holdStartDate: hold.start,
+                    holdDaysLeft: hold.daysLeft,
+                    fallbackReason: null,
+                };
+                _adaptiveTDEECache.set(dateKey, result);
+                return result;
+            }
+            // Sin base fiable: mejor fórmula durante el hold que una estimación
+            // contaminada por el rebote de agua del cambio de fase.
+            const result = {
+                tdee: formulaTDEE, confidence: 'low', source: 'formula',
+                daysUsed: pre?.daysUsed ?? 0, formulaTDEE, avgWorkoutPerDay: 0,
+                coverage: pre?.coverage ?? null, weighIns: pre?.weighIns ?? 0,
+                spanDays: pre?.spanDays ?? 0,
+                fallbackReason: 'transition_unreliable',
+                transitionHold: true, holdStartDate: hold.start, holdDaysLeft: hold.daysLeft,
+            };
+            _adaptiveTDEECache.set(dateKey, result);
+            return result;
+        }
+    }
+
+    // Si hay un cambio de fase, la ventana adaptativa empieza en la fase actual.
+    // Mezclar el déficit previo con el rebote de agua del cambio contamina la
+    // tendencia durante semanas; el TDEE se estima mejor con datos homogéneos.
+    const phaseStart = AppState.config.phaseStartDate;
+    const phaseFiltered = typeof phaseStart === 'string' && phaseStart <= dateKey;
+    const phaseWindowStart = phaseFiltered
+        ? (_dateKeyOffset(phaseStart, PHASE_WARMUP_DAYS) || phaseStart)
+        : null;
+    const adaptiveWeights = phaseFiltered
+        ? historicalWeights.filter(w => w.date >= phaseWindowStart)
+        : historicalWeights;
+
+    if (adaptiveWeights.length < ADAPTIVE_MIN_WEIGH_INS) {
+        const result = {
+            tdee: formulaTDEE, confidence: 'none', source: 'formula',
+            daysUsed: adaptiveWeights.length, formulaTDEE, avgWorkoutPerDay: 0,
+            coverage: null, weighIns: adaptiveWeights.length, spanDays: 0,
+            fallbackReason: phaseFiltered && historicalWeights.length >= ADAPTIVE_MIN_WEIGH_INS
+                ? 'insufficient_phase_weigh_ins'
+                : 'insufficient_weigh_ins',
+        };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
 
     const sessions = getWorkoutSessions();
 
-    const windowSize = Math.min(21, historicalWeights.length);
-    const window = historicalWeights.slice(-windowSize);
+    const windowSize = Math.min(ADAPTIVE_WINDOW_WEIGH_INS, adaptiveWeights.length);
+    const window = adaptiveWeights.slice(-windowSize);
 
-    const firstDate = new Date(window[0].date);
-    const lastDate = new Date(window[window.length - 1].date);
-    const daysBetween = Math.max(1, (lastDate - firstDate) / (1000 * 60 * 60 * 24));
+    const firstDate = _dateFromKey(window[0].date);
+    const lastDate = _dateFromKey(window[window.length - 1].date);
+    const daysBetween = Math.max(1, _dateToDayNumber(window[window.length - 1].date)
+        - _dateToDayNumber(window[0].date));
 
     // Ventana demasiado dispersa: el Δ de peso no representa el periodo
-    if (daysBetween > 45) {
-        const result = { tdee: formulaTDEE, confidence: 'low', source: 'formula', daysUsed: historicalWeights.length, formulaTDEE, avgWorkoutPerDay: 0 };
+    if (daysBetween > ADAPTIVE_MAX_SPAN_DAYS) {
+        const result = {
+            tdee: formulaTDEE, confidence: 'low', source: 'formula',
+            daysUsed: adaptiveWeights.length, formulaTDEE, avgWorkoutPerDay: 0,
+            coverage: null, weighIns: windowSize, spanDays: Math.round(daysBetween),
+            fallbackReason: 'window_too_sparse',
+        };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
@@ -262,49 +502,91 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
     }
 
     const avgWorkoutPerDay = validDays > 0 ? validWorkoutKcal / validDays : 0;
+    // El bucle incluye el día inicial y el final: el span de calendario es
+    // daysBetween + 1. La cobertura debe medirse sobre ese periodo completo.
+    const spanDays = Math.max(1, Math.round(daysBetween) + 1);
+    const coverage = validDays / spanDays;
 
-    // Fallback con validDays < 10 no debe restar workouts del TDEE fórmula
-    if (validDays < 10) {
-        const result = { tdee: formulaTDEE, confidence: 'low', source: 'formula', daysUsed: validDays, formulaTDEE, avgWorkoutPerDay: 0 };
+    // Fallback si hay pocos días válidos o si el registro cubre menos del 60 %
+    // del periodo. Promediar solo los días registrados y dividir por validDays
+    // sesga el TDEE a la baja cuando faltan días (el peso sí refleja esos días).
+    if (validDays < 10 || coverage < ADAPTIVE_MIN_COVERAGE) {
+        const reason = validDays < 10 ? 'insufficient_valid_days' : 'low_coverage';
+        const result = {
+            tdee: formulaTDEE, confidence: 'low', source: 'formula',
+            daysUsed: validDays, formulaTDEE, avgWorkoutPerDay: 0,
+            coverage, weighIns: windowSize, spanDays, fallbackReason: reason,
+        };
         _adaptiveTDEECache.set(dateKey, result);
         return result;
     }
 
-    // Cambio de peso: primer vs último en la ventana (suavizado ±1 pesaje ≤4d)
-    const firstWeight = _avgWeight(window, 0, 1);
-    const lastWeight = _avgWeight(window, window.length - 1, 1);
-    const weightChangeKg = firstWeight - lastWeight;
+    // Tendencia robusta en lugar de "primer pesaje vs último": un pico aislado
+    // de agua no puede cambiar el TDEE cientos de kcal.
+    const trend = _robustWeightTrend(window);
+    if (!trend) {
+        const result = {
+            tdee: formulaTDEE, confidence: 'low', source: 'formula',
+            daysUsed: validDays, formulaTDEE, avgWorkoutPerDay: 0,
+            coverage, weighIns: windowSize, spanDays,
+            fallbackReason: 'unstable_trend',
+        };
+        _adaptiveTDEECache.set(dateKey, result);
+        return result;
+    }
 
     const avgDailyCalories = totalCalories / validDays;
-    const adaptiveTDEE = avgDailyCalories + (weightChangeKg * KCAL_PER_KG_FAT / daysBetween);
+    // Balance energético: ingesta − tendencia × 7700. Tendencia positiva
+    // (ganancia) reduce el gasto estimado; negativa (pérdida) lo aumenta.
+    const adaptiveTDEE = avgDailyCalories - trend.slope * KCAL_PER_KG_FAT;
 
-    // CAP escalado por confianza: menos días válidos → margen más estrecho
-    const CAP = validDays < 12 ? 250 : 400;
+    // La ventana completa (hasta 28 pesajes) es la base estable. Los últimos
+    // 14 pesajes aportan un 25 % para reaccionar antes a cambios de actividad,
+    // sin volver a introducir el ruido de una ventana corta como base.
+    const recent14 = window.slice(-14);
+    const r14 = _tdeeFromEntries(recent14, 10);
+
+    // La confianza no es solo "cuántos pesajes hay": exige cobertura del
+    // periodo y un span mínimo. Un 18/44 días (41 %) no puede ser "high".
+    let confidence;
+    if (windowSize >= ADAPTIVE_HIGH_WEIGH_INS
+        && validDays >= 18
+        && coverage >= ADAPTIVE_HIGH_COVERAGE
+        && daysBetween >= 14) {
+        confidence = 'high';
+    } else if (windowSize >= ADAPTIVE_MIN_WEIGH_INS
+        && validDays >= 12
+        && coverage >= ADAPTIVE_MEDIUM_COVERAGE) {
+        confidence = 'medium';
+    } else {
+        confidence = 'low';
+    }
+
+    // Evidencia fuerte: confianza alta + cobertura casi completa + ventana
+    // larga + tendencia sin outliers. Solo entonces se amplía el CAP a ±500 y
+    // se usa la señal completa. Un usuario muy activo (TDEE real 500 kcal por
+    // encima de Mifflin) no debe quedarse atrapado en un déficit involuntario
+    // por el CAP + el encogimiento. Los casos medios siguen en ±400 y 0,65.
+    const cleanTrend = trend.pointsUsed >= Math.ceil(trend.pointsTotal * 0.8);
+    const strongEvidence = confidence === 'high'
+        && windowSize >= ADAPTIVE_HIGH_WEIGH_INS
+        && coverage >= 0.85
+        && daysBetween >= 21
+        && cleanTrend;
+    // CAP escalado por confianza: menos días válidos → margen más estrecho.
+    const CAP = strongEvidence ? 500 : validDays < 12 ? 250 : 400;
     const clampFn = (v) => Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, v));
     const cappedTDEE = clampFn(adaptiveTDEE);
 
-    // Blend con ventanas DISJUNTAS: recientes (últimas 14) vs antiguas (resto).
-    // Ponderación 0.65/0.35 honesta: la versión anterior mezclaba recent14 ⊂
-    // window21, dando peso efectivo ~0.90 a lo reciente bajo etiqueta "EMA".
-    const recent14 = window.slice(-14);
-    const older = window.slice(0, Math.max(0, window.length - 14));
-    const r14 = _tdeeFromEntries(recent14, 10);
-    const oldEst = older.length >= 5 ? _tdeeFromEntries(older, 4) : null;
-
-    let smoothedTDEE, confidence;
-    if (r14 && oldEst) {
-        smoothedTDEE = clampFn(r14.tdee * 0.65 + oldEst.tdee * 0.35);
-        if (windowSize >= 21 && validDays >= 18) confidence = 'high';
-        else if (windowSize >= 14 && validDays >= 12) confidence = 'medium';
-        else confidence = 'low';
-    } else if (r14) {
-        smoothedTDEE = clampFn(r14.tdee);
-        confidence = validDays >= 12 ? 'medium' : 'low';
-    } else {
-        // Sin ventana reciente válida: estimación de ventana completa
-        smoothedTDEE = cappedTDEE;
-        confidence = 'low';
-    }
+    // Encogimiento hacia Mifflin según la calidad: con evidencia fuerte se usa
+    // la estimación completa (ya capada); con confianza alta normal, el 85 %;
+    // media, el 65 %; baja, el 45 %. Evita que una ventana ruidosa fije un
+    // objetivo extremo aunque pase el mínimo de cobertura.
+    const baseTDEE = r14 ? cappedTDEE * 0.75 + r14.tdee * 0.25 : cappedTDEE;
+    const shrinkFactor = strongEvidence ? 1.0
+        : confidence === 'high' ? 0.85
+        : confidence === 'medium' ? 0.65 : 0.45;
+    const smoothedTDEE = clampFn(formulaTDEE + (baseTDEE - formulaTDEE) * shrinkFactor);
 
     const result = {
         tdee: Math.round(smoothedTDEE),
@@ -315,21 +597,51 @@ export function calculateAdaptiveTDEEForDate(dateKey) {
         rawAdaptive: Math.round(adaptiveTDEE),
         smoothedAdaptive: Math.round(smoothedTDEE),
         avgWorkoutPerDay,
+        coverage,
+        weighIns: windowSize,
+        spanDays,
+        slopeKgPerWeek: trend.slope * 7,
+        pointsUsed: trend.pointsUsed,
+        pointsTotal: trend.pointsTotal,
+        shrinkFactor,
+        cap: CAP,
+        strongEvidence,
+        recentAdaptive: r14 ? Math.round(r14.tdee) : null,
+        baseAdaptive: Math.round(baseTDEE),
+        fallbackReason: null,
+        transitionHold: false,
     };
     _adaptiveTDEECache.set(dateKey, result);
     return result;
 }
 
 /**
- * Wrapper legacy: calcula TDEE adaptativo usando TODOS los datos actuales.
- * Solo se usa para la tarjeta informativa en Ajustes.
+ * Wrapper para la tarjeta informativa de Ajustes.
+ * Usa la misma fecha que los objetivos de hoy: NO incluye la ingesta parcial de
+ * hoy (eso podía mostrar un TDEE distinto al que fija el objetivo del día).
  */
 export function calculateAdaptiveTDEE() {
-    // Usar el día actual + 1 para incluir todos los datos en la ventana
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowKey = getDateKey(tomorrow);
-    return calculateAdaptiveTDEEForDate(tomorrowKey);
+    return calculateAdaptiveTDEEForDate(getDateKey(new Date()));
+}
+
+/** Etiqueta humana para la confianza de la estimación adaptativa. */
+export function getAdaptiveConfidenceLabel(confidence) {
+    return ({ high: 'alta', medium: 'media', low: 'baja', none: 'sin datos' })[confidence] || 'sin datos';
+}
+
+/** Motivo legible del fallback a fórmula (para Ajustes y Objetivos). */
+export function getAdaptiveFallbackLabel(reason) {
+    return ({
+        insufficient_weigh_ins: 'faltan pesajes (mínimo 14)',
+        insufficient_phase_weigh_ins: 'faltan pesajes en esta fase (mínimo 14)',
+        window_too_sparse: 'los pesajes abarcan demasiados días',
+        insufficient_valid_days: 'faltan días de comida registrados',
+        low_coverage: 'cobertura de comida insuficiente',
+        low_confidence: 'confianza baja',
+        unstable_trend: 'tendencia de peso inestable',
+        transition_unreliable: 'sin base fiable antes del cambio de fase',
+        formula: 'modo fórmula',
+    })[reason] || 'datos insuficientes';
 }
 
 /**
@@ -442,18 +754,38 @@ export function getDynamicDayTargets(dateKey) {
     const formulaTDEE = Math.round(tmr * 1.25);
     const CAP = 400;
     let useAdaptiveEstimate = false;
+    let adaptiveFallbackReason = null;
     if (tdeeMode === 'adaptive') {
         adaptiveResult = calculateAdaptiveTDEEForDate(dateKey);
-        if (adaptiveResult.source === 'adaptive') {
+        // Gate de calidad: una estimación adaptativa con confianza baja o con
+        // cobertura <70 % no debe fijar objetivos. El hold de transición sí se
+        // usa: precisamente existe para evitar el rebote de agua.
+        const adaptiveCoverage = Number.isFinite(adaptiveResult.coverage)
+            ? adaptiveResult.coverage
+            : 0;
+        const usableAdaptive = adaptiveResult.source === 'adaptive'
+            && (adaptiveResult.transitionHold === true
+                || (adaptiveResult.confidence !== 'low' && adaptiveCoverage >= 0.70));
+        if (usableAdaptive) {
             // Usar TDEE adaptativo directamente — ya incluye el efecto de workouts
             useAdaptiveEstimate = true;
             tdeeBase = Math.round(adaptiveResult.tdee);
-            // Proteger tdeeBase: no puede bajar de formulaTDEE - CAP
-            tdeeBase = Math.max(formulaTDEE - CAP, tdeeBase);
+            // Proteger tdeeBase: no puede bajar de formulaTDEE - CAP ni superar
+            // formulaTDEE + CAP (el TDEE adaptativo ya viene capado, pero el
+            // peso del día puede cambiar la fórmula de referencia).
+            tdeeBase = Math.max(formulaTDEE - CAP, Math.min(formulaTDEE + CAP, tdeeBase));
         } else {
-            // Fallback a fórmula (pocos pesajes, ventana dispersa o <10 días
-            // válidos): NO incluye workouts, así que se suman como en fórmula.
+            // Fallback a fórmula: pocos pesajes, ventana dispersa, cobertura
+            // insuficiente o confianza baja. NO incluye workouts, así que se
+            // suman como en fórmula.
             tdeeBase = formulaTDEE;
+            if (adaptiveResult.source !== 'adaptive') {
+                adaptiveFallbackReason = adaptiveResult.fallbackReason || 'formula';
+            } else if (adaptiveResult.confidence === 'low') {
+                adaptiveFallbackReason = 'low_confidence';
+            } else {
+                adaptiveFallbackReason = 'low_coverage';
+            }
         }
     } else {
         tdeeBase = formulaTDEE;
@@ -470,39 +802,70 @@ export function getDynamicDayTargets(dateKey) {
     const gainPace = AppState.config.gainPace || 'lento';
     const surplusTarget = calculateAutoSurplus(dayWeight, gainPace);
 
-    // Calorías objetivo según fase
+    // Calorías objetivo según fase. El suelo (AHA/ACC) se aplica en TODAS las
+    // fases: un mantenimiento/volumen calculado por debajo del suelo también es
+    // un objetivo inseguro.
     const gender = AppState.config.gender || 'male';
     const calorieFloor = gender === 'female' ? 1200 : 1500;
-    let cals;
+    let rawCals;
     if (goalPhase === 'volumen') {
-        cals = tdee + surplusTarget;
+        rawCals = tdee + surplusTarget;
     } else if (goalPhase === 'mantenimiento') {
-        cals = tdee;
+        rawCals = tdee;
     } else {
-        // Piso según sexo (AHA/ACC guidelines) solo en definición
-        cals = Math.max(calorieFloor, tdee - deficitTarget);
+        rawCals = tdee - deficitTarget;
+    }
+    const floorApplied = rawCals < calorieFloor;
+    const cals = Math.max(calorieFloor, rawCals);
+
+    // Macros: proteína deseada primero, grasas 0.8 g/kg. Si no caben, se
+    // recortan grasas hasta 0.5 g/kg; solo después se reduce proteína (hasta
+    // 1.2 g/kg). Antes se dejaban carbs a 0 y el objetivo "real" subía en
+    // silencio por encima de las kcal pactadas.
+    const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
+    const proteinDesired = Math.round(dayWeight * pFactor);
+    const fatsPreferred = Math.max(Math.round(dayWeight * 0.8), 40);
+    const fatsMin = Math.max(Math.round(dayWeight * 0.5), 30);
+    let protein = proteinDesired;
+    let fats = fatsPreferred;
+
+    if (protein * 4 + fats * 9 > cals) {
+        fats = Math.max(fatsMin, Math.floor((cals - protein * 4) / 9));
+    }
+    if (protein * 4 + fats * 9 > cals) {
+        const maxProtein = Math.floor((cals - fats * 9) / 4);
+        const proteinMinG = Math.round(dayWeight * 1.2);
+        protein = Math.max(Math.min(protein, maxProtein), Math.min(proteinDesired, proteinMinG));
     }
 
-    // Macros
-    const pFactor = parseFloat(AppState.config.proteinFactor) || 2.0;
-    const protein = Math.round(dayWeight * pFactor);
-    const fats = Math.max(Math.round(dayWeight * 0.8), 40);
     const macroCals = protein * 4 + fats * 9;
-    // If macros exceed calorie target, adjust carbs (can go to 0)
     const carbs = Math.max(0, Math.round((cals - macroCals) / 4));
-    // If macros still exceed target, report the actual achievable cals
-    const actualCals = macroCals + carbs * 4 > cals ? macroCals + carbs * 4 : cals;
+    // El objetivo mostrado es la suma real de macros (puede diferir ±2 kcal por
+    // redondeo y subir solo si ni con los mínimos se puede cumplir).
+    const actualCals = macroCals + carbs * 4;
     // Déficit REAL respecto al TDEE (puede ser menor que deficitTarget por el
     // piso calórico o por macros mínimas). Usar este en ETAs y comparativas.
     const actualDeficit = tdee - actualCals;
+    const macroOverflow = macroCals > cals;
+    const proteinCompromised = protein < proteinDesired;
+    const fatReduced = fats < fatsPreferred;
+    // En definición, si el TDEE estimado está por debajo del suelo, el objetivo
+    // puede acabar por encima del TDEE: sería un superávit disfrazado.
+    const belowFloor = goalPhase === 'definicion' && actualCals > tdee;
 
     return {
         cals: actualCals,
         protein,
         carbs,
         fats,
+        proteinDesired,
+        fatsPreferred,
+        fatsMin,
+        tmr: Math.round(tmr),
+        formulaTDEE,
         tdee,
         tdeeBase,
+        tdeeSource: useAdaptiveEstimate ? 'adaptive' : 'formula',
         workoutKcal,
         deficitTarget,
         actualDeficit,
@@ -513,6 +876,15 @@ export function getDynamicDayTargets(dateKey) {
         dayType: dayInfo.type || 'descanso',
         dayLabel: dayInfo.label || '',
         adaptiveTDEE: adaptiveResult,
+        adaptiveFallbackReason,
+        targetCals: cals,
+        rawCals,
+        calorieFloor,
+        floorApplied,
+        macroOverflow,
+        proteinCompromised,
+        fatReduced,
+        belowFloor,
     };
 }
 
