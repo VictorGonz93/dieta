@@ -109,6 +109,12 @@ Análisis opcional de tus datos con tu propia API key de OpenCode.
 - **Proxy CORS:** Worker sin estado en `worker/` que no guarda la key
 - **Privacidad:** la key vive en una clave aparte y queda fuera de backups y exportaciones
 
+**Si la IA falla:**
+- **405:** la URL del proxy debe ser la del Worker (`https://...workers.dev`), no la de GitHub Pages ni la de OpenCode. Puedes probar y enviar directamente: la app sincroniza el formulario antes de cada petición.
+- **Respuesta vacía:** Beam Free es un modelo de razonamiento. La app usa un límite de salida amplio, esfuerzo de razonamiento medio y reintenta una vez los fallos transitorios. Si persiste, cambia de modelo.
+- **401/403:** revisa que la key sea válida y que tu suscripción OpenCode Go esté activa.
+- **Conversaciones de varios turnos:** la app guarda y reenvía el `reasoning_content` completo de Beam Free. Los turnos antiguos sin razonamiento se descartan para no provocar un 400.
+
 ---
 
 ### Config — Tu Perfil

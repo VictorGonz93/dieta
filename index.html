@@ -40,7 +40,7 @@
     <!-- Google Identity Services (Google Fit API) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <link rel="stylesheet" href="css/styles.css?v=20261030-130">
+    <link rel="stylesheet" href="css/styles.css?v=20261030-131">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -1074,13 +1074,13 @@
                                 <datalist id="aiModelOptions">
                                     <option value="beam-free"></option>
                                 </datalist>
-                                <small class="ai-hint">Beam Free requiere OpenCode Go. Si usas Console, pon el ID de un modelo de pago.</small>
+                                <small class="ai-hint">Beam Free requiere OpenCode Go. Es un modelo de razonamiento: la app usa esfuerzo medio y margen suficiente para pensar y responder. Si usas Console, pon el ID de un modelo de pago.</small>
                             </label>
 
                             <label class="ai-field ai-field-wide">
                                 <span class="ai-label">URL del proxy (Cloudflare Worker)</span>
                                 <input id="aiProxyUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://apex-ai.TU-USUARIO.workers.dev" class="ai-input">
-                                <small class="ai-hint">OpenCode no permite CORS desde el navegador. El Worker solo reenvía tu petición y no guarda tu key.</small>
+                                <small class="ai-hint">Debe ser la URL del Worker, sin barra final ni <code>/v1/chat/completions</code>. Si pones la URL de GitHub Pages recibirás un 405; si pones la de OpenCode, el navegador la bloqueará por CORS. El Worker solo reenvía tu petición y no guarda tu key.</small>
                             </label>
                         </div>
 
@@ -1471,4 +1471,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=130"></script>
+    <script type="module" src="js/app.js?v=131"></script>

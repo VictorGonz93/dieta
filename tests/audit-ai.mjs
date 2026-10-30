@@ -274,8 +274,78 @@ ok('chat: historial limitado a 10 + sistema + pregunta', messages.length === 12,
 ok('chat: primera es sistema', messages[0].role === 'system' && messages[0].content === 'SISTEMA');
 ok('chat: última es la pregunta', messages.at(-1).content === 'pregunta actual');
 
+const beamMessages = AI.buildAIChatMessages([
+    { role: 'user', content: 'p1' },
+    { role: 'assistant', content: 'r1', reasoning_content: 'pienso' },
+    { role: 'user', content: 'p2' },
+    { role: 'assistant', content: 'r2' },
+], 'SISTEMA', 'p3', { echoReasoning: true });
+ok('chat: Beam reenvía reasoning_content y descarta turnos sin él',
+    beamMessages.length === 4
+    && beamMessages[2].reasoning_content === 'pienso'
+    && beamMessages[3].content === 'p3');
+ok('chat: todos los assistant de Beam llevan razonamiento no vacío',
+    beamMessages.filter(message => message.role === 'assistant').every(message =>
+        typeof message.reasoning_content === 'string' && message.reasoning_content.length > 0));
+
+const legacyBeamMessages = AI.buildAIChatMessages([
+    { role: 'user', content: 'p1' },
+    { role: 'assistant', content: 'r1' },
+], 'SISTEMA', 'p2', { echoReasoning: true });
+ok('chat: Beam empieza de cero si el historial no tiene razonamiento',
+    legacyBeamMessages.length === 2 && legacyBeamMessages[1].content === 'p2');
+
+const longReasoning = 'x'.repeat(5000);
+const longContent = 'y'.repeat(10000);
+const longBeamMessages = AI.buildAIChatMessages([
+    { role: 'user', content: 'p1' },
+    { role: 'assistant', content: longContent, reasoning_content: longReasoning },
+], 'SISTEMA', 'p2', { echoReasoning: true });
+ok('chat: Beam conserva el razonamiento completo',
+    longBeamMessages[2].reasoning_content.length === longReasoning.length);
+ok('chat: Beam conserva el contenido completo',
+    longBeamMessages[2].content.length === longContent.length);
+
+AI.saveAIChatHistory([
+    { role: 'user', content: 'pregunta' },
+    { role: 'assistant', content: longContent, reasoning_content: longReasoning },
+]);
+ok('chat: el historial guarda contenido y razonamiento largos',
+    AI.getAIChatHistory()[1].content.length === longContent.length
+    && AI.getAIChatHistory()[1].reasoning_content.length === longReasoning.length);
+AI.clearAIChatHistory();
+
+const manyBeamHistory = [];
+for (let i = 0; i < 6; i++) {
+    manyBeamHistory.push({ role: 'user', content: `u${i}` });
+    manyBeamHistory.push({ role: 'assistant', content: `a${i}`, reasoning_content: `r${i}` });
+}
+const manyBeamMessages = AI.buildAIChatMessages(manyBeamHistory, 'SISTEMA', 'actual', { echoReasoning: true });
+ok('chat: Beam limita a los últimos 5 turnos',
+    manyBeamMessages.length === 12 && manyBeamMessages[1].content === 'u1');
+
+const hugeBeamHistory = [];
+for (let i = 0; i < 5; i++) {
+    hugeBeamHistory.push({ role: 'user', content: `u${i}` });
+    hugeBeamHistory.push({ role: 'assistant', content: `a${i}`, reasoning_content: 'z'.repeat(60000) });
+}
+const hugeBeamMessages = AI.buildAIChatMessages(hugeBeamHistory, 'SISTEMA', 'actual', { echoReasoning: true });
+ok('chat: Beam recorta el historial por tamaño',
+    hugeBeamMessages.length === 6 && hugeBeamMessages[1].content === 'u3');
+
+const nonBeamMessages = AI.buildAIChatMessages([
+    { role: 'assistant', content: 'r1', reasoning_content: 'pienso' },
+], 'SISTEMA', 'p2');
+ok('chat: otros modelos no reciben reasoning_content',
+    nonBeamMessages.every(message => !('reasoning_content' in message)));
+
 AI.saveAIChatHistory(Array.from({ length: 30 }, (_v, i) => ({ role: 'user', content: `historial ${i}` })));
 ok('chat: historial persistido limitado a 20', AI.getAIChatHistory().length === 20);
+AI.saveAIChatHistory([
+    { role: 'user', content: 'pregunta' },
+    { role: 'assistant', content: 'respuesta', reasoning_content: 'razonamiento' },
+]);
+ok('chat: reasoning persistido en el historial', AI.getAIChatHistory()[1]?.reasoning_content === 'razonamiento');
 AI.clearAIChatHistory();
 ok('chat: historial borrado', AI.getAIChatHistory().length === 0);
 
@@ -314,6 +384,7 @@ ok('cliente: Authorization con la key del usuario', captured.init.headers.Author
 ok('cliente: cabecera de sesión', captured.init.headers['x-opencode-session'] === 'session-123');
 ok('cliente: modelo en el cuerpo', JSON.parse(captured.init.body).model === 'beam-free');
 ok('cliente: streaming activado', JSON.parse(captured.init.body).stream === true);
+ok('cliente: max_tokens amplio por defecto', JSON.parse(captured.init.body).max_tokens === AI.AI_DEFAULT_MAX_TOKENS);
 ok('cliente: la key no viaja en el cuerpo', !captured.init.body.includes('oc_sk_test_abc'));
 
 const jsonAnswer = await AI.requestAIChat({
@@ -327,12 +398,68 @@ const jsonAnswer = await AI.requestAIChat({
 });
 ok('cliente: respuesta JSON no stream', jsonAnswer === 'Respuesta JSON', jsonAnswer);
 
+let reasoningBody = null;
+await AI.requestAIChat({
+    apiKey: 'oc_sk_test_abc',
+    proxyUrl: 'https://proxy.example/chat',
+    sessionId: 'session-123',
+    reasoningEffort: 'medium',
+    messages: [
+        { role: 'user', content: 'Hola' },
+        { role: 'assistant', content: 'Respuesta', reasoning_content: 'Pensamiento' },
+        { role: 'user', content: 'Otra' },
+    ],
+    fetchImpl: async (_url, init) => {
+        reasoningBody = JSON.parse(init.body);
+        return sseResponse(['data: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n']);
+    },
+});
+ok('cliente: reenvía reasoning_content del assistant', reasoningBody.messages[1].reasoning_content === 'Pensamiento');
+ok('cliente: no añade reasoning_content al usuario', !('reasoning_content' in reasoningBody.messages[0])
+    && !('reasoning_content' in reasoningBody.messages[2]));
+ok('cliente: envía esfuerzo de razonamiento', reasoningBody.reasoning_effort === 'medium');
+
 const splitStream = sseResponse([
     'data: {"choices":[{"delta":{"content":"Ho',
     'la"}}]}\n\ndata: [DONE]\n\n',
 ]);
 const splitText = await AI.readAIStream(splitStream);
 ok('cliente: SSE partido entre chunks', splitText === 'Hola', splitText);
+
+const reasoningCollector = { text: '', reasoning: '' };
+const reasoningStream = sseResponse([
+    'data: {"choices":[{"delta":{"reasoning_content":"Pensando "}}]}\n\n',
+    'data: {"choices":[{"delta":{"reasoning_content":"más"}}]}\n\n',
+    'data: {"choices":[{"delta":{"content":"Hola"}}]}\n\n',
+    'data: [DONE]\n\n',
+]);
+const reasoningAnswer = await AI.readAIStream(reasoningStream, null, reasoningCollector);
+ok('cliente: razonamiento separado del contenido',
+    reasoningAnswer === 'Hola' && reasoningCollector.reasoning === 'Pensando más');
+
+const onlyReasoning = sseResponse([
+    'data: {"choices":[{"delta":{"reasoning_content":"Pensando"}}]}\n\n',
+    'data: [DONE]\n\n',
+]);
+await assert.rejects(
+    () => AI.readAIStream(onlyReasoning),
+    error => error instanceof AI.AIRequestError && error.code === 'reasoning_only' && /razonó/i.test(error.message)
+);
+ok('cliente: respuesta solo de razonamiento explicada', true);
+
+const jsonReasoningCollector = { text: '', reasoning: '' };
+const jsonReasoningAnswer = await AI.requestAIChat({
+    apiKey: 'oc_sk_test_abc',
+    proxyUrl: 'https://proxy.example/chat',
+    sessionId: 'session-123',
+    messages: [{ role: 'user', content: 'Hola' }],
+    reasoningCollector: jsonReasoningCollector,
+    fetchImpl: async () => new Response(JSON.stringify({
+        choices: [{ message: { content: 'Respuesta', reasoning_content: 'Pensamiento' } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }),
+});
+ok('cliente: razonamiento en respuesta JSON',
+    jsonReasoningAnswer === 'Respuesta' && jsonReasoningCollector.reasoning === 'Pensamiento');
 
 const streamError = sseResponse([
     'data: {"error":{"type":"rate_limit","message":"Demasiadas peticiones"}}\n\n',
@@ -398,6 +525,136 @@ await assert.rejects(
     error => error instanceof AI.AIRequestError && /No se pudo conectar/.test(error.message)
 );
 ok('cliente: fallo de red explicado', true);
+
+await assert.rejects(
+    () => AI.requestAIChat({
+        apiKey: 'oc_sk_test_abc',
+        proxyUrl: 'https://proxy.example',
+        sessionId: 's',
+        messages: [{ role: 'user', content: 'Hola' }],
+        fetchImpl: async () => new Response('<html>405 Not Allowed</html>', {
+            status: 405,
+            headers: { 'content-type': 'text/html' },
+        }),
+    }),
+    error => error instanceof AI.AIRequestError
+        && error.status === 405
+        && /Worker/.test(error.message)
+        && /GitHub Pages/.test(error.message)
+);
+ok('cliente: 405 explica que debe usarse la URL del Worker', true);
+
+let githubFetchCalled = false;
+await assert.rejects(
+    () => AI.requestAIChat({
+        apiKey: 'oc_sk_test_abc',
+        proxyUrl: 'https://victorgonz93.github.io/dieta/',
+        sessionId: 's',
+        messages: [{ role: 'user', content: 'Hola' }],
+        fetchImpl: async () => { githubFetchCalled = true; return sseResponse([]); },
+    }),
+    error => error instanceof AI.AIRequestError && /GitHub Pages/.test(error.message)
+);
+ok('cliente: detecta GitHub Pages sin hacer la petición', githubFetchCalled === false);
+
+let opencodeFetchCalled = false;
+await assert.rejects(
+    () => AI.requestAIChat({
+        apiKey: 'oc_sk_test_abc',
+        proxyUrl: 'https://opencode.ai/inference/go/openai/v1/chat/completions',
+        sessionId: 's',
+        messages: [{ role: 'user', content: 'Hola' }],
+        fetchImpl: async () => { opencodeFetchCalled = true; return sseResponse([]); },
+    }),
+    error => error instanceof AI.AIRequestError && /CORS/.test(error.message)
+);
+ok('cliente: detecta la URL de OpenCode sin hacer la petición', opencodeFetchCalled === false);
+
+let retryCalls = 0;
+const retryAnswer = await AI.requestAIChatWithRetry({
+    apiKey: 'oc_sk_test_abc',
+    proxyUrl: 'https://proxy.example',
+    sessionId: 's',
+    messages: [{ role: 'user', content: 'Hola' }],
+    fetchImpl: async () => {
+        retryCalls++;
+        if (retryCalls === 1) {
+            return new Response(JSON.stringify({ error: { type: 'server', message: 'boom' } }), {
+                status: 500,
+                headers: { 'content-type': 'application/json' },
+            });
+        }
+        return sseResponse(['data: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n']);
+    },
+}, { attempts: 2, delayMs: 0 });
+ok('cliente: reintenta un 500 transitorio', retryAnswer === 'OK' && retryCalls === 2);
+
+let emptyRetryCalls = 0;
+const emptyRetryAnswer = await AI.requestAIChatWithRetry({
+    apiKey: 'oc_sk_test_abc',
+    proxyUrl: 'https://proxy.example',
+    sessionId: 's',
+    messages: [{ role: 'user', content: 'Hola' }],
+    fetchImpl: async () => {
+        emptyRetryCalls++;
+        return emptyRetryCalls === 1
+            ? sseResponse(['data: [DONE]\n\n'])
+            : sseResponse(['data: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n']);
+    },
+}, { attempts: 2, delayMs: 0 });
+ok('cliente: reintenta una respuesta vacía', emptyRetryAnswer === 'OK' && emptyRetryCalls === 2);
+
+let effortRetryCalls = 0;
+let effortRetryBody = null;
+const effortOptions = {
+    apiKey: 'oc_sk_test_abc',
+    proxyUrl: 'https://proxy.example',
+    sessionId: 's',
+    messages: [{ role: 'user', content: 'Hola' }],
+    reasoningEffort: 'medium',
+    fetchImpl: async (_url, init) => {
+        effortRetryCalls++;
+        if (effortRetryCalls === 1) {
+            return new Response(JSON.stringify({ error: { type: 'server', message: 'boom' } }), {
+                status: 500,
+                headers: { 'content-type': 'application/json' },
+            });
+        }
+        effortRetryBody = JSON.parse(init.body);
+        return sseResponse(['data: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n']);
+    },
+};
+await AI.requestAIChatWithRetry(effortOptions, {
+    attempts: 2,
+    delayMs: 0,
+    onRetry: () => { effortOptions.reasoningEffort = 'low'; },
+});
+ok('cliente: el reintento puede bajar el esfuerzo', effortRetryBody.reasoning_effort === 'low');
+
+let authRetryCalls = 0;
+await assert.rejects(
+    () => AI.requestAIChatWithRetry({
+        apiKey: 'oc_sk_test_abc',
+        proxyUrl: 'https://proxy.example',
+        sessionId: 's',
+        messages: [{ role: 'user', content: 'Hola' }],
+        fetchImpl: async () => {
+            authRetryCalls++;
+            return new Response(JSON.stringify({ error: { type: 'unauthorized', message: 'bad key' } }), {
+                status: 401,
+                headers: { 'content-type': 'application/json' },
+            });
+        },
+    }, { attempts: 3, delayMs: 0 }),
+    error => error instanceof AI.AIRequestError && error.status === 401
+);
+ok('cliente: no reintenta un 401', authRetryCalls === 1);
+ok('cliente: 401 no es reintentable', AI.isRetryableAIError(new AI.AIRequestError('x', { status: 401 })) === false);
+ok('cliente: 503 es reintentable', AI.isRetryableAIError(new AI.AIRequestError('x', { status: 503 })) === true);
+ok('cliente: rate_limit del stream es reintentable',
+    AI.isRetryableAIError(new AI.AIRequestError('x', { code: 'rate_limit' })) === true);
+ok('cliente: server_error del stream es reintentable',
+    AI.isRetryableAIError(new AI.AIRequestError('x', { code: 'server_error' })) === true);
 
 // ─── 5. Worker CORS ──────────────────────────────────────────────────────────
 section('Worker CORS');
@@ -533,10 +790,115 @@ const clampedBody = JSON.parse(upstream.init.body);
 ok('worker: mensajes limitados a 80', clampedBody.messages.length === 80);
 ok('worker: modelo por defecto', clampedBody.model === 'beam-free');
 ok('worker: temperatura limitada', clampedBody.temperature === 2);
-ok('worker: max_tokens limitado', clampedBody.max_tokens === 4096);
+ok('worker: max_tokens limitado', clampedBody.max_tokens === 16384);
 ok('worker: respuesta limitada 200', clamped.status === 200);
 
-// ─── 6. Auditoría estática de integración/backups ───────────────────────────
+const workerReasoningText = 'z'.repeat(5000);
+const workerReasoning = await withWorker(new Request('https://worker.example/', {
+    method: 'POST',
+    headers: {
+        Origin: 'https://app.example',
+        Authorization: 'Bearer oc_sk_user',
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        model: 'beam-free',
+        reasoning_effort: 'medium',
+        messages: [
+            { role: 'user', content: 'Hola' },
+            { role: 'assistant', content: 'Respuesta', reasoning_content: workerReasoningText },
+            { role: 'user', content: 'Otra' },
+        ],
+    }),
+}));
+const forwardedReasoning = JSON.parse(upstream.init.body);
+ok('worker: conserva reasoning_content completo del assistant',
+    forwardedReasoning.messages[1].reasoning_content === workerReasoningText);
+ok('worker: no copia reasoning_content al usuario',
+    !('reasoning_content' in forwardedReasoning.messages[0])
+    && !('reasoning_content' in forwardedReasoning.messages[2]));
+ok('worker: reenvía esfuerzo de razonamiento válido', forwardedReasoning.reasoning_effort === 'medium');
+ok('worker: respuesta con razonamiento 200', workerReasoning.status === 200);
+
+const invalidEffort = await withWorker(new Request('https://worker.example/', {
+    method: 'POST',
+    headers: {
+        Origin: 'https://app.example',
+        Authorization: 'Bearer oc_sk_user',
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        messages: [{ role: 'user', content: 'Hola' }],
+        reasoning_effort: 'none',
+    }),
+}));
+const invalidEffortBody = JSON.parse(upstream.init.body);
+ok('worker: descarta esfuerzo de razonamiento no válido', !('reasoning_effort' in invalidEffortBody));
+ok('worker: esfuerzo no válido no rompe la petición', invalidEffort.status === 200);
+
+// ─── 6. Sincronización de ajustes y multirrondo ─────────────────────────────
+section('Sincronización de ajustes y multirrondo');
+resetState();
+seed14Days();
+AI.saveAISettings({
+    apiKey: 'oc_sk_old_key',
+    proxyUrl: 'https://viejo-worker.example',
+    model: 'beam-free',
+    saveKey: true,
+    consent: true,
+});
+AI.initAITab();
+
+const formProxy = elements.get('aiProxyUrl');
+const formModel = elements.get('aiModel');
+const formKey = elements.get('aiApiKey');
+const formSaveKey = elements.get('aiSaveKey');
+const formConsent = elements.get('aiConsent');
+formProxy.value = 'https://nuevo-worker.example';
+formModel.value = 'beam-free';
+formKey.value = 'oc_sk_form_key';
+formSaveKey.checked = true;
+formConsent.checked = true;
+
+const chatRequests = [];
+const originalChatFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => {
+    chatRequests.push({ url, init });
+    return sseResponse([
+        'data: {"choices":[{"delta":{"reasoning_content":"Pensando "}}]}\n\n',
+        'data: {"choices":[{"delta":{"reasoning_content":"en la respuesta"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"Respuesta "}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"correcta"}}]}\n\n',
+        'data: [DONE]\n\n',
+    ]);
+};
+try {
+    const firstSend = await AI.sendAIMessage('Primera pregunta');
+    ok('ajustes: el chat adopta la URL del formulario',
+        AI.getAISettings().proxyUrl === 'https://nuevo-worker.example');
+    ok('ajustes: el chat adopta la key del formulario', AI.getAIKey() === 'oc_sk_form_key');
+    ok('ajustes: la petición usa la URL del formulario', chatRequests[0]?.url === 'https://nuevo-worker.example');
+    ok('ajustes: la key se limpia del formulario', formKey.value === '');
+    ok('chat: primera respuesta correcta', firstSend.ok === true && firstSend.text === 'Respuesta correcta');
+    ok('chat: razonamiento guardado con la respuesta',
+        AI.getAIChatHistory().at(-1)?.reasoning_content === 'Pensando en la respuesta');
+    ok('chat: max_tokens amplio en la petición real',
+        JSON.parse(chatRequests[0].init.body).max_tokens === AI.AI_DEFAULT_MAX_TOKENS);
+    ok('chat: esfuerzo de razonamiento medio para Beam',
+        JSON.parse(chatRequests[0].init.body).reasoning_effort === 'medium');
+
+    const secondSend = await AI.sendAIMessage('Segunda pregunta');
+    const secondBody = JSON.parse(chatRequests[1].init.body);
+    const echoedAssistant = secondBody.messages.find(message =>
+        message.role === 'assistant' && message.content === 'Respuesta correcta');
+    ok('chat: segundo turno responde', secondSend.ok === true);
+    ok('chat: segundo turno reenvía reasoning_content',
+        echoedAssistant?.reasoning_content === 'Pensando en la respuesta');
+} finally {
+    globalThis.fetch = originalChatFetch;
+}
+
+// ─── 7. Auditoría estática de integración/backups ───────────────────────────
 section('Integración y backups');
 const storageSource = readFileSync(join(root, 'js/modules/storage.js'), 'utf8');
 const collectIndex = storageSource.indexOf('function _collectDatabase()');
@@ -552,11 +914,11 @@ ok('limpieza: clearAllData borra la key', storageSource.includes("'nutrition_ai_
 const indexHtml = readFileSync(join(root, 'index.html'), 'utf8');
 ok('html: pestaña IA', indexHtml.includes('data-tab="ia"') && indexHtml.includes('id="ia"'));
 ok('html: panel BYOK', indexHtml.includes('id="aiApiKey"') && indexHtml.includes('id="aiProxyUrl"'));
-ok('html: versión 130', indexHtml.includes('js/app.js?v=130'));
-ok('html: CSS con cache-busting 130', indexHtml.includes('css/styles.css?v=20261030-130'));
+ok('html: versión 131', indexHtml.includes('js/app.js?v=131'));
+ok('html: CSS con cache-busting 131', indexHtml.includes('css/styles.css?v=20261030-131'));
 
 const swSource = readFileSync(join(root, 'sw.js'), 'utf8');
-ok('sw: versión 130', /CACHE_VERSION\s*=\s*130/.test(swSource));
+ok('sw: versión 131', /CACHE_VERSION\s*=\s*131/.test(swSource));
 ok('sw: módulos IA cacheados', swSource.includes('/dieta/js/modules/ai.js') && swSource.includes('/dieta/js/modules/ai-context.js'));
 ok('sw: solo cachea GET', swSource.includes("event.request.method !== 'GET'"));
 
@@ -571,6 +933,12 @@ const workerSource = readFileSync(join(root, 'worker/src/index.js'), 'utf8');
 ok('worker: no tiene key propia', !/env\.OPENCODE_API_KEY/.test(workerSource));
 ok('worker: no registra datos', !/console\.(log|error|warn|info)/.test(workerSource));
 ok('worker: no almacena estado', !/\benv\.(KV|DB|R2)\b|caches\.(open|match|put)/i.test(workerSource));
+ok('worker: conserva reasoning_content', workerSource.includes('reasoning_content'));
+
+const aiSource = readFileSync(join(root, 'js/modules/ai.js'), 'utf8');
+ok('ia: reenvía reasoning_content', aiSource.includes('reasoning_content'));
+ok('ia: reintenta fallos transitorios', aiSource.includes('requestAIChatWithRetry'));
+ok('ia: la prueba ya no usa 16 tokens', !/maxTokens:\s*16\b/.test(aiSource));
 
 const runAll = readFileSync(join(root, 'tests/run-all.mjs'), 'utf8');
 ok('tests: suite registrada', runAll.includes('audit-ai.mjs'));

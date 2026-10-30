@@ -18,6 +18,21 @@ export const AI_CHAT_STORAGE = 'nutrition_ai_chat';
 export const AI_DEFAULT_MODEL = 'beam-free';
 export const AI_MAX_HISTORY = 20;
 export const AI_MAX_QUESTION_CHARS = 2000;
+export const AI_DEFAULT_MAX_TOKENS = 8192;
+export const AI_MAX_CONTENT_CHARS = 32000;
+// Beam exige reenviar el reasoning_content completo de cada turno anterior.
+// Con max_tokens 8192 el razonamiento está acotado; este límite es solo una
+// salvaguarda para no llenar localStorage si el proveedor devuelve algo raro.
+export const AI_MAX_REASONING_CHARS = 100000;
+export const AI_TEST_MAX_TOKENS = 2048;
+const AI_MAX_BEAM_TURNS = 5;
+// Presupuesto de caracteres del historial Beam para no acercarse al límite de
+// 256 KB del Worker. Se descartan los turnos más antiguos si hace falta.
+const AI_MAX_BEAM_HISTORY_CHARS = 160000;
+
+const AI_RETRY_ATTEMPTS = 2;
+const AI_RETRY_DELAY_MS = 800;
+const AI_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
 const DEFAULT_SETTINGS = {
     proxyUrl: '',
@@ -33,6 +48,7 @@ let _memoryKey = '';
 let _chatCache = null;
 let _sending = false;
 let _uiBound = false;
+let _formReady = false;
 
 export class AIRequestError extends Error {
     constructor(message, { code = 'unknown', status = 0, detail = '' } = {}) {
@@ -135,6 +151,28 @@ function _normalizeModel(model) {
 }
 
 /**
+ * Devuelve un mensaje concreto para los errores de URL más habituales.
+ * GitHub Pages responde 405 a POST y OpenCode bloquea el navegador por CORS;
+ * en ambos casos la solución es usar la URL del Worker.
+ */
+function _proxyUrlProblem(url) {
+    const value = String(url || '').trim();
+    if (!isProxyUrlValid(value)) {
+        return 'La URL del proxy no es válida. Debe empezar por https:// (o http://localhost para pruebas).';
+    }
+    try {
+        const parsed = new URL(value);
+        if (/\.github\.io$/i.test(parsed.hostname)) {
+            return 'La URL del proxy es de GitHub Pages, que no acepta POST (405). Usa la URL del Worker (https://...workers.dev).';
+        }
+        if (/(^|\.)opencode\.ai$/i.test(parsed.hostname)) {
+            return 'Esa es la URL de OpenCode y el navegador la bloqueará por CORS. Usa la URL del Worker.';
+        }
+    } catch (_) { /* ya validada arriba */ }
+    return '';
+}
+
+/**
  * Guarda ajustes BYOK. La API key nunca se escribe dentro del JSON de ajustes.
  * Si saveKey es false, la key queda solo en memoria durante esta sesión.
  */
@@ -209,7 +247,13 @@ export function getAIChatHistory() {
         ? stored
             .filter(message => message && (message.role === 'user' || message.role === 'assistant')
                 && typeof message.content === 'string' && message.content.trim())
-            .map(message => ({ role: message.role, content: message.content.slice(0, 6000) }))
+            .map(message => {
+                const item = { role: message.role, content: message.content.slice(0, AI_MAX_CONTENT_CHARS) };
+                if (message.role === 'assistant' && typeof message.reasoning_content === 'string' && message.reasoning_content) {
+                    item.reasoning_content = message.reasoning_content.slice(0, AI_MAX_REASONING_CHARS);
+                }
+                return item;
+            })
             .slice(-AI_MAX_HISTORY)
         : [];
     _chatCache = history;
@@ -220,7 +264,13 @@ export function saveAIChatHistory(messages) {
     const history = (Array.isArray(messages) ? messages : [])
         .filter(message => message && (message.role === 'user' || message.role === 'assistant')
             && typeof message.content === 'string' && message.content.trim())
-        .map(message => ({ role: message.role, content: message.content.slice(0, 6000) }))
+        .map(message => {
+            const item = { role: message.role, content: message.content.slice(0, AI_MAX_CONTENT_CHARS) };
+            if (message.role === 'assistant' && typeof message.reasoning_content === 'string' && message.reasoning_content) {
+                item.reasoning_content = message.reasoning_content.slice(0, AI_MAX_REASONING_CHARS);
+            }
+            return item;
+        })
         .slice(-AI_MAX_HISTORY);
     _chatCache = history;
     return safeSet(AI_CHAT_STORAGE, history);
@@ -239,13 +289,58 @@ export function clearAIChatHistory() {
 /**
  * Construye los mensajes OpenAI. El contexto va en el mensaje de sistema y se
  * regenera en cada pregunta. El historial se limita para no crecer sin control.
+ *
+ * Beam Free exige reenviar el reasoning_content completo y no vacío de sus
+ * respuestas anteriores; si no se hace, el segundo turno puede devolver 400.
+ * Los turnos antiguos sin razonamiento se descartan. Para otros modelos no se
+ * envía ese campo, porque algunos proveedores rechazan campos desconocidos.
  */
-export function buildAIChatMessages(history, systemPrompt, userText) {
-    const safeHistory = (Array.isArray(history) ? history : [])
+export function buildAIChatMessages(history, systemPrompt, userText, { echoReasoning = false } = {}) {
+    const source = (Array.isArray(history) ? history : [])
         .filter(message => message && (message.role === 'user' || message.role === 'assistant')
-            && typeof message.content === 'string' && message.content.trim())
-        .slice(-10)
-        .map(message => ({ role: message.role, content: message.content.slice(0, 6000) }));
+            && typeof message.content === 'string' && message.content.trim());
+
+    let safeHistory;
+    if (echoReasoning) {
+        // Beam exige un reasoning_content no vacío en cada mensaje assistant.
+        // Solo reenviamos pares user/assistant completos y compatibles; los
+        // turnos antiguos sin razonamiento se descartan para no provocar un 400.
+        const pairs = [];
+        for (let i = 0; i < source.length - 1; i++) {
+            const user = source[i];
+            const assistant = source[i + 1];
+            if (user.role !== 'user' || assistant.role !== 'assistant') continue;
+            if (typeof assistant.reasoning_content !== 'string' || !assistant.reasoning_content.trim()) continue;
+            pairs.push([user, assistant]);
+            i++;
+        }
+        const selectedPairs = [];
+        let totalChars = 0;
+        for (let i = pairs.length - 1; i >= 0; i--) {
+            if (selectedPairs.length >= AI_MAX_BEAM_TURNS) break;
+            const pair = pairs[i];
+            const cost = pair.reduce((sum, message) => sum
+                + message.content.length
+                + (message.role === 'assistant' && typeof message.reasoning_content === 'string'
+                    ? message.reasoning_content.length
+                    : 0), 0);
+            if (selectedPairs.length > 0 && totalChars + cost > AI_MAX_BEAM_HISTORY_CHARS) break;
+            selectedPairs.unshift(pair);
+            totalChars += cost;
+        }
+        safeHistory = selectedPairs.flat().map(message => {
+            const item = { role: message.role, content: message.content.slice(0, AI_MAX_CONTENT_CHARS) };
+            if (message.role === 'assistant') {
+                item.reasoning_content = message.reasoning_content.slice(0, AI_MAX_REASONING_CHARS);
+            }
+            return item;
+        });
+    } else {
+        safeHistory = source.slice(-10).map(message => ({
+            role: message.role,
+            content: message.content.slice(0, 6000),
+        }));
+    }
 
     return [
         { role: 'system', content: String(systemPrompt || '') },
@@ -294,11 +389,17 @@ function _httpErrorMessage(status, type, detail) {
     if (status === 404) {
         return 'No se encontró el proxy o el endpoint (404). Revisa la URL del Worker.';
     }
+    if (status === 405) {
+        return 'La URL configurada no acepta POST (405). Debe ser la URL del Worker (https://...workers.dev), no la de GitHub Pages ni la de OpenCode.';
+    }
+    if (status === 400 && lower.includes('reasoning_content')) {
+        return 'OpenCode rechazó el historial de la conversación (400). Borra el historial e inténtalo de nuevo; la app ya reenvía el razonamiento de Beam Free.';
+    }
     if (status === 408) {
         return 'La petición tardó demasiado (408). Inténtalo de nuevo.';
     }
     if (status === 413) {
-        return 'La petición es demasiado grande (413). Prueba con una pregunta más corta.';
+        return 'La petición es demasiado grande (413). Borra parte del historial o prueba con una pregunta más corta.';
     }
     if (status === 429) {
         if (lower.includes('free')) {
@@ -348,10 +449,35 @@ function _deltaFromPayload(payload) {
     return _contentToText(payload.delta?.content) || _contentToText(payload.output_text);
 }
 
+function _reasoningFromPayload(payload) {
+    if (!payload || typeof payload !== 'object') return '';
+    const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
+    if (choice) {
+        return _contentToText(choice.delta?.reasoning_content)
+            || _contentToText(choice.delta?.reasoning)
+            || _contentToText(choice.message?.reasoning_content)
+            || _contentToText(choice.message?.reasoning);
+    }
+    return _contentToText(payload.reasoning_content) || _contentToText(payload.reasoning);
+}
+
+function _emptyResponseError(reasoning) {
+    if (String(reasoning || '').trim()) {
+        return new AIRequestError(
+            'La IA razonó pero no llegó a escribir la respuesta (límite de tokens). Vuelve a intentarlo o cambia de modelo.',
+            { code: 'reasoning_only' }
+        );
+    }
+    return new AIRequestError('La IA no devolvió contenido. Prueba otro modelo o vuelve a intentarlo.', {
+        code: 'empty_response',
+    });
+}
+
 /**
  * Lee una respuesta SSE de OpenAI. Exportada para poder probarla sin red.
+ * El tercer argumento es un colector opcional: { text, reasoning }.
  */
-export async function readAIStream(response, onDelta) {
+export async function readAIStream(response, onDelta, collector = null) {
     if (!response || !response.body || typeof response.body.getReader !== 'function') {
         throw new AIRequestError('El proxy devolvió una respuesta sin cuerpo. Revisa la URL del Worker.', {
             code: 'empty_body',
@@ -362,6 +488,7 @@ export async function readAIStream(response, onDelta) {
     const decoder = new TextDecoder();
     let buffer = '';
     let fullText = '';
+    let fullReasoning = '';
 
     const processLine = (line) => {
         const trimmed = String(line || '').trim();
@@ -372,8 +499,14 @@ export async function readAIStream(response, onDelta) {
         let payload;
         try { payload = JSON.parse(data); } catch (_) { return; }
         const delta = _deltaFromPayload(payload);
+        const reasoning = _reasoningFromPayload(payload);
+        if (reasoning) {
+            fullReasoning += reasoning;
+            if (collector && typeof collector === 'object') collector.reasoning = fullReasoning;
+        }
         if (delta) {
             fullText += delta;
+            if (collector && typeof collector === 'object') collector.text = fullText;
             if (typeof onDelta === 'function') onDelta(delta, fullText);
         }
     };
@@ -389,10 +522,12 @@ export async function readAIStream(response, onDelta) {
     buffer += decoder.decode();
     if (buffer) buffer.split(/\r?\n/).forEach(processLine);
 
+    if (collector && typeof collector === 'object') {
+        collector.text = fullText;
+        collector.reasoning = fullReasoning;
+    }
     if (!fullText.trim()) {
-        throw new AIRequestError('La IA no devolvió contenido. Prueba otro modelo o vuelve a intentarlo.', {
-            code: 'empty_response',
-        });
+        throw _emptyResponseError(fullReasoning);
     }
     return fullText;
 }
@@ -418,13 +553,16 @@ export async function requestAIChat({
     fetchImpl = null,
     signal = null,
     onDelta = null,
-    maxTokens = 1200,
+    reasoningCollector = null,
+    reasoningEffort = '',
+    maxTokens = AI_DEFAULT_MAX_TOKENS,
     timeoutMs = 120000,
 } = {}) {
     const key = _safeHeaderValue(apiKey);
     if (!key) throw new AIRequestError('Falta tu API key de OpenCode.', { code: 'missing_key' });
-    if (!isProxyUrlValid(proxyUrl)) {
-        throw new AIRequestError('La URL del proxy no es válida o está vacía.', { code: 'invalid_proxy' });
+    const proxyProblem = _proxyUrlProblem(proxyUrl);
+    if (proxyProblem) {
+        throw new AIRequestError(proxyProblem, { code: 'invalid_proxy' });
     }
     if (!Array.isArray(messages) || messages.length === 0) {
         throw new AIRequestError('No hay mensajes para enviar.', { code: 'missing_messages' });
@@ -449,14 +587,24 @@ export async function requestAIChat({
 
     const body = {
         model: modelName,
-        messages: messages.map(message => ({
-            role: message.role,
-            content: typeof message.content === 'string' ? message.content : _contentToText(message.content),
-        })),
+        messages: messages.map(message => {
+            const item = {
+                role: message.role,
+                content: typeof message.content === 'string' ? message.content : _contentToText(message.content),
+            };
+            // Beam Free necesita recibir el razonamiento de sus respuestas
+            // anteriores. El cliente solo lo añade a mensajes assistant.
+            if (message.role === 'assistant' && typeof message.reasoning_content === 'string') {
+                item.reasoning_content = message.reasoning_content.slice(0, AI_MAX_REASONING_CHARS);
+            }
+            return item;
+        }),
         stream: true,
         temperature: 0.3,
-        max_tokens: Math.max(1, parseInt(maxTokens, 10) || 1200),
+        max_tokens: Math.max(1, parseInt(maxTokens, 10) || AI_DEFAULT_MAX_TOKENS),
     };
+    const effort = String(reasoningEffort || '').trim().toLowerCase();
+    if (AI_REASONING_EFFORTS.has(effort)) body.reasoning_effort = effort;
 
     const doFetch = fetchImpl || globalThis.fetch;
     if (typeof doFetch !== 'function') {
@@ -489,16 +637,19 @@ export async function requestAIChat({
                 throw new AIRequestError('El proxy devolvió una respuesta JSON no válida.', { code: 'invalid_json' });
             }
             const text = _deltaFromPayload(payload);
+            const reasoning = _reasoningFromPayload(payload);
+            if (reasoningCollector && typeof reasoningCollector === 'object') {
+                reasoningCollector.text = text;
+                reasoningCollector.reasoning = reasoning;
+            }
             if (!text.trim()) {
-                throw new AIRequestError('La IA no devolvió contenido. Prueba otro modelo o vuelve a intentarlo.', {
-                    code: 'empty_response',
-                });
+                throw _emptyResponseError(reasoning);
             }
             if (typeof onDelta === 'function') onDelta(text, text);
             return text;
         }
 
-        return await readAIStream(response, onDelta);
+        return await readAIStream(response, onDelta, reasoningCollector);
     } catch (error) {
         if (error instanceof AIRequestError) throw error;
         if (timedOut) {
@@ -517,6 +668,54 @@ export async function requestAIChat({
         clearTimeout(timer);
         if (signal) signal.removeEventListener('abort', externalAbort);
     }
+}
+
+const RETRYABLE_AI_CODES = new Set([
+    'empty_response',
+    'reasoning_only',
+    'empty_body',
+    'network',
+    'stream_error',
+    'server_error',
+    'rate_limit',
+]);
+
+/**
+ * Los fallos transitorios (respuesta vacía, red, 5xx, 408/429) merecen un
+ * segundo intento. Los errores de configuración o credenciales no se reintentan.
+ */
+export function isRetryableAIError(error) {
+    if (!(error instanceof AIRequestError)) return false;
+    if (RETRYABLE_AI_CODES.has(error.code)) return true;
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+}
+
+/**
+ * Envuelve requestAIChat con un reintento único. El colector de razonamiento
+ * debe reiniciarse desde onRetry si se reutiliza entre intentos.
+ */
+export async function requestAIChatWithRetry(options = {}, {
+    attempts = AI_RETRY_ATTEMPTS,
+    delayMs = AI_RETRY_DELAY_MS,
+    onRetry = null,
+} = {}) {
+    const maxAttempts = Math.max(1, parseInt(attempts, 10) || 1);
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await requestAIChat(options);
+        } catch (error) {
+            lastError = error;
+            if (attempt >= maxAttempts || !isRetryableAIError(error)) throw error;
+            if (typeof onRetry === 'function') onRetry(error, attempt);
+            if (delayMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, Math.max(0, parseInt(delayMs, 10) || 0)));
+            }
+            if (options.signal && options.signal.aborted) throw error;
+        }
+    }
+    throw lastError;
 }
 
 // ==================== MARKDOWN SEGURO ====================
@@ -758,9 +957,51 @@ function _bindAIUI() {
 function _validateReady(settings, key, { requireConsent = true } = {}) {
     if (!key) return 'Añade tu API key de OpenCode en la configuración de arriba.';
     if (!settings.proxyUrl) return 'Falta la URL del proxy. Despliega el Worker y pégala en la configuración.';
-    if (!isProxyUrlValid(settings.proxyUrl)) return 'La URL del proxy no es válida. Debe empezar por https://.';
+    const proxyProblem = _proxyUrlProblem(settings.proxyUrl);
+    if (proxyProblem) return proxyProblem;
     if (requireConsent && !settings.consent) return 'Marca la casilla de consentimiento para enviar tus datos a OpenCode.';
     return '';
+}
+
+function _modelNeedsReasoningEcho(model) {
+    const value = String(model || '').trim().toLowerCase();
+    if (!value) return false;
+    return value === 'beam'
+        || value.startsWith('beam-')
+        || /(^|[\/:._-])beam([\/:._-]|$)/.test(value);
+}
+
+/**
+ * El formulario es la fuente de verdad cuando la pestaña IA ya se ha abierto.
+ * Así "Probar conexión" y el chat usan exactamente la misma URL, modelo y key;
+ * antes, probar usaba el formulario pero el chat usaba ajustes guardados.
+ */
+function _syncSettingsFromForm() {
+    if (!_formReady) return { ok: true, settings: getAISettings() };
+
+    const form = _readAIForm();
+    const patch = {
+        proxyUrl: String(form.proxyUrl || '').trim().replace(/\/+$/, ''),
+        model: _normalizeModel(form.model),
+        saveKey: form.saveKey === true,
+        consent: form.consent === true,
+    };
+
+    const typedKey = String(form.apiKey || '').trim();
+    if (typedKey) patch.apiKey = typedKey;
+
+    const result = saveAISettings(patch);
+    if (!result.ok) return result;
+
+    if (typedKey) {
+        const keyEl = _el('aiApiKey');
+        if (keyEl) {
+            keyEl.value = '';
+            keyEl.placeholder = _keyPlaceholder();
+        }
+    }
+    _updateAISetupUI();
+    return result;
 }
 
 export function initAITab() {
@@ -779,6 +1020,7 @@ export function initAITab() {
         keyEl.value = '';
         keyEl.placeholder = _keyPlaceholder();
     }
+    _formReady = !!(proxyEl && modelEl && saveEl && consentEl && keyEl);
     _chatCache = getAIChatHistory();
     // No repintar si hay una respuesta en curso: el DOM conserva el mensaje
     // pendiente y el streaming sigue escribiendo en su burbuja.
@@ -825,6 +1067,7 @@ export function saveAISettingsFromForm() {
         _setSetupStatus(result.error, 'error');
         return result;
     }
+    _formReady = true;
 
     const keyEl = _el('aiApiKey');
     if (keyEl) {
@@ -863,12 +1106,13 @@ export function clearAIKeyFromUI() {
 }
 
 export async function testAIConnection() {
-    const form = _readAIForm();
-    const settings = {
-        proxyUrl: String(form.proxyUrl || '').trim().replace(/\/+$/, ''),
-        model: _normalizeModel(form.model) || AI_DEFAULT_MODEL,
-    };
-    const key = String(form.apiKey || '').trim() || getAIKey();
+    const synced = _syncSettingsFromForm();
+    if (!synced.ok) {
+        _setSetupStatus(synced.error, 'error');
+        return synced;
+    }
+    const settings = synced.settings;
+    const key = getAIKey();
     const configError = _validateReady(settings, key, { requireConsent: false });
     if (configError) {
         _setSetupStatus(configError, 'warn');
@@ -879,16 +1123,30 @@ export async function testAIConnection() {
     if (button) button.disabled = true;
     _setSetupStatus('Probando conexión con el proxy y OpenCode…', 'info');
     try {
-        await requestAIChat({
+        await requestAIChatWithRetry({
             apiKey: key,
             proxyUrl: settings.proxyUrl,
-            sessionId: getAISettings().sessionId,
+            sessionId: settings.sessionId,
             model: settings.model,
             messages: [{ role: 'user', content: 'Responde únicamente con la palabra OK.' }],
-            maxTokens: 16,
+            reasoningEffort: _modelNeedsReasoningEcho(settings.model) ? 'low' : '',
+            maxTokens: AI_TEST_MAX_TOKENS,
             timeoutMs: 45000,
+        }, {
+            attempts: AI_RETRY_ATTEMPTS,
+            delayMs: AI_RETRY_DELAY_MS,
+            onRetry: () => _setSetupStatus('La primera prueba no llegó completa. Reintentando…', 'info'),
         });
-        _setSetupStatus(`Conexión correcta con ${settings.model}.`, 'success');
+        if (synced.persisted === false) {
+            _setSetupStatus(
+                `Conexión correcta con ${settings.model}. Los ajustes funcionan en esta sesión, pero no se pudieron guardar en el dispositivo.`,
+                'warn'
+            );
+        } else if (synced.persisted === true) {
+            _setSetupStatus(`Conexión correcta con ${settings.model}. Ajustes guardados.`, 'success');
+        } else {
+            _setSetupStatus(`Conexión correcta con ${settings.model}.`, 'success');
+        }
         showNotification('Conexión de IA correcta', 'success');
         return { ok: true };
     } catch (error) {
@@ -905,7 +1163,13 @@ export async function sendAIMessage(rawText) {
     const question = String(rawText || '').trim().slice(0, AI_MAX_QUESTION_CHARS);
     if (!question) return { ok: false, error: 'Escribe una pregunta.' };
 
-    const settings = getAISettings();
+    const synced = _syncSettingsFromForm();
+    if (!synced.ok) {
+        _setSetupStatus(synced.error, 'error');
+        _setChatStatus(synced.error, 'error');
+        return synced;
+    }
+    const settings = synced.settings;
     const key = getAIKey();
     const configError = _validateReady(settings, key);
     if (configError) {
@@ -926,15 +1190,20 @@ export async function sendAIMessage(rawText) {
         const context = buildAIContext({ days: 14, workoutDays: 14 });
         const systemPrompt = buildAISystemPrompt(context);
         const history = getAIChatHistory();
-        const messages = buildAIChatMessages(history, systemPrompt, question);
+        const messages = buildAIChatMessages(history, systemPrompt, question, {
+            echoReasoning: _modelNeedsReasoningEcho(settings.model),
+        });
 
-        const answer = await requestAIChat({
+        const reasoningMeta = { text: '', reasoning: '' };
+        const requestOptions = {
             apiKey: key,
             proxyUrl: settings.proxyUrl,
             sessionId: settings.sessionId,
             model: settings.model,
             messages,
-            maxTokens: 1200,
+            reasoningEffort: _modelNeedsReasoningEcho(settings.model) ? 'medium' : '',
+            maxTokens: AI_DEFAULT_MAX_TOKENS,
+            reasoningCollector: reasoningMeta,
             onDelta: (_delta, full) => {
                 const now = Date.now();
                 if (bubble && now - lastPaint > 60) {
@@ -943,23 +1212,46 @@ export async function sendAIMessage(rawText) {
                     _scrollChat();
                 }
             },
+        };
+        const answer = await requestAIChatWithRetry(requestOptions, {
+            attempts: AI_RETRY_ATTEMPTS,
+            delayMs: AI_RETRY_DELAY_MS,
+            onRetry: () => {
+                // Si el primer intento se quedó sin margen razonando, el
+                // reintento baja el esfuerzo para dejar espacio a la respuesta.
+                if (requestOptions.reasoningEffort === 'medium') requestOptions.reasoningEffort = 'low';
+                reasoningMeta.text = '';
+                reasoningMeta.reasoning = '';
+                lastPaint = 0;
+                if (bubble) bubble.textContent = '…';
+                _setChatStatus('La primera respuesta no llegó completa. Reintentando…', 'warn');
+            },
         });
 
-        const clean = String(answer || '').trim();
-        if (!clean) throw new AIRequestError('La IA no devolvió contenido.', { code: 'empty_response' });
+        const clean = String(answer || reasoningMeta.text || '').trim();
+        if (!clean) throw _emptyResponseError(reasoningMeta.reasoning);
         if (bubble) {
             bubble.innerHTML = renderSafeMarkdown(clean);
             const wrapper = bubble.parentElement;
             if (wrapper) wrapper.classList.remove('ai-msg-pending');
         }
 
+        const assistantMessage = { role: 'assistant', content: clean };
+        const reasoning = String(reasoningMeta.reasoning || '').trim();
+        if (reasoning) assistantMessage.reasoning_content = reasoning.slice(0, AI_MAX_REASONING_CHARS);
         const nextHistory = [
             ...history,
             { role: 'user', content: question },
-            { role: 'assistant', content: clean },
+            assistantMessage,
         ];
-        saveAIChatHistory(nextHistory);
-        _setChatStatus('');
+        const historySaved = saveAIChatHistory(nextHistory);
+        if (synced.persisted === false) {
+            _setChatStatus('Respuesta recibida. Los ajustes no se pudieron guardar en el dispositivo; siguen activos en esta sesión.', 'warn');
+        } else if (!historySaved) {
+            _setChatStatus('Respuesta recibida, pero el historial no se pudo guardar en el dispositivo.', 'warn');
+        } else {
+            _setChatStatus('');
+        }
         return { ok: true, text: clean };
     } catch (error) {
         const message = error instanceof AIRequestError
@@ -1018,4 +1310,5 @@ export function __resetAIForTests() {
     _chatCache = null;
     _sending = false;
     _uiBound = false;
+    _formReady = false;
 }

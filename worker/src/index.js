@@ -16,6 +16,11 @@
 const DEFAULT_UPSTREAM = 'https://opencode.ai/inference/go/openai/v1/chat/completions';
 const MAX_BODY_BYTES = 256 * 1024;
 const MAX_MESSAGES = 80;
+const MAX_OUTPUT_TOKENS = 16384;
+// Beam exige el reasoning_content completo de cada turno anterior. El cliente
+// acota el historial a 5 turnos, así que este límite es solo una salvaguarda.
+const MAX_REASONING_CHARS = 100000;
+const ALLOWED_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
 function _allowedOrigins(env) {
     const raw = String(env && env.ALLOWED_ORIGINS ? env.ALLOWED_ORIGINS : 'https://victorgonz93.github.io');
@@ -81,7 +86,13 @@ function _cleanMessages(messages) {
                     .map(part => ({ type: String(part.type || 'text'), text: String(part.text || '') }))
                 : '';
         if (typeof content === 'string' && !content.trim()) continue;
-        cleaned.push({ role, content });
+        const cleanMessage = { role, content };
+        // Beam Free exige reenviar el reasoning_content de sus respuestas
+        // anteriores en conversaciones multirrondo.
+        if (role === 'assistant' && typeof message.reasoning_content === 'string' && message.reasoning_content) {
+            cleanMessage.reasoning_content = message.reasoning_content.slice(0, MAX_REASONING_CHARS);
+        }
+        cleaned.push(cleanMessage);
     }
     return cleaned.length > 0 ? cleaned : null;
 }
@@ -101,7 +112,9 @@ export default {
         }
 
         if (request.method !== 'POST') {
-            return _json(405, { error: 'Método no permitido. Usa POST.' }, origin, allowed);
+            return _json(405, {
+                error: 'Método no permitido. Este proxy solo acepta POST. Si has abierto la URL en el navegador, es normal: configura esta URL en Apex Nutrition.',
+            }, origin, allowed);
         }
 
         if (!originOk) {
@@ -165,7 +178,9 @@ export default {
         const temperature = Number(body.temperature);
         if (Number.isFinite(temperature)) forwarded.temperature = Math.min(2, Math.max(0, temperature));
         const maxTokens = Number(body.max_tokens);
-        if (Number.isFinite(maxTokens)) forwarded.max_tokens = Math.min(4096, Math.max(1, Math.floor(maxTokens)));
+        if (Number.isFinite(maxTokens)) forwarded.max_tokens = Math.min(MAX_OUTPUT_TOKENS, Math.max(1, Math.floor(maxTokens)));
+        const effort = String(body.reasoning_effort || '').trim().toLowerCase();
+        if (ALLOWED_REASONING_EFFORTS.has(effort)) forwarded.reasoning_effort = effort;
 
         const sessionId = String(request.headers.get('x-opencode-session') || '').replace(/[\r\n]+/g, '').trim().slice(0, 200)
             || (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
