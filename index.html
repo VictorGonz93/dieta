@@ -40,7 +40,7 @@
     <!-- Google Identity Services (Google Fit API) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <link rel="stylesheet" href="css/styles.css?v=20261030-132">
+    <link rel="stylesheet" href="css/styles.css?v=20261031-133">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -1074,7 +1074,17 @@
                                 <datalist id="aiModelOptions">
                                     <option value="beam-free"></option>
                                 </datalist>
-                                <small class="ai-hint">Beam Free requiere OpenCode Go. Es un modelo de razonamiento: la app usa esfuerzo medio y margen suficiente para pensar y responder. Si usas Console, pon el ID de un modelo de pago.</small>
+                                <small class="ai-hint">Beam Free requiere OpenCode Go. Es un modelo de razonamiento: elige el esfuerzo según la profundidad que quieras. Si usas Console, pon el ID de un modelo de pago.</small>
+                            </label>
+
+                            <label class="ai-field">
+                                <span class="ai-label">Esfuerzo de razonamiento</span>
+                                <select id="aiReasoningEffort" class="ai-input">
+                                    <option value="low">Bajo · más rápido</option>
+                                    <option value="medium">Medio · equilibrado</option>
+                                    <option value="high">Alto · más profundo</option>
+                                </select>
+                                <small class="ai-hint">Solo se aplica a modelos de razonamiento como Beam Free. Más esfuerzo = más tiempo y tokens.</small>
                             </label>
 
                             <label class="ai-field ai-field-wide">
@@ -1113,6 +1123,26 @@
                     </div>
                 </div>
 
+                <div class="ai-context-card" id="aiContextCard">
+                    <button class="ai-context-head" type="button" id="aiContextToggle" onclick="toggleAIContextPreview()" aria-expanded="false" aria-controls="aiContextBody">
+                        <span class="material-icons">visibility</span>
+                        <span class="ai-context-title">Qué ve la IA</span>
+                        <span class="ai-context-time" id="aiContextTime">Sin actualizar</span>
+                        <span class="material-icons ai-chevron">expand_more</span>
+                    </button>
+                    <div class="ai-context-body collapsed" id="aiContextBody">
+                        <p class="ai-hint" id="aiContextUpdated"></p>
+                        <div class="ai-context-grid" id="aiContextSummary"></div>
+                        <div id="aiContextDetails"></div>
+                        <div class="ai-context-actions">
+                            <button type="button" class="ai-link-btn" onclick="refreshAIContextPreview()">
+                                <span class="material-icons">refresh</span>
+                                Actualizar contexto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="ai-chat-card">
                     <div class="ai-chat-head">
                         <div class="ai-chat-title">
@@ -1137,9 +1167,20 @@
 
                     <div class="ai-composer">
                         <textarea id="aiChatInput" rows="2" maxlength="2000" placeholder="Pregunta sobre tus macros, peso o entrenamientos…" aria-label="Pregunta para la IA"></textarea>
+                        <button type="button" id="aiStopBtn" class="ai-send-btn ai-stop-btn" onclick="stopAIGeneration()" hidden title="Detener la respuesta">
+                            <span class="material-icons">stop_circle</span>
+                            <span>Detener</span>
+                        </button>
                         <button type="button" id="aiSendBtn" class="ai-send-btn" onclick="sendAIChat()" disabled title="Configura tu key, el proxy y acepta el aviso de privacidad">
                             <span class="material-icons">send</span>
                             <span>Enviar</span>
+                        </button>
+                    </div>
+                    <div class="ai-chat-extra">
+                        <span class="ai-thinking-time" id="aiThinkingTime" hidden></span>
+                        <button type="button" class="ai-link-btn ai-retry-btn" id="aiRetryBtn" onclick="retryLastAIMessage()" hidden>
+                            <span class="material-icons">refresh</span>
+                            Reintentar
                         </button>
                     </div>
                     <p class="ai-footnote">
@@ -1151,6 +1192,30 @@
                         y consulta a un profesional si tienes una condición médica.
                     </p>
                     <p class="ai-status" id="aiChatStatus" role="status"></p>
+                </div>
+
+                <div class="ai-report-card" id="aiReportCard">
+                    <div class="ai-report-head">
+                        <div>
+                            <h3 class="ai-report-title">
+                                <span class="material-icons">summarize</span>
+                                Análisis semanal
+                            </h3>
+                            <p class="ai-hint">Genera un informe de los últimos 7 días y guárdalo en este dispositivo.</p>
+                        </div>
+                        <div class="ai-report-actions">
+                            <button type="button" class="ai-btn ai-btn-danger" id="aiStopReportBtn" onclick="stopAIGeneration()" hidden>
+                                <span class="material-icons">stop_circle</span>
+                                Detener
+                            </button>
+                            <button type="button" class="ai-btn ai-btn-primary" id="aiGenerateReportBtn" onclick="generateWeeklyReport()">
+                                <span class="material-icons">auto_awesome</span>
+                                Generar análisis
+                            </button>
+                        </div>
+                    </div>
+                    <p class="ai-status" id="aiReportStatus" role="status"></p>
+                    <div class="ai-reports-list" id="aiReportsList"></div>
                 </div>
             </div>
 
@@ -1475,4 +1540,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=132"></script>
+    <script type="module" src="js/app.js?v=133"></script>

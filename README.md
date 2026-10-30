@@ -104,17 +104,23 @@ Análisis opcional de tus datos con tu propia API key de OpenCode.
 
 - **BYOK:** cada usuario introduce su propia key; no hay ninguna key compartida
 - **Contexto compacto:** perfil, fase, macros, comidas, peso, entrenos, borradores y adherencia de los últimos 14 días, con detalle de ejercicios (series, repeticiones y kg)
+- **Comidas recientes:** los últimos 3 días incluyen nombre, cantidad, kcal, proteína, carbohidratos y grasas de cada alimento
+- **Panel “Qué ve la IA”:** muestra el resumen del contexto, los entrenos realizados/borradores y las comidas recientes antes de preguntar
+- **Controles del chat:** detener una respuesta, reintentar el último mensaje y ver el tiempo de espera
+- **Esfuerzo de razonamiento:** bajo, medio o alto para modelos como Beam Free
+- **Análisis semanal:** genera un informe de los últimos 7 días y lo guarda en local para comparar
 - **Solo lectura:** aconseja, pero no modifica comidas, pesos ni objetivos
 - **Streaming:** respuesta en tiempo real con Markdown seguro
 - **Proxy CORS:** Worker sin estado en `worker/` que no guarda la key
-- **Privacidad:** la key vive en una clave aparte y queda fuera de backups y exportaciones
+- **Privacidad:** la key y los informes semanales quedan fuera de backups y exportaciones
 
 **Si la IA falla:**
 - **405:** la URL del proxy debe ser la del Worker (`https://...workers.dev`), no la de GitHub Pages ni la de OpenCode. Puedes probar y enviar directamente: la app sincroniza el formulario antes de cada petición.
-- **Respuesta vacía:** Beam Free es un modelo de razonamiento. La app usa un límite de salida amplio, esfuerzo de razonamiento medio y reintenta una vez los fallos transitorios. Si persiste, cambia de modelo.
+- **Respuesta vacía:** Beam Free es un modelo de razonamiento. La app usa un límite de salida amplio, esfuerzo configurable (medio por defecto) y reintenta una vez los fallos transitorios. Si persiste, cambia de modelo.
 - **401/403:** revisa que la key sea válida y que tu suscripción OpenCode Go esté activa.
 - **Conversaciones de varios turnos:** la app guarda y reenvía el `reasoning_content` completo de Beam Free. Los turnos antiguos sin razonamiento se descartan para no provocar un 400.
 - **Entreno recién editado:** si el estado es **Borrador**, la IA lo ve como borrador y no lo cuenta como realizado. Pulsa **Guardar Entreno** para finalizarlo. El contexto se regenera en cada pregunta.
+- **¿No ves un dato?:** abre **Qué ve la IA** en la pestaña IA y pulsa **Actualizar contexto**. Ahí puedes comprobar qué comidas, entrenos y borradores se van a enviar.
 
 ---
 
@@ -293,8 +299,9 @@ Confianza:    Alta (basada en 6+ datos)
   meal_history:         // Últimas 50 comidas
   darkModeEnabled:      // Preferencia de tema
   nutrition_ai_key:      // API key BYOK (fuera de backups)
-  nutrition_ai_settings: // Proxy, modelo y consentimiento
+  nutrition_ai_settings: // Proxy, modelo, esfuerzo y consentimiento
   nutrition_ai_chat:     // Historial local del chat
+  nutrition_ai_reports:  // Informes semanales (fuera de backups)
 }
 ```
 

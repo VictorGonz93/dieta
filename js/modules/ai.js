@@ -6,7 +6,7 @@
 //  - se envía únicamente al proxy configurado, que la reenvía a OpenCode.
 // El proxy (Cloudflare Worker) no guarda nada; solo resuelve CORS.
 
-import { safeGet, safeSet } from './storage.js';
+import { safeGet, safeSet, getDateKey } from './storage.js';
 import { escapeHTML } from './utils.js';
 import { showNotification } from './ui/notifications.js';
 import { buildAIContext, buildAISystemPrompt } from './ai-context.js';
@@ -14,6 +14,7 @@ import { buildAIContext, buildAISystemPrompt } from './ai-context.js';
 export const AI_KEY_STORAGE = 'nutrition_ai_key';
 export const AI_SETTINGS_STORAGE = 'nutrition_ai_settings';
 export const AI_CHAT_STORAGE = 'nutrition_ai_chat';
+export const AI_REPORTS_STORAGE = 'nutrition_ai_reports';
 
 export const AI_DEFAULT_MODEL = 'beam-free';
 export const AI_MAX_HISTORY = 20;
@@ -33,10 +34,20 @@ const AI_MAX_BEAM_HISTORY_CHARS = 160000;
 const AI_RETRY_ATTEMPTS = 2;
 const AI_RETRY_DELAY_MS = 800;
 const AI_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+const AI_EFFORT_OPTIONS = ['low', 'medium', 'high'];
+const AI_REPORTS_LIMIT = 20;
+const AI_REPORT_MAX_CHARS = 12000;
+const AI_MEAL_LABELS = {
+    breakfast: 'Desayuno',
+    lunch: 'Comida',
+    snack: 'Merienda',
+    dinner: 'Cena',
+};
 
 const DEFAULT_SETTINGS = {
     proxyUrl: '',
     model: AI_DEFAULT_MODEL,
+    reasoningEffort: 'medium',
     saveKey: true,
     consent: false,
     sessionId: '',
@@ -49,6 +60,11 @@ let _chatCache = null;
 let _sending = false;
 let _uiBound = false;
 let _formReady = false;
+let _activeAbortController = null;
+let _thinkingTimer = null;
+let _thinkingStartedAt = 0;
+let _lastFailed = null;
+let _reporting = false;
 
 export class AIRequestError extends Error {
     constructor(message, { code = 'unknown', status = 0, detail = '' } = {}) {
@@ -96,9 +112,13 @@ function _normalizeSettings(raw) {
     const model = typeof source.model === 'string' && source.model.trim()
         ? source.model.trim().slice(0, 120)
         : AI_DEFAULT_MODEL;
+    const reasoningEffort = AI_EFFORT_OPTIONS.includes(source.reasoningEffort)
+        ? source.reasoningEffort
+        : 'medium';
     return {
         proxyUrl,
         model,
+        reasoningEffort,
         saveKey: source.saveKey !== false,
         consent: source.consent === true,
         sessionId: typeof source.sessionId === 'string' && source.sessionId.length >= 8
@@ -188,6 +208,10 @@ export function saveAISettings(input = {}) {
     const model = input.model === undefined ? current.model : _normalizeModel(input.model);
     if (!model) return { ok: false, error: 'Indica un modelo (por ejemplo beam-free).' };
 
+    const reasoningEffort = input.reasoningEffort === undefined
+        ? (current.reasoningEffort || 'medium')
+        : (AI_EFFORT_OPTIONS.includes(input.reasoningEffort) ? input.reasoningEffort : 'medium');
+
     const saveKey = input.saveKey === undefined ? current.saveKey : input.saveKey === true;
     const consent = input.consent === undefined ? current.consent : input.consent === true;
     const typedKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : '';
@@ -217,6 +241,7 @@ export function saveAISettings(input = {}) {
         ...current,
         proxyUrl,
         model,
+        reasoningEffort,
         saveKey,
         consent,
         updatedAt: new Date().toISOString(),
@@ -819,6 +844,13 @@ function _setChatStatus(message, type = 'info') {
     el.className = `ai-status ai-status-${type}`;
 }
 
+function _setReportStatus(message, type = 'info') {
+    const el = _el('aiReportStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.className = `ai-status ai-status-${type}`;
+}
+
 function _keyPlaceholder() {
     if (_readStoredKey()) return 'Key guardada en este dispositivo (déjalo vacío para conservarla)';
     if (_memoryKey) return 'Key guardada solo en esta sesión';
@@ -849,16 +881,79 @@ function _updateAISetupUI() {
     const keyInput = _el('aiApiKey');
     if (keyInput && !keyInput.value) keyInput.placeholder = _keyPlaceholder();
 
+    const ready = !!(key && settings.proxyUrl && settings.consent && !_sending && !_reporting);
     const sendBtn = _el('aiSendBtn');
     if (sendBtn) {
-        const ready = !!(key && settings.proxyUrl && settings.consent && !_sending);
         sendBtn.disabled = !ready;
         sendBtn.title = ready ? 'Enviar pregunta' : 'Configura tu key, el proxy y acepta el aviso de privacidad';
+    }
+    const reportBtn = _el('aiGenerateReportBtn');
+    if (reportBtn) {
+        reportBtn.disabled = !ready;
+        reportBtn.title = ready
+            ? 'Generar un informe de los últimos 7 días'
+            : 'Configura tu key, el proxy y acepta el aviso de privacidad';
     }
 }
 
 function _updateComposerState() {
     _updateAISetupUI();
+    const stopBtn = _el('aiStopBtn');
+    if (stopBtn) stopBtn.hidden = !(_sending || _reporting);
+    const stopReportBtn = _el('aiStopReportBtn');
+    if (stopReportBtn) stopReportBtn.hidden = !_reporting;
+    const retryBtn = _el('aiRetryBtn');
+    if (retryBtn) retryBtn.hidden = !_lastFailed || _sending || _reporting;
+}
+
+function _startThinkingTimer() {
+    _stopThinkingTimer();
+    _thinkingStartedAt = Date.now();
+    const el = _el('aiThinkingTime');
+    if (el) {
+        el.hidden = false;
+        el.textContent = 'Pensando… 0 s';
+    }
+    _thinkingTimer = setInterval(() => {
+        const seconds = Math.max(0, Math.round((Date.now() - _thinkingStartedAt) / 1000));
+        const target = _el('aiThinkingTime');
+        if (target) target.textContent = `Pensando… ${seconds} s`;
+    }, 1000);
+}
+
+function _stopThinkingTimer() {
+    if (_thinkingTimer) {
+        clearInterval(_thinkingTimer);
+        _thinkingTimer = null;
+    }
+    const el = _el('aiThinkingTime');
+    if (el) {
+        el.hidden = true;
+        el.textContent = '';
+    }
+}
+
+export function stopAIGeneration() {
+    if (!_activeAbortController) return false;
+    _activeAbortController.abort();
+    if (_reporting) _setReportStatus('Deteniendo el informe…', 'warn');
+    else _setChatStatus('Deteniendo la respuesta…', 'warn');
+    return true;
+}
+
+export function retryLastAIMessage() {
+    if (_sending || _reporting) {
+        return { ok: false, error: 'Espera a que termine la operación actual.' };
+    }
+    if (!_lastFailed) {
+        return { ok: false, error: 'No hay ningún mensaje para reintentar.' };
+    }
+    const { question, userWrapper, assistantWrapper } = _lastFailed;
+    _lastFailed = null;
+    if (userWrapper && typeof userWrapper.remove === 'function') userWrapper.remove();
+    if (assistantWrapper && typeof assistantWrapper.remove === 'function') assistantWrapper.remove();
+    _updateComposerState();
+    return sendAIMessage(question);
 }
 
 function _scrollChat() {
@@ -934,6 +1029,7 @@ function _readAIForm() {
     return {
         apiKey: _el('aiApiKey')?.value ?? '',
         model: _el('aiModel')?.value ?? AI_DEFAULT_MODEL,
+        reasoningEffort: _el('aiReasoningEffort')?.value ?? 'medium',
         proxyUrl: _el('aiProxyUrl')?.value ?? '',
         saveKey: _el('aiSaveKey') ? _el('aiSaveKey').checked : true,
         consent: _el('aiConsent') ? _el('aiConsent').checked : false,
@@ -983,6 +1079,7 @@ function _syncSettingsFromForm() {
     const patch = {
         proxyUrl: String(form.proxyUrl || '').trim().replace(/\/+$/, ''),
         model: _normalizeModel(form.model),
+        reasoningEffort: form.reasoningEffort,
         saveKey: form.saveKey === true,
         consent: form.consent === true,
     };
@@ -1008,10 +1105,12 @@ export function initAITab() {
     const settings = getAISettings();
     const proxyEl = _el('aiProxyUrl');
     const modelEl = _el('aiModel');
+    const effortEl = _el('aiReasoningEffort');
     const saveEl = _el('aiSaveKey');
     const consentEl = _el('aiConsent');
     if (proxyEl) proxyEl.value = settings.proxyUrl;
     if (modelEl) modelEl.value = settings.model;
+    if (effortEl) effortEl.value = settings.reasoningEffort;
     if (saveEl) saveEl.checked = settings.saveKey;
     if (consentEl) consentEl.checked = settings.consent;
 
@@ -1040,6 +1139,8 @@ export function initAITab() {
     }
     _setChatStatus('');
     _updateComposerState();
+    renderAIReports();
+    refreshAIContextPreview();
     return settings;
 }
 
@@ -1078,6 +1179,8 @@ export function saveAISettingsFromForm() {
     if (proxyEl) proxyEl.value = result.settings.proxyUrl;
     const modelEl = _el('aiModel');
     if (modelEl) modelEl.value = result.settings.model;
+    const effortEl = _el('aiReasoningEffort');
+    if (effortEl) effortEl.value = result.settings.reasoningEffort;
 
     const readyError = _validateReady(result.settings, getAIKey());
     if (readyError) _setSetupStatus(readyError, 'warn');
@@ -1159,7 +1262,7 @@ export async function testAIConnection() {
 }
 
 export async function sendAIMessage(rawText) {
-    if (_sending) return { ok: false, error: 'Ya hay una respuesta en curso.' };
+    if (_sending || _reporting) return { ok: false, error: 'Ya hay una operación en curso.' };
     const question = String(rawText || '').trim().slice(0, AI_MAX_QUESTION_CHARS);
     if (!question) return { ok: false, error: 'Escribe una pregunta.' };
 
@@ -1178,16 +1281,22 @@ export async function sendAIMessage(rawText) {
         return { ok: false, error: configError };
     }
 
+    _lastFailed = null;
+    const controller = new AbortController();
+    _activeAbortController = controller;
     _sending = true;
     _updateComposerState();
     _setChatStatus('Pensando… La IA está leyendo tu contexto.', 'info');
-    _appendChatMessage('user', question);
+    const userBubble = _appendChatMessage('user', question);
+    const userWrapper = userBubble?.parentElement || userBubble;
     const bubble = _appendChatMessage('assistant', '', { pending: true });
+    const assistantWrapper = bubble?.parentElement || bubble;
     if (bubble) bubble.textContent = '…';
+    _startThinkingTimer();
 
     let lastPaint = 0;
     try {
-        const context = buildAIContext({ days: 14, workoutDays: 14 });
+        const context = buildAIContext({ days: 14, workoutDays: 14, foodDays: 3 });
         const systemPrompt = buildAISystemPrompt(context);
         const history = getAIChatHistory();
         const messages = buildAIChatMessages(history, systemPrompt, question, {
@@ -1201,9 +1310,10 @@ export async function sendAIMessage(rawText) {
             sessionId: settings.sessionId,
             model: settings.model,
             messages,
-            reasoningEffort: _modelNeedsReasoningEcho(settings.model) ? 'medium' : '',
+            reasoningEffort: _modelNeedsReasoningEcho(settings.model) ? settings.reasoningEffort : '',
             maxTokens: AI_DEFAULT_MAX_TOKENS,
             reasoningCollector: reasoningMeta,
+            signal: controller.signal,
             onDelta: (_delta, full) => {
                 const now = Date.now();
                 if (bubble && now - lastPaint > 60) {
@@ -1218,8 +1328,9 @@ export async function sendAIMessage(rawText) {
             delayMs: AI_RETRY_DELAY_MS,
             onRetry: () => {
                 // Si el primer intento se quedó sin margen razonando, el
-                // reintento baja el esfuerzo para dejar espacio a la respuesta.
-                if (requestOptions.reasoningEffort === 'medium') requestOptions.reasoningEffort = 'low';
+                // reintento baja un escalón el esfuerzo.
+                if (requestOptions.reasoningEffort === 'high') requestOptions.reasoningEffort = 'medium';
+                else if (requestOptions.reasoningEffort === 'medium') requestOptions.reasoningEffort = 'low';
                 reasoningMeta.text = '';
                 reasoningMeta.reasoning = '';
                 lastPaint = 0;
@@ -1254,6 +1365,19 @@ export async function sendAIMessage(rawText) {
         }
         return { ok: true, text: clean };
     } catch (error) {
+        const aborted = controller.signal.aborted
+            || (error instanceof AIRequestError && error.code === 'aborted');
+        if (aborted) {
+            if (bubble) {
+                bubble.textContent = 'Respuesta detenida.';
+                const wrapper = bubble.parentElement;
+                if (wrapper) wrapper.classList.remove('ai-msg-pending');
+            }
+            _setChatStatus('Respuesta detenida. Puedes reintentarla o preguntar otra cosa.', 'warn');
+            _lastFailed = { question, userWrapper, assistantWrapper };
+            return { ok: false, error: 'Respuesta detenida.', aborted: true };
+        }
+
         const message = error instanceof AIRequestError
             ? error.message
             : 'No se pudo obtener respuesta de la IA.';
@@ -1267,15 +1391,23 @@ export async function sendAIMessage(rawText) {
             }
         }
         _setChatStatus(message, 'error');
+        _lastFailed = { question, userWrapper, assistantWrapper };
         return { ok: false, error: message };
     } finally {
+        if (_activeAbortController === controller) _activeAbortController = null;
         _sending = false;
+        _stopThinkingTimer();
         _updateComposerState();
         _scrollChat();
+        refreshAIContextPreview();
     }
 }
 
 export function sendAIChat(textOverride) {
+    if (_sending || _reporting) {
+        _setChatStatus('Espera a que termine la operación actual.', 'warn');
+        return { ok: false, error: 'Ya hay una operación en curso.' };
+    }
     const input = _el('aiChatInput');
     const text = typeof textOverride === 'string' ? textOverride : (input ? input.value : '');
     if (input && typeof textOverride !== 'string') input.value = '';
@@ -1284,6 +1416,318 @@ export function sendAIChat(textOverride) {
 
 export function askAIQuick(question) {
     return sendAIMessage(question);
+}
+
+// ==================== CONTEXTO QUE VE LA IA ====================
+
+function _formatShortDate(dateKey) {
+    if (!dateKey) return '';
+    const date = new Date(`${dateKey}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return String(dateKey);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+}
+
+function _renderAIContextPreview(context) {
+    const summaryEl = _el('aiContextSummary');
+    const detailsEl = _el('aiContextDetails');
+    const timeEl = _el('aiContextTime');
+    const updatedEl = _el('aiContextUpdated');
+    if (!summaryEl || !detailsEl) return;
+
+    const settings = getAISettings();
+    const history = getAIChatHistory();
+    const loggedDays = context.adherence?.loggedDays || 0;
+    const windowDays = context.windowDays || 14;
+    const workouts = context.workouts?.recent || [];
+    const drafts = context.workouts?.drafts || [];
+    const weight = context.weight || {};
+    const foodsDays = context.recentFoods?.length || 0;
+    const trend = Number.isFinite(weight.trendKgPerWeek)
+        ? `${weight.trendKgPerWeek > 0 ? '+' : ''}${weight.trendKgPerWeek.toFixed(2)} kg/sem`
+        : 'sin tendencia';
+    const effortLabel = { low: 'Bajo', medium: 'Medio', high: 'Alto' }[settings.reasoningEffort] || 'Medio';
+    const needsReasoning = _modelNeedsReasoningEcho(settings.model);
+    let beamTurns = 0;
+    if (needsReasoning) {
+        for (let i = 0; i < history.length - 1; i++) {
+            const user = history[i];
+            const assistant = history[i + 1];
+            if (user.role === 'user' && assistant.role === 'assistant'
+                && typeof assistant.reasoning_content === 'string'
+                && assistant.reasoning_content.trim()) {
+                beamTurns++;
+                i++;
+            }
+        }
+    }
+    const historyLabel = needsReasoning
+        ? `${Math.min(5, beamTurns)} turnos`
+        : `${Math.min(10, history.length)} mensajes`;
+    const draftLabel = drafts.length === 0
+        ? 'sin borradores'
+        : `${drafts.length} borrador${drafts.length === 1 ? '' : 'es'}`;
+    const shortSummary = `${loggedDays}/${windowDays} días · ${workouts.length} entrenos · ${draftLabel}`;
+
+    if (timeEl) timeEl.textContent = shortSummary;
+    if (updatedEl) {
+        const updated = new Date(context.generatedAt || Date.now());
+        updatedEl.textContent = `Actualizado ${updated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} · modelo ${settings.model} · esfuerzo ${effortLabel}`;
+    }
+
+    summaryEl.innerHTML = [
+        `<div class="ai-context-stat"><span>Comidas</span><strong>${loggedDays}/${windowDays} días</strong><small>${foodsDays} días con alimentos</small></div>`,
+        `<div class="ai-context-stat"><span>Entrenos</span><strong>${workouts.length} realizados</strong><small>${draftLabel}</small></div>`,
+        `<div class="ai-context-stat"><span>Peso</span><strong>${weight.latestWeightKg ?? '-'} kg</strong><small>${trend}</small></div>`,
+        `<div class="ai-context-stat"><span>Chat</span><strong>${historyLabel}</strong><small>${escapeHTML(settings.model)}</small></div>`,
+    ].join('');
+
+    const workoutItems = [
+        ...drafts.map(workout => ({ ...workout, _draft: true })),
+        ...workouts.map(workout => ({ ...workout, _draft: false })),
+    ]
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+        .slice(0, 6);
+
+    const workoutHtml = workoutItems.length
+        ? workoutItems.map(workout => {
+            const names = Array.isArray(workout.exerciseDetails) && workout.exerciseDetails.length
+                ? workout.exerciseDetails.map(exercise => exercise.name).slice(0, 5).join(' · ')
+                : `${workout.exercises || 0} ejercicios`;
+            return `<div class="ai-context-item">
+                <span class="ai-context-date">${escapeHTML(_formatShortDate(workout.date))}</span>
+                <strong>${escapeHTML(names)}</strong>
+                <span class="ai-context-badge${workout._draft ? ' draft' : ''}">${workout._draft ? 'Borrador' : 'Realizado'}</span>
+            </div>`;
+        }).join('')
+        : '<p class="ai-hint">No hay entrenos en la ventana de 14 días.</p>';
+
+    const foodItems = (context.recentFoods || [])
+        .slice()
+        .reverse()
+        .map(day => {
+            const meals = Object.keys(day.meals || {}).map(slot => {
+                const items = (day.meals[slot] || []).map(food => {
+                    const quantity = food.quantity
+                        ? ` (${food.quantity}${food.unit ? ` ${food.unit}` : ''})`
+                        : '';
+                    return `${food.name}${quantity}`;
+                }).join(', ');
+                return `<div><strong>${escapeHTML(AI_MEAL_LABELS[slot] || slot)}</strong>: ${escapeHTML(items)}</div>`;
+            }).join('');
+            return `<div class="ai-context-item ai-context-food-day">
+                <span class="ai-context-date">${escapeHTML(_formatShortDate(day.date))}</span>
+                <div>${meals}</div>
+            </div>`;
+        }).join('');
+
+    detailsEl.innerHTML = [
+        `<div class="ai-context-section"><h4>Entrenos</h4><div class="ai-context-list">${workoutHtml}</div></div>`,
+        foodItems
+            ? `<div class="ai-context-section"><h4>Comidas recientes</h4><div class="ai-context-list">${foodItems}</div></div>`
+            : '',
+    ].join('');
+}
+
+export function refreshAIContextPreview() {
+    if (!_el('aiContextSummary')) return null;
+    try {
+        const context = buildAIContext({ days: 14, workoutDays: 14, foodDays: 3 });
+        _renderAIContextPreview(context);
+        return context;
+    } catch (_) {
+        const summary = _el('aiContextSummary');
+        if (summary) summary.innerHTML = '<p class="ai-hint">No se pudo construir el contexto.</p>';
+        const time = _el('aiContextTime');
+        if (time) time.textContent = 'Error al actualizar';
+        return null;
+    }
+}
+
+export function toggleAIContextPreview() {
+    const body = _el('aiContextBody');
+    const button = _el('aiContextToggle');
+    if (!body) return;
+    const collapsed = body.classList.contains('collapsed');
+    body.classList.toggle('collapsed');
+    if (button) button.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
+}
+
+// ==================== INFORMES SEMANALES ====================
+
+function _normalizeReport(report) {
+    if (!report || typeof report !== 'object' || typeof report.text !== 'string' || !report.text.trim()) return null;
+    const fallbackId = `rep-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = String(report.id || fallbackId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || fallbackId;
+    return {
+        id,
+        createdAt: typeof report.createdAt === 'string' ? report.createdAt : '',
+        weekStart: typeof report.weekStart === 'string' ? report.weekStart : '',
+        weekEnd: typeof report.weekEnd === 'string' ? report.weekEnd : '',
+        model: String(report.model || '').slice(0, 120),
+        text: report.text.slice(0, AI_REPORT_MAX_CHARS),
+    };
+}
+
+export function getAIReports() {
+    const stored = safeGet(AI_REPORTS_STORAGE, []);
+    return (Array.isArray(stored) ? stored : [])
+        .map(_normalizeReport)
+        .filter(Boolean)
+        .slice(0, AI_REPORTS_LIMIT);
+}
+
+export function saveAIReports(reports) {
+    const clean = (Array.isArray(reports) ? reports : [])
+        .map(_normalizeReport)
+        .filter(Boolean)
+        .slice(0, AI_REPORTS_LIMIT);
+    return safeSet(AI_REPORTS_STORAGE, clean);
+}
+
+function _formatReportRange(report) {
+    const start = _formatShortDate(report.weekStart);
+    const end = _formatShortDate(report.weekEnd);
+    return start && end ? `Semana del ${start} al ${end}` : 'Informe semanal';
+}
+
+export function renderAIReports() {
+    const container = _el('aiReportsList');
+    if (!container) return;
+    const reports = getAIReports();
+    if (reports.length === 0) {
+        container.innerHTML = '<p class="ai-hint">Aún no hay informes guardados. Genera el primero con el botón de arriba.</p>';
+        return;
+    }
+    container.innerHTML = reports.map(report => `
+        <details class="ai-report">
+            <summary>
+                <span class="ai-report-range">${escapeHTML(_formatReportRange(report))}</span>
+                <span class="ai-report-meta">${escapeHTML(report.model || '')}</span>
+            </summary>
+            <div class="ai-report-body">${renderSafeMarkdown(report.text)}</div>
+            <button type="button" class="ai-link-btn" onclick="deleteAIReport('${report.id}')">
+                <span class="material-icons">delete</span>
+                Borrar informe
+            </button>
+        </details>
+    `).join('');
+}
+
+export function deleteAIReport(id) {
+    const target = String(id || '');
+    const reports = getAIReports();
+    const next = reports.filter(report => report.id !== target);
+    if (next.length === reports.length) return false;
+    if (typeof confirm === 'function' && !confirm('¿Borrar este informe semanal?')) return false;
+    const saved = safeSet(AI_REPORTS_STORAGE, next);
+    if (saved) {
+        renderAIReports();
+        showNotification('Informe semanal borrado', 'success');
+    }
+    return saved;
+}
+
+export async function generateWeeklyReport() {
+    if (_sending || _reporting) {
+        return { ok: false, error: 'Espera a que termine la operación actual.' };
+    }
+    const synced = _syncSettingsFromForm();
+    if (!synced.ok) {
+        _setReportStatus(synced.error, 'error');
+        return synced;
+    }
+    const settings = synced.settings;
+    const key = getAIKey();
+    const configError = _validateReady(settings, key);
+    if (configError) {
+        _setReportStatus(configError, 'warn');
+        return { ok: false, error: configError };
+    }
+
+    const button = _el('aiGenerateReportBtn');
+    if (button) button.disabled = true;
+    _reporting = true;
+    const controller = new AbortController();
+    _activeAbortController = controller;
+    _updateComposerState();
+    _setReportStatus('Generando informe semanal…', 'info');
+
+    try {
+        const context = buildAIContext({ days: 14, workoutDays: 14, foodDays: 3 });
+        const reports = getAIReports();
+        const previous = reports[0];
+        const now = new Date();
+        const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+        const weekStartKey = getDateKey(weekStart);
+        const weekEndKey = getDateKey(now);
+        const instruction = [
+            'TAREA: Genera un informe semanal de nutrición y entrenamiento en español.',
+            `Céntrate en el periodo ${weekStartKey}..${weekEndKey}. Usa los 14 días del contexto solo como referencia.`,
+            'Estructura: 1) Resumen ejecutivo (2-3 frases), 2) Adherencia y macros, 3) Peso y tendencia, 4) Entrenamiento y volumen, 5) 3 recomendaciones concretas para la próxima semana.',
+            'Usa solo los datos del JSON. Distingue datos observados de estimaciones. Sé específico con fechas y números. No inventes. Máximo 500 palabras.',
+            previous ? `Informe anterior para comparar (no lo repitas literalmente): ${previous.text.slice(0, 2000)}` : '',
+        ].filter(Boolean).join('\n');
+        const messages = [
+            { role: 'system', content: `${buildAISystemPrompt(context)}\n\n${instruction}` },
+            { role: 'user', content: 'Genera mi informe semanal con los datos anteriores.' },
+        ];
+        const reasoningMeta = { text: '', reasoning: '' };
+        const requestOptions = {
+            apiKey: key,
+            proxyUrl: settings.proxyUrl,
+            sessionId: settings.sessionId,
+            model: settings.model,
+            messages,
+            reasoningEffort: _modelNeedsReasoningEcho(settings.model) ? settings.reasoningEffort : '',
+            maxTokens: AI_DEFAULT_MAX_TOKENS,
+            reasoningCollector: reasoningMeta,
+            signal: controller.signal,
+        };
+        const answer = await requestAIChatWithRetry(requestOptions, {
+            attempts: AI_RETRY_ATTEMPTS,
+            delayMs: AI_RETRY_DELAY_MS,
+            onRetry: () => {
+                if (requestOptions.reasoningEffort === 'high') requestOptions.reasoningEffort = 'medium';
+                else if (requestOptions.reasoningEffort === 'medium') requestOptions.reasoningEffort = 'low';
+                reasoningMeta.text = '';
+                reasoningMeta.reasoning = '';
+                _setReportStatus('La primera respuesta no llegó completa. Reintentando…', 'warn');
+            },
+        });
+
+        const clean = String(answer || reasoningMeta.text || '').trim();
+        if (!clean) throw _emptyResponseError(reasoningMeta.reasoning);
+
+        const report = {
+            id: `rep-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+            createdAt: now.toISOString(),
+            weekStart: weekStartKey,
+            weekEnd: weekEndKey,
+            model: settings.model,
+            text: clean.slice(0, AI_REPORT_MAX_CHARS),
+        };
+        const saved = saveAIReports([report, ...reports]);
+        renderAIReports();
+        _setReportStatus(
+            saved ? 'Informe semanal guardado.' : 'Informe generado, pero no se pudo guardar en el dispositivo.',
+            saved ? 'success' : 'warn'
+        );
+        showNotification(saved ? 'Informe semanal guardado' : 'Informe generado sin guardar', saved ? 'success' : 'warning');
+        refreshAIContextPreview();
+        return { ok: true, report };
+    } catch (error) {
+        const aborted = controller.signal.aborted
+            || (error instanceof AIRequestError && error.code === 'aborted');
+        const message = aborted
+            ? 'Informe detenido.'
+            : (error instanceof AIRequestError ? error.message : 'No se pudo generar el informe semanal.');
+        _setReportStatus(message, aborted ? 'warn' : 'error');
+        return { ok: false, error: message, aborted };
+    } finally {
+        if (_activeAbortController === controller) _activeAbortController = null;
+        _reporting = false;
+        _updateComposerState();
+    }
 }
 
 export function clearAIChat() {
@@ -1298,8 +1742,11 @@ export function clearAIChat() {
     }
     clearAIChatHistory();
     _chatCache = [];
+    _lastFailed = null;
     _renderChat();
     _setChatStatus('Historial borrado.', 'info');
+    _updateComposerState();
+    refreshAIContextPreview();
     return true;
 }
 
@@ -1311,4 +1758,12 @@ export function __resetAIForTests() {
     _sending = false;
     _uiBound = false;
     _formReady = false;
+    _activeAbortController = null;
+    if (_thinkingTimer) {
+        clearInterval(_thinkingTimer);
+        _thinkingTimer = null;
+    }
+    _thinkingStartedAt = 0;
+    _lastFailed = null;
+    _reporting = false;
 }

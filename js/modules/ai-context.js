@@ -31,6 +31,15 @@ const PHASE_LABELS = {
     volumen: 'Volumen (superávit)',
 };
 
+const FOODS_WINDOW_DAYS = 3;
+const MAX_FOODS_PER_MEAL = 6;
+const MEAL_LABELS = {
+    breakfast: 'Desayuno',
+    lunch: 'Comida',
+    snack: 'Merienda',
+    dinner: 'Cena',
+};
+
 function _round(value, decimals = 1) {
     const n = parseFloat(value);
     if (!Number.isFinite(n)) return null;
@@ -398,6 +407,53 @@ function _recentNotes(limit = 4) {
         .slice(0, limit);
 }
 
+function _foodDetail(food) {
+    if (!food || typeof food !== 'object') return null;
+    const name = String(food.name || 'Alimento').trim().slice(0, 80);
+    if (!name) return null;
+    const quantity = parseFloat(food.quantity);
+    const unit = String(food.unit || '').trim().slice(0, 12);
+    const kcal = parseFloat(food.kcal) || 0;
+    const protein = parseFloat(food.protein) || 0;
+    const carbs = parseFloat(food.carbs) || 0;
+    const fats = parseFloat(food.fats) || 0;
+
+    const item = { name };
+    if (Number.isFinite(quantity) && quantity > 0) {
+        item.quantity = _round(quantity, 2);
+        if (unit) item.unit = unit;
+    }
+    if (kcal > 0) item.kcal = Math.round(kcal);
+    if (protein > 0) item.proteinG = _round(protein, 1);
+    if (carbs > 0) item.carbsG = _round(carbs, 1);
+    if (fats > 0) item.fatsG = _round(fats, 1);
+    return item;
+}
+
+function _recentFoods(today, days) {
+    const result = [];
+    for (let offset = days - 1; offset >= 0; offset--) {
+        const dateKey = getDateKey(_addDays(today, -offset));
+        const day = AppState.allDays[dateKey];
+        if (!day || !day.meals || typeof day.meals !== 'object') continue;
+
+        const meals = {};
+        let count = 0;
+        Object.keys(MEAL_LABELS).forEach(slot => {
+            const foods = Array.isArray(day.meals[slot]) ? day.meals[slot] : [];
+            const items = foods
+                .slice(0, MAX_FOODS_PER_MEAL)
+                .map(_foodDetail)
+                .filter(Boolean);
+            if (items.length === 0) return;
+            meals[slot] = items;
+            count += items.length;
+        });
+        if (count > 0) result.push({ date: dateKey, meals });
+    }
+    return result;
+}
+
 /**
  * Construye el contexto que se envía a la IA.
  * @param {{ days?: number, workoutDays?: number, today?: Date|string }} options
@@ -406,11 +462,13 @@ function _recentNotes(limit = 4) {
 export function buildAIContext(options = {}) {
     const days = _clampInt(options.days, 1, 30, 14);
     const workoutDays = _clampInt(options.workoutDays, 1, 30, 14);
+    const foodDays = _clampInt(options.foodDays, 1, 7, FOODS_WINDOW_DAYS);
     const today = _parseToday(options.today);
     const todayKey = getDateKey(today);
     const phase = getPhaseProgress();
     const targets = getDynamicDayTargets(todayKey);
     const { logs, adherence } = _dailyLogs(today, days);
+    const recentFoods = _recentFoods(today, foodDays);
     const weight = _weightSummary(today, Math.max(28, days));
     const sessions = getFinalizedWorkoutSessions();
     const workoutStartKey = getDateKey(_addDays(today, -(workoutDays - 1)));
@@ -479,6 +537,7 @@ export function buildAIContext(options = {}) {
         generatedAt: new Date().toISOString(),
         today: todayKey,
         windowDays: days,
+        foodsWindowDays: foodDays,
         profile,
         goals,
         weight,
@@ -488,6 +547,7 @@ export function buildAIContext(options = {}) {
             includesToday: streak.includesToday,
         },
         days: logs,
+        recentFoods,
         workouts: {
             windowDays: workoutDays,
             sessionsLogged: workoutsWithData,
@@ -516,6 +576,8 @@ export function buildAIContext(options = {}) {
  */
 export function buildAISystemPrompt(context) {
     const contextJson = JSON.stringify(context);
+    const windowDays = context && Number.isFinite(context.windowDays) ? context.windowDays : 14;
+    const foodsWindowDays = context && Number.isFinite(context.foodsWindowDays) ? context.foodsWindowDays : 3;
     return [
         'Eres "Apex Coach", el asistente de nutrición y entrenamiento integrado en Apex Nutrition.',
         'Tu función es analizar los datos que el usuario registra en la app y darle recomendaciones prácticas.',
@@ -538,6 +600,7 @@ export function buildAISystemPrompt(context) {
         '10. Si detectas que los datos son insuficientes o contradictorios, dilo antes de recomendar cambios.',
         '11. workouts.recent contiene los entrenamientos finalizados. Los entrenamientos en workouts.drafts son borradores: el usuario los ha rellenado pero no ha pulsado Guardar Entreno. No cuentes los borradores como realizados ni los uses para volumen o PRs. Si la pregunta se refiere a ellos, dile que los ves como borrador y que pulse Guardar Entreno para que cuenten.',
         '12. Para responder sobre un entreno concreto, usa workouts.recent[].exerciseDetails y workouts.drafts[].exerciseDetails: incluyen nombre, series, repeticiones, kg, minutos, km o pasos. En los ejercicios de fuerza, kg y reps corresponden a la mejor serie. No inventes ejercicios que no aparezcan.',
-        '13. Si el usuario dice que acaba de guardar algo y no aparece en el JSON, explícale que el contexto se genera al enviar cada pregunta y cubre los últimos 14 días de comidas y entrenos; si es un entreno, que compruebe que el estado sea Realizado y no Borrador.',
+        `13. Si el usuario dice que acaba de guardar algo y no aparece en el JSON, explícale que el contexto se genera al enviar cada pregunta y cubre los últimos ${windowDays} días de comidas y entrenos; si es un entreno, que compruebe que el estado sea Realizado y no Borrador.`,
+        `14. Para preguntas sobre alimentos concretos (qué desayuné, qué cambiar en una comida, ideas para una comida), usa recentFoods, que incluye los últimos ${foodsWindowDays} días con nombre, cantidad, kcal, proteína, carbohidratos y grasas. No inventes alimentos que no aparezcan; si falta detalle, dilo.`,
     ].join('\n');
 }

@@ -33,6 +33,7 @@ class FakeEl {
         this.checked = false;
         this.style = {};
         this.children = [];
+        this.parentElement = null;
         this.classList = {
             _set: new Set(),
             add(...names) { names.forEach(name => this._set.add(name)); },
@@ -41,10 +42,23 @@ class FakeEl {
             toggle(name) { if (this._set.has(name)) this._set.delete(name); else this._set.add(name); },
         };
     }
-    replaceChildren(...nodes) { this.children = nodes; this.textContent = ''; }
-    append(...nodes) { this.children.push(...nodes); }
-    appendChild(node) { this.children.push(node); return node; }
-    remove() {}
+    replaceChildren(...nodes) {
+        this.children = nodes;
+        nodes.forEach(node => { if (node) node.parentElement = this; });
+        this.textContent = '';
+    }
+    append(...nodes) {
+        nodes.forEach(node => { if (node) node.parentElement = this; });
+        this.children.push(...nodes);
+    }
+    appendChild(node) { node.parentElement = this; this.children.push(node); return node; }
+    remove() {
+        if (this.parentElement) {
+            const index = this.parentElement.children.indexOf(this);
+            if (index >= 0) this.parentElement.children.splice(index, 1);
+        }
+        this.parentElement = null;
+    }
     setAttribute() {}
     getAttribute() { return null; }
     addEventListener() {}
@@ -201,6 +215,15 @@ ok('contexto: detalle de ejercicios del borrador',
     context.workouts.drafts[0]?.exerciseDetails?.some(ex =>
         ex.name === 'Borrador' && ex.sets === 1 && ex.reps === 5 && ex.kg === 50));
 ok('contexto: dataQuality separa borradores', context.dataQuality.draftSessionsInWindow === 1);
+ok('contexto: comidas recientes con nombres y macros',
+    context.recentFoods?.length === 3
+    && context.recentFoods.at(-1).meals.breakfast.some(food =>
+        food.name === 'Avena'
+        && food.kcal === 500
+        && food.proteinG === 35
+        && food.carbsG === 55
+        && food.fatsG === 12));
+ok('contexto: ventana de alimentos', context.foodsWindowDays === 3);
 ok('contexto: volumen semanal por músculo', context.workouts.weeklyVolume?.setsByMuscle?.Piernas?.sets === 2);
 ok('contexto: peso y tendencia', context.weight.latestWeightKg === 67.14 && context.weight.trendKgPerWeek > 0,
     `${context.weight.latestWeightKg} / ${context.weight.trendKgPerWeek}`);
@@ -216,6 +239,7 @@ ok('prompt: no pide el JSON', /no pidas.*json/i.test(systemPrompt));
 ok('prompt: explica los borradores',
     systemPrompt.includes('workouts.drafts') && systemPrompt.includes('Guardar Entreno'));
 ok('prompt: usa el detalle de ejercicios', systemPrompt.includes('exerciseDetails'));
+ok('prompt: usa comidas recientes', systemPrompt.includes('recentFoods'));
 
 const sessionsWithCardio = JSON.parse(localStorage.getItem('workoutSessions'));
 sessionsWithCardio[keyOffset(-3)] = {
@@ -300,6 +324,13 @@ ok('byok: la key no está dentro de los ajustes', !settingsRaw.includes('oc_sk_s
 ok('byok: barra final normalizada', JSON.parse(settingsRaw).proxyUrl === 'https://mi-worker.example.workers.dev');
 ok('byok: getAIKey devuelve la key', AI.getAIKey() === 'oc_sk_secret_123');
 ok('byok: consentimiento', AI.hasAIConsent() === true);
+
+const effortSaved = AI.saveAISettings({ reasoningEffort: 'high' });
+ok('byok: esfuerzo de razonamiento guardado',
+    effortSaved.ok === true && AI.getAISettings().reasoningEffort === 'high');
+const effortInvalid = AI.saveAISettings({ reasoningEffort: 'none' });
+ok('byok: esfuerzo inválido vuelve a medio',
+    effortInvalid.ok === true && AI.getAISettings().reasoningEffort === 'medium');
 
 AI.saveAISettings({ saveKey: false });
 ok('byok: al no guardar se borra del disco', localStorage.getItem(AI.AI_KEY_STORAGE) === null);
@@ -395,6 +426,23 @@ AI.saveAIChatHistory([
 ok('chat: reasoning persistido en el historial', AI.getAIChatHistory()[1]?.reasoning_content === 'razonamiento');
 AI.clearAIChatHistory();
 ok('chat: historial borrado', AI.getAIChatHistory().length === 0);
+
+AI.saveAIReports([{
+    id: 'rep-test-1',
+    createdAt: '2026-03-01T10:00:00.000Z',
+    weekStart: '2026-02-23',
+    weekEnd: '2026-03-01',
+    model: 'beam-free',
+    text: 'Informe **semanal** de prueba.',
+}]);
+ok('informes: guardado y recuperado',
+    AI.getAIReports().length === 1
+    && AI.getAIReports()[0].id === 'rep-test-1'
+    && AI.getAIReports()[0].text.includes('semanal'));
+ok('informes: en clave separada',
+    (localStorage.getItem(AI.AI_REPORTS_STORAGE) || '').includes('rep-test-1'));
+AI.saveAIReports([]);
+ok('informes: limpiados', AI.getAIReports().length === 0);
 
 // ─── 4. Cliente OpenAI/SSE ───────────────────────────────────────────────────
 section('Cliente de IA');
@@ -941,40 +989,149 @@ try {
     ok('chat: segundo turno responde', secondSend.ok === true);
     ok('chat: segundo turno reenvía reasoning_content',
         echoedAssistant?.reasoning_content === 'Pensando en la respuesta');
+
+    elements.get('aiReasoningEffort').value = 'high';
+    const thirdSend = await AI.sendAIMessage('Tercera pregunta');
+    const thirdBody = JSON.parse(chatRequests[2].init.body);
+    ok('chat: esfuerzo alto se envía', thirdSend.ok === true && thirdBody.reasoning_effort === 'high');
+    ok('ajustes: esfuerzo guardado', AI.getAISettings().reasoningEffort === 'high');
 } finally {
     globalThis.fetch = originalChatFetch;
 }
 
-// ─── 7. Auditoría estática de integración/backups ───────────────────────────
+// ─── 7. Detener, reintentar e informe semanal ───────────────────────────────
+section('Detener, reintentar e informe semanal');
+resetState();
+seed14Days();
+AI.saveAISettings({
+    apiKey: 'oc_sk_stop_key',
+    proxyUrl: 'https://worker.example',
+    model: 'beam-free',
+    reasoningEffort: 'medium',
+    saveKey: true,
+    consent: true,
+});
+AI.initAITab();
+
+const originalStopFetch = globalThis.fetch;
+let abortObserved = false;
+let fetchStarted = false;
+globalThis.fetch = (_url, init) => {
+    fetchStarted = true;
+    return new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => {
+            abortObserved = true;
+            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        });
+    });
+};
+try {
+    const stopSend = AI.sendAIMessage('Pregunta que voy a detener');
+    for (let i = 0; i < 100 && !fetchStarted; i++) {
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    ok('chat: la petición llega a la red', fetchStarted === true);
+    ok('chat: muestra tiempo de espera',
+        elements.get('aiThinkingTime').hidden === false
+        && /Pensando/.test(elements.get('aiThinkingTime').textContent));
+    const stopped = AI.stopAIGeneration();
+    const stopResult = await stopSend;
+    ok('chat: detener aborta la petición', stopped === true && abortObserved === true);
+    ok('chat: detener no guarda la respuesta', stopResult.ok === false && stopResult.aborted === true);
+    ok('chat: detener muestra reintentar', elements.get('aiRetryBtn').hidden === false);
+    ok('chat: el tiempo se oculta al terminar', elements.get('aiThinkingTime').hidden === true);
+} finally {
+    globalThis.fetch = originalStopFetch;
+}
+
+let retryRequest = null;
+const originalRetryFetch = globalThis.fetch;
+globalThis.fetch = async (_url, init) => {
+    retryRequest = init;
+    return sseResponse([
+        'data: {"choices":[{"delta":{"content":"Respuesta tras reintento"}}]}\n\n',
+        'data: [DONE]\n\n',
+    ]);
+};
+try {
+    const retryResult = await AI.retryLastAIMessage();
+    ok('chat: reintentar funciona',
+        retryResult.ok === true && retryResult.text.includes('Respuesta tras reintento'));
+    ok('chat: reintentar limpia el botón', elements.get('aiRetryBtn').hidden === true);
+    ok('chat: reintentar reutiliza la pregunta',
+        /Pregunta que voy a detener/.test(retryRequest?.body || ''));
+} finally {
+    globalThis.fetch = originalRetryFetch;
+}
+
+let reportRequest = null;
+const originalReportFetch = globalThis.fetch;
+globalThis.fetch = async (_url, init) => {
+    reportRequest = init;
+    return sseResponse([
+        'data: {"choices":[{"delta":{"content":"Informe semanal de prueba"}}]}\n\n',
+        'data: [DONE]\n\n',
+    ]);
+};
+try {
+    const historyBeforeReport = AI.getAIChatHistory().length;
+    const reportResult = await AI.generateWeeklyReport();
+    ok('informe: generado y guardado', reportResult.ok === true && AI.getAIReports().length === 1);
+    ok('informe: texto guardado', AI.getAIReports()[0].text.includes('Informe semanal'));
+    ok('informe: no contamina el chat', AI.getAIChatHistory().length === historyBeforeReport);
+    ok('informe: petición con instrucciones',
+        /TAREA: Genera un informe semanal/.test(reportRequest?.body || ''));
+} finally {
+    globalThis.fetch = originalReportFetch;
+}
+
+// ─── 8. Auditoría estática de integración/backups ───────────────────────────
 section('Integración y backups');
 const storageSource = readFileSync(join(root, 'js/modules/storage.js'), 'utf8');
 const collectIndex = storageSource.indexOf('function _collectDatabase()');
 const collectFn = collectIndex >= 0 ? storageSource.slice(collectIndex, collectIndex + 3000) : '';
 ok('backup: _collectDatabase no incluye la key', collectFn.length > 0
     && !collectFn.includes('nutrition_ai_key') && !collectFn.includes('AI_KEY_STORAGE'));
+ok('backup: _collectDatabase no incluye informes', collectFn.length > 0
+    && !collectFn.includes('nutrition_ai_reports'));
 const buildBackupIndex = storageSource.indexOf('function _buildBackup()');
 const buildBackupSection = buildBackupIndex >= 0 ? storageSource.slice(buildBackupIndex, buildBackupIndex + 2500) : '';
 ok('backup: _buildBackup no incluye la key', buildBackupSection.length > 0
     && !buildBackupSection.includes('nutrition_ai_key') && !buildBackupSection.includes('AI_KEY_STORAGE'));
-ok('limpieza: clearAllData borra la key', storageSource.includes("'nutrition_ai_key', 'nutrition_ai_settings', 'nutrition_ai_chat'"));
+ok('backup: _buildBackup no incluye informes', buildBackupSection.length > 0
+    && !buildBackupSection.includes('nutrition_ai_reports'));
+ok('limpieza: clearAllData borra la key y los datos de IA',
+    ['nutrition_ai_key', 'nutrition_ai_settings', 'nutrition_ai_chat', 'nutrition_ai_reports']
+        .every(key => storageSource.includes(`'${key}'`)));
 
 const indexHtml = readFileSync(join(root, 'index.html'), 'utf8');
 ok('html: pestaña IA', indexHtml.includes('data-tab="ia"') && indexHtml.includes('id="ia"'));
 ok('html: panel BYOK', indexHtml.includes('id="aiApiKey"') && indexHtml.includes('id="aiProxyUrl"'));
-ok('html: versión 132', indexHtml.includes('js/app.js?v=132'));
-ok('html: CSS con cache-busting 132', indexHtml.includes('css/styles.css?v=20261030-132'));
+ok('html: versión 133', indexHtml.includes('js/app.js?v=133'));
+ok('html: CSS con cache-busting 133', indexHtml.includes('css/styles.css?v=20261031-133'));
+ok('html: selector de esfuerzo', indexHtml.includes('id="aiReasoningEffort"'));
+ok('html: panel de contexto', indexHtml.includes('id="aiContextSummary"') && indexHtml.includes('id="aiContextCard"'));
+ok('html: detener y reintentar', indexHtml.includes('id="aiStopBtn"') && indexHtml.includes('id="aiRetryBtn"'));
+ok('html: informe semanal', indexHtml.includes('id="aiGenerateReportBtn"') && indexHtml.includes('id="aiReportsList"'));
 
 const swSource = readFileSync(join(root, 'sw.js'), 'utf8');
-ok('sw: versión 132', /CACHE_VERSION\s*=\s*132/.test(swSource));
+ok('sw: versión 133', /CACHE_VERSION\s*=\s*133/.test(swSource));
 ok('sw: módulos IA cacheados', swSource.includes('/dieta/js/modules/ai.js') && swSource.includes('/dieta/js/modules/ai-context.js'));
 ok('sw: solo cachea GET', swSource.includes("event.request.method !== 'GET'"));
 
 const privacySource = readFileSync(join(root, 'privacy.html'), 'utf8');
 ok('privacidad: sección de IA', privacySource.includes('Asistente de IA opcional') && privacySource.includes('BYOK'));
 ok('privacidad: retención explicada', privacySource.includes('30 días'));
+ok('privacidad: comidas recientes explicadas', privacySource.includes('últimos 3 días de alimentos'));
+ok('privacidad: informes locales', privacySource.includes('informes semanales') && privacySource.includes('fuera de las copias de seguridad'));
+ok('privacidad: informe anterior explicado', privacySource.includes('informe anterior guardado'));
 
 const appSource = readFileSync(join(root, 'js/app.js'), 'utf8');
 ok('app: importa e inicializa la IA', appSource.includes("from './modules/ai.js'") && appSource.includes('window.initAITab'));
+ok('app: expone controles de IA',
+    appSource.includes('window.stopAIGeneration')
+    && appSource.includes('window.generateWeeklyReport')
+    && appSource.includes('window.refreshAIContextPreview'));
 
 const workerSource = readFileSync(join(root, 'worker/src/index.js'), 'utf8');
 ok('worker: no tiene key propia', !/env\.OPENCODE_API_KEY/.test(workerSource));
@@ -986,12 +1143,19 @@ const aiSource = readFileSync(join(root, 'js/modules/ai.js'), 'utf8');
 ok('ia: reenvía reasoning_content', aiSource.includes('reasoning_content'));
 ok('ia: reintenta fallos transitorios', aiSource.includes('requestAIChatWithRetry'));
 ok('ia: la prueba ya no usa 16 tokens', !/maxTokens:\s*16\b/.test(aiSource));
+ok('ia: panel de contexto', aiSource.includes('refreshAIContextPreview'));
+ok('ia: detener y reintentar',
+    aiSource.includes('stopAIGeneration') && aiSource.includes('retryLastAIMessage'));
+ok('ia: informes semanales',
+    aiSource.includes('generateWeeklyReport') && aiSource.includes('AI_REPORTS_STORAGE'));
+ok('ia: selector de esfuerzo', aiSource.includes('reasoningEffort'));
 
 const contextSource = readFileSync(join(root, 'js/modules/ai-context.js'), 'utf8');
 ok('ia-contexto: incluye borradores y detalle de ejercicios',
     contextSource.includes('getWorkoutSessions')
     && contextSource.includes('exerciseDetails')
     && contextSource.includes('drafts'));
+ok('ia-contexto: incluye comidas recientes', contextSource.includes('recentFoods'));
 
 const runAll = readFileSync(join(root, 'tests/run-all.mjs'), 'utf8');
 ok('tests: suite registrada', runAll.includes('audit-ai.mjs'));
