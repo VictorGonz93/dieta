@@ -188,7 +188,19 @@ ok('contexto: nota reciente incluida', context.notes.some(note => note.text.incl
 ok('contexto: objetivos calculados', context.goals && context.goals.targetKcal > 0 && context.goals.proteinG > 0);
 ok('contexto: adherencia', context.adherence.loggedDays === 14 && context.adherence.onTargetDays >= 0);
 ok('contexto: entrenos finalizados', context.workouts.recent.length === 2, String(context.workouts.recent.length));
-ok('contexto: borrador excluido', !context.workouts.recent.some(w => w.date === keyOffset(-1)));
+ok('contexto: borrador excluido de finalizados', !context.workouts.recent.some(w => w.date === keyOffset(-1)));
+ok('contexto: borrador incluido aparte',
+    context.workouts.drafts?.length === 1
+    && context.workouts.drafts[0].date === keyOffset(-1)
+    && context.workouts.drafts[0].status === 'draft');
+ok('contexto: borrador no cuenta como realizado', context.workouts.sessionsLogged === 2);
+ok('contexto: detalle de ejercicios finalizados',
+    context.workouts.recent[0]?.exerciseDetails?.some(ex =>
+        ex.name === 'Sentadilla' && ex.sets === 2 && ex.reps === 8 && ex.kg === 100));
+ok('contexto: detalle de ejercicios del borrador',
+    context.workouts.drafts[0]?.exerciseDetails?.some(ex =>
+        ex.name === 'Borrador' && ex.sets === 1 && ex.reps === 5 && ex.kg === 50));
+ok('contexto: dataQuality separa borradores', context.dataQuality.draftSessionsInWindow === 1);
 ok('contexto: volumen semanal por músculo', context.workouts.weeklyVolume?.setsByMuscle?.Piernas?.sets === 2);
 ok('contexto: peso y tendencia', context.weight.latestWeightKg === 67.14 && context.weight.trendKgPerWeek > 0,
     `${context.weight.latestWeightKg} / ${context.weight.trendKgPerWeek}`);
@@ -200,6 +212,41 @@ ok('prompt: incluye el contexto', systemPrompt.includes('"schema":"apex-nutritio
 ok('prompt: regla de fase explícita', systemPrompt.includes('phaseStartWeightKg') && systemPrompt.includes('Nunca uses'));
 ok('prompt: solo lectura', systemPrompt.includes('NO puedes modificar'));
 ok('prompt: sin clave', !/oc_sk_|nutrition_ai_key/i.test(systemPrompt));
+ok('prompt: no pide el JSON', /no pidas.*json/i.test(systemPrompt));
+ok('prompt: explica los borradores',
+    systemPrompt.includes('workouts.drafts') && systemPrompt.includes('Guardar Entreno'));
+ok('prompt: usa el detalle de ejercicios', systemPrompt.includes('exerciseDetails'));
+
+const sessionsWithCardio = JSON.parse(localStorage.getItem('workoutSessions'));
+sessionsWithCardio[keyOffset(-3)] = {
+    date: keyOffset(-3),
+    finalized: true,
+    exercises: [
+        { exerciseId: 'cardio-1', name: 'Carrera', muscle: 'Cardio', sets: [{ mins: 30, km: 5 }] },
+        { exerciseId: 'steps-1', name: 'Paseo', muscle: 'Cardio', sets: [{ steps: 8000 }] },
+        { exerciseId: 'time-1', name: 'Plancha', muscle: 'Core', sets: [{ secs: 60, kg: 10 }] },
+    ],
+};
+localStorage.setItem('workoutSessions', JSON.stringify(sessionsWithCardio));
+const cardioContext = Context.buildAIContext({ days: 14, workoutDays: 14, today: TODAY });
+const cardioWorkout = cardioContext.workouts.recent.find(workout => workout.date === keyOffset(-3));
+ok('contexto: detalle cardio', cardioWorkout?.exerciseDetails?.some(exercise =>
+    exercise.name === 'Carrera' && exercise.mins === 30 && exercise.km === 5));
+ok('contexto: detalle pasos', cardioWorkout?.exerciseDetails?.some(exercise =>
+    exercise.name === 'Paseo' && exercise.steps === 8000));
+ok('contexto: detalle tiempo', cardioWorkout?.exerciseDetails?.some(exercise =>
+    exercise.name === 'Plancha' && exercise.secs === 60 && exercise.kg === 10));
+
+const sessionsWithOldDraft = JSON.parse(localStorage.getItem('workoutSessions'));
+sessionsWithOldDraft[keyOffset(-20)] = {
+    date: keyOffset(-20),
+    finalized: false,
+    exercises: [{ exerciseId: 'old-draft', name: 'Antiguo', muscle: 'Piernas', sets: [{ kg: 40, reps: 10 }] }],
+};
+localStorage.setItem('workoutSessions', JSON.stringify(sessionsWithOldDraft));
+const oldDraftContext = Context.buildAIContext({ days: 14, workoutDays: 14, today: TODAY });
+ok('contexto: borrador fuera de la ventana no se envía',
+    !oldDraftContext.workouts.drafts.some(workout => workout.date === keyOffset(-20)));
 
 // En definición sí debe usar el inicio del déficit (85,4).
 resetState();
@@ -914,11 +961,11 @@ ok('limpieza: clearAllData borra la key', storageSource.includes("'nutrition_ai_
 const indexHtml = readFileSync(join(root, 'index.html'), 'utf8');
 ok('html: pestaña IA', indexHtml.includes('data-tab="ia"') && indexHtml.includes('id="ia"'));
 ok('html: panel BYOK', indexHtml.includes('id="aiApiKey"') && indexHtml.includes('id="aiProxyUrl"'));
-ok('html: versión 131', indexHtml.includes('js/app.js?v=131'));
-ok('html: CSS con cache-busting 131', indexHtml.includes('css/styles.css?v=20261030-131'));
+ok('html: versión 132', indexHtml.includes('js/app.js?v=132'));
+ok('html: CSS con cache-busting 132', indexHtml.includes('css/styles.css?v=20261030-132'));
 
 const swSource = readFileSync(join(root, 'sw.js'), 'utf8');
-ok('sw: versión 131', /CACHE_VERSION\s*=\s*131/.test(swSource));
+ok('sw: versión 132', /CACHE_VERSION\s*=\s*132/.test(swSource));
 ok('sw: módulos IA cacheados', swSource.includes('/dieta/js/modules/ai.js') && swSource.includes('/dieta/js/modules/ai-context.js'));
 ok('sw: solo cachea GET', swSource.includes("event.request.method !== 'GET'"));
 
@@ -939,6 +986,12 @@ const aiSource = readFileSync(join(root, 'js/modules/ai.js'), 'utf8');
 ok('ia: reenvía reasoning_content', aiSource.includes('reasoning_content'));
 ok('ia: reintenta fallos transitorios', aiSource.includes('requestAIChatWithRetry'));
 ok('ia: la prueba ya no usa 16 tokens', !/maxTokens:\s*16\b/.test(aiSource));
+
+const contextSource = readFileSync(join(root, 'js/modules/ai-context.js'), 'utf8');
+ok('ia-contexto: incluye borradores y detalle de ejercicios',
+    contextSource.includes('getWorkoutSessions')
+    && contextSource.includes('exerciseDetails')
+    && contextSource.includes('drafts'));
 
 const runAll = readFileSync(join(root, 'tests/run-all.mjs'), 'utf8');
 ok('tests: suite registrada', runAll.includes('audit-ai.mjs'));

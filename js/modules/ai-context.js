@@ -16,6 +16,7 @@ import {
 } from './nutrition.js';
 import {
     getFinalizedWorkoutSessions,
+    getWorkoutSessions,
     getWeeklyMuscleVolume,
     calculateWorkoutDuration,
     getExercisePRs,
@@ -147,7 +148,70 @@ function _weightSummary(today, windowDays) {
     };
 }
 
-function _workoutSummary(session) {
+function _exerciseDetails(session, exercisesDB = null, limit = 8) {
+    const db = Array.isArray(exercisesDB) ? exercisesDB : getExercisesDB();
+    const exercises = Array.isArray(session && session.exercises) ? session.exercises : [];
+
+    return exercises.slice(0, limit).map(ex => {
+        if (!ex || typeof ex !== 'object') return null;
+        const dbEx = db.find(item => String(item.id) === String(ex.exerciseId)) || ex;
+        const name = String(ex.name || dbEx.name || `Ejercicio ${ex.exerciseId || ''}`).trim().slice(0, 80) || 'Ejercicio';
+        const muscle = ex.muscle || dbEx.muscle || null;
+        const sets = Array.isArray(ex.sets) ? ex.sets : [];
+        let workedSets = 0;
+        let topKg = 0;
+        let topReps = 0;
+        let bestScore = -1;
+        let totalSecs = 0;
+        let totalMins = 0;
+        let totalKm = 0;
+        let totalSteps = 0;
+
+        sets.forEach(set => {
+            if (!set || typeof set !== 'object') return;
+            const reps = parseFloat(set.reps) || 0;
+            const secs = parseFloat(set.secs) || 0;
+            const mins = parseFloat(set.mins) || 0;
+            const steps = parseFloat(set.steps) || 0;
+            const km = parseFloat(set.km) || 0;
+            const kg = parseFloat(set.kg) || 0;
+            if (reps > 0 || secs > 0 || mins > 0 || steps > 0 || km > 0) {
+                workedSets++;
+                // La mejor serie: prioriza kg y, a igualdad, más repeticiones.
+                const score = kg * 1000 + reps;
+                if (score > bestScore) {
+                    bestScore = score;
+                    topKg = kg;
+                    topReps = reps;
+                }
+            }
+            totalSecs += secs;
+            totalMins += mins;
+            totalKm += km;
+            totalSteps += steps;
+        });
+
+        const detail = { name, sets: workedSets };
+        if (muscle) detail.muscle = muscle;
+        if (workedSets > 0) {
+            if (totalSteps > 0) {
+                detail.steps = Math.round(totalSteps);
+            } else if (totalMins > 0 || totalKm > 0) {
+                if (totalMins > 0) detail.mins = Math.round(totalMins);
+                if (totalKm > 0) detail.km = _round(totalKm, 2);
+            } else if (totalSecs > 0 && topReps === 0) {
+                detail.secs = Math.round(totalSecs);
+                if (topKg > 0) detail.kg = _round(topKg, 1);
+            } else {
+                if (topReps > 0) detail.reps = Math.round(topReps);
+                if (topKg > 0) detail.kg = _round(topKg, 1);
+            }
+        }
+        return detail;
+    }).filter(Boolean);
+}
+
+function _workoutSummary(session, { details = false } = {}) {
     if (!session || !Array.isArray(session.exercises) || session.exercises.length === 0) return null;
     const exercisesDB = getExercisesDB();
     const muscles = [];
@@ -162,6 +226,7 @@ function _workoutSummary(session) {
             || (parseFloat(set.secs) || 0) > 0
             || (parseFloat(set.steps) || 0) > 0
             || (parseFloat(set.mins) || 0) > 0
+            || (parseFloat(set.km) || 0) > 0
         )).length;
         totalSets += worked;
         const muscle = ex.muscle || dbEx.muscle;
@@ -174,13 +239,46 @@ function _workoutSummary(session) {
     const minutes = duration > 0 ? duration : calculateWorkoutDuration(session);
     const kcal = parseFloat(session.estimatedKcal);
 
-    return {
+    const summary = {
         minutes: Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : null,
         kcal: Number.isFinite(kcal) && kcal > 0 ? Math.round(kcal) : null,
         exercises: session.exercises.length,
         sets: totalSets,
         muscles: muscles.slice(0, 6),
     };
+
+    if (details) {
+        const exerciseDetails = _exerciseDetails(session, exercisesDB);
+        if (exerciseDetails.length > 0) {
+            summary.exerciseDetails = exerciseDetails;
+            if (session.exercises.length > exerciseDetails.length) {
+                summary.exerciseDetailsOmitted = session.exercises.length - exerciseDetails.length;
+            }
+        }
+        if (typeof session.notes === 'string' && session.notes.trim()) {
+            summary.notes = session.notes.trim().slice(0, 200);
+        }
+    }
+
+    return summary;
+}
+
+function _draftWorkouts(today, days) {
+    const sessions = getWorkoutSessions();
+    const startKey = getDateKey(_addDays(today, -(days - 1)));
+    const todayKey = getDateKey(today);
+
+    return Object.keys(sessions)
+        .filter(dateKey => dateKey >= startKey && dateKey <= todayKey)
+        .filter(dateKey => sessions[dateKey] && sessions[dateKey].finalized === false)
+        .sort()
+        .reverse()
+        .map(dateKey => {
+            const summary = _workoutSummary(sessions[dateKey], { details: true });
+            return summary ? { date: dateKey, status: 'draft', ...summary } : null;
+        })
+        .filter(Boolean)
+        .slice(0, 5);
 }
 
 function _weeklyVolume(endKey, weeksBack) {
@@ -322,11 +420,12 @@ export function buildAIContext(options = {}) {
         .sort()
         .reverse()
         .map(dateKey => {
-            const summary = _workoutSummary(sessions[dateKey]);
+            const summary = _workoutSummary(sessions[dateKey], { details: true });
             return summary ? { date: dateKey, ...summary } : null;
         })
         .filter(Boolean)
         .slice(0, 12);
+    const draftWorkouts = _draftWorkouts(today, workoutDays);
 
     const phaseStartWeight = phase && Number.isFinite(phase.startWeight)
         ? _round(phase.startWeight, 2)
@@ -393,6 +492,7 @@ export function buildAIContext(options = {}) {
             windowDays: workoutDays,
             sessionsLogged: workoutsWithData,
             recent: recentWorkouts,
+            drafts: draftWorkouts,
             weeklyVolume: _weeklyVolume(todayKey, 0),
             previousWeekVolume: _weeklyVolume(todayKey, 1),
             prs: _prSummary(),
@@ -402,6 +502,7 @@ export function buildAIContext(options = {}) {
             loggedDays: adherence.loggedDays,
             weightEntriesInWindow,
             workoutSessionsInWindow: workoutsWithData,
+            draftSessionsInWindow: draftWorkouts.length,
             hasEnoughFoodData: adherence.loggedDays >= 3,
             hasEnoughWeightData: weightEntriesInWindow >= 2,
             hasWorkoutData: workoutsWithData > 0,
@@ -418,14 +519,15 @@ export function buildAISystemPrompt(context) {
     return [
         'Eres "Apex Coach", el asistente de nutrición y entrenamiento integrado en Apex Nutrition.',
         'Tu función es analizar los datos que el usuario registra en la app y darle recomendaciones prácticas.',
-        'No tienes acceso a la app y NO puedes modificar comidas, pesos, objetivos ni ajustes. Solo aconsejas.',
+        'No puedes consultar la app por tu cuenta y NO puedes modificar comidas, pesos, objetivos ni ajustes. Solo aconsejas.',
+        'Para responder, usa el JSON adjunto. Se genera justo antes de esta pregunta con los datos guardados en ese momento.',
         '',
         'DATOS ACTUALES DEL USUARIO (JSON generado por la app; los cálculos ya están hechos):',
         contextJson,
         '',
         'REGLAS OBLIGATORIAS:',
         '1. Responde siempre en español, con un tono cercano, claro y directo.',
-        '2. Usa exclusivamente los datos del JSON. No inventes comidas, pesos, entrenamientos, macros ni fechas. Si falta un dato, dilo y explica qué registrar para poder responder mejor.',
+        '2. Usa exclusivamente los datos del JSON. No inventes comidas, pesos, entrenamientos, macros, ejercicios ni fechas. Si falta un dato, dilo y explica qué registrar para poder responder mejor. No pidas al usuario que pegue el JSON ni digas que no tienes acceso a sus datos: el contexto adjunto ya se actualiza en cada pregunta.',
         '3. Para valorar la fase actual usa profile.phase, profile.phaseStartWeightKg y profile.phaseStartDate. Nunca uses el peso inicial de una fase anterior ni el peso inicial del déficit para valorar mantenimiento o volumen.',
         '4. Distingue entre datos observados (comidas, pesajes, entrenos) y estimaciones de la app (TDEE, tendencia, predicciones). No presentes una estimación como una medición exacta.',
         '5. No prometas resultados, no des diagnósticos médicos y no recomiendes fármacos ni suplementos con dosis. Ante dolor, lesión, enfermedad o posibles señales de trastorno alimentario, recomienda consultar a un profesional sanitario.',
@@ -434,5 +536,8 @@ export function buildAISystemPrompt(context) {
         '8. Si el usuario pregunta algo ajeno a nutrición, entrenamiento o progreso, responde brevemente que ese tema queda fuera de tu alcance.',
         '9. No repitas el JSON ni muestres tablas enormes. Cita solo los números necesarios.',
         '10. Si detectas que los datos son insuficientes o contradictorios, dilo antes de recomendar cambios.',
+        '11. workouts.recent contiene los entrenamientos finalizados. Los entrenamientos en workouts.drafts son borradores: el usuario los ha rellenado pero no ha pulsado Guardar Entreno. No cuentes los borradores como realizados ni los uses para volumen o PRs. Si la pregunta se refiere a ellos, dile que los ves como borrador y que pulse Guardar Entreno para que cuenten.',
+        '12. Para responder sobre un entreno concreto, usa workouts.recent[].exerciseDetails y workouts.drafts[].exerciseDetails: incluyen nombre, series, repeticiones, kg, minutos, km o pasos. En los ejercicios de fuerza, kg y reps corresponden a la mejor serie. No inventes ejercicios que no aparezcan.',
+        '13. Si el usuario dice que acaba de guardar algo y no aparece en el JSON, explícale que el contexto se genera al enviar cada pregunta y cubre los últimos 14 días de comidas y entrenos; si es un entreno, que compruebe que el estado sea Realizado y no Borrador.',
     ].join('\n');
 }

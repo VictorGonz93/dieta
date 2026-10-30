@@ -1035,7 +1035,7 @@ export function initAITab() {
             const type = key && settings.proxyUrl ? 'warn' : 'info';
             _setSetupStatus(error, type);
         } else {
-            _setSetupStatus('Conexión lista. La IA recibirá un resumen de tus últimos 14 días.', 'success');
+            _setSetupStatus('Conexión lista. La IA recibirá tus últimos 14 días, incluidos borradores y detalle de ejercicios.', 'success');
         }
     }
     _setChatStatus('');

@@ -103,7 +103,7 @@ Estadísticas completas de todo tu histórico registrado.
 Análisis opcional de tus datos con tu propia API key de OpenCode.
 
 - **BYOK:** cada usuario introduce su propia key; no hay ninguna key compartida
-- **Contexto compacto:** perfil, fase, macros, comidas, peso, entrenos y adherencia de los últimos 14 días
+- **Contexto compacto:** perfil, fase, macros, comidas, peso, entrenos, borradores y adherencia de los últimos 14 días, con detalle de ejercicios (series, repeticiones y kg)
 - **Solo lectura:** aconseja, pero no modifica comidas, pesos ni objetivos
 - **Streaming:** respuesta en tiempo real con Markdown seguro
 - **Proxy CORS:** Worker sin estado en `worker/` que no guarda la key
@@ -114,6 +114,7 @@ Análisis opcional de tus datos con tu propia API key de OpenCode.
 - **Respuesta vacía:** Beam Free es un modelo de razonamiento. La app usa un límite de salida amplio, esfuerzo de razonamiento medio y reintenta una vez los fallos transitorios. Si persiste, cambia de modelo.
 - **401/403:** revisa que la key sea válida y que tu suscripción OpenCode Go esté activa.
 - **Conversaciones de varios turnos:** la app guarda y reenvía el `reasoning_content` completo de Beam Free. Los turnos antiguos sin razonamiento se descartan para no provocar un 400.
+- **Entreno recién editado:** si el estado es **Borrador**, la IA lo ve como borrador y no lo cuenta como realizado. Pulsa **Guardar Entreno** para finalizarlo. El contexto se regenera en cada pregunta.
 
 ---
 

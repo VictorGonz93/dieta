@@ -106,7 +106,7 @@
         <p><strong>Qué se envía cuando usas la IA:</strong></p>
         <ul>
             <li>Un resumen compacto de tu perfil (edad, sexo, altura, peso actual y fase), tus objetivos calóricos y de macros, el TDEE estimado y el progreso de la fase actual.</li>
-            <li>Los últimos 14 días de comidas registradas (calorías y macros), pesajes y entrenamientos, además de tu adherencia, volumen semanal por músculo, récords personales y las notas que hayas escrito en esos días.</li>
+            <li>Los últimos 14 días de comidas registradas (calorías y macros), pesajes y entrenamientos —incluidos los borradores de entrenamiento y el detalle de ejercicios, series, repeticiones y pesos—, además de tu adherencia, volumen semanal por músculo, récords personales y las notas que hayas escrito en esos días.</li>
             <li>No se envía tu base de datos completa, tu historial de productos, tus combos, tus tokens de Google Fit ni tu API key dentro del cuerpo de la petición.</li>
         </ul>
         <p><strong>Quién recibe los datos:</strong> la petición pasa por un proxy (Cloudflare Worker) que resuelve el bloqueo CORS. Ese proxy no guarda la API key, no registra cabeceras ni cuerpos y no almacena los datos. Después, la petición llega a OpenCode (opencode.ai), el proveedor del modelo que elijas. El proveedor puede aplicar su propia política de retención; por ejemplo, Beam Free no entrena con los datos y los retiene durante 30 días según la información publicada por OpenCode.</p>
