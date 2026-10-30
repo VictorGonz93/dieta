@@ -27,6 +27,7 @@ import { initSportTabs } from './modules/ui/workout-ui.js';
 import { openBarcodeScanner, closeBarcodeScanner } from './modules/barcode.js';
 import { initGoogleFitAutoSync, renderGoogleFitStatusUI, connectGoogleFit, disconnectGoogleFit } from './modules/google-fit.js';
 import { applyComboToCurrentMeal, deleteMealCombo } from './modules/combos.js';
+import { initAITab, toggleAISetup, toggleAIKeyVisibility, saveAISettingsFromForm, clearAIKeyFromUI, testAIConnection, sendAIChat, askAIQuick, clearAIChat } from './modules/ai.js';
 
 // ==================== SERVICE WORKER ====================
 if ('serviceWorker' in navigator) {
@@ -165,3 +166,12 @@ window.connectGoogleFit = connectGoogleFit;
 window.disconnectGoogleFit = disconnectGoogleFit;
 window.applyComboToCurrentMeal = applyComboToCurrentMeal;
 window.deleteMealCombo = deleteMealCombo;
+window.initAITab = initAITab;
+window.toggleAISetup = toggleAISetup;
+window.toggleAIKeyVisibility = toggleAIKeyVisibility;
+window.saveAISettingsFromForm = saveAISettingsFromForm;
+window.clearAIKeyFromUI = clearAIKeyFromUI;
+window.testAIConnection = testAIConnection;
+window.sendAIChat = sendAIChat;
+window.askAIQuick = askAIQuick;
+window.clearAIChat = clearAIChat;

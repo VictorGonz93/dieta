@@ -76,10 +76,10 @@
             <img src="icons/icon-192.png" alt="Apex Logo" style="width: 40px; height: 40px; border-radius: 8px;">
             Política de Privacidad &mdash; Apex Nutrition
         </h1>
-        <p><strong>Última actualización:</strong> 24 de octubre de 2026</p>
+        <p><strong>Última actualización:</strong> 30 de octubre de 2026</p>
 
         <div class="highlight">
-            <strong>Resumen Ejecutivo:</strong> Apex Nutrition es una Progressive Web App (PWA) de uso personal y privado. <strong>Todos tus datos nutricionales, corporales y de ejercicio se almacenan exclusivamente de forma local en tu navegador (localStorage).</strong> Ningún dato personal o de salud es enviado, vendido o compartido con servidores externos de terceros.
+            <strong>Resumen Ejecutivo:</strong> Apex Nutrition es una Progressive Web App (PWA) de uso personal y privado. <strong>Todos tus datos nutricionales, corporales y de ejercicio se almacenan exclusivamente de forma local en tu navegador (localStorage).</strong> Ningún dato personal o de salud es enviado, vendido o compartido con servidores externos de terceros, salvo que tú actives voluntariamente el asistente de IA y aceptes el envío.
         </div>
 
         <h2>1. Información que recopilamos</h2>
@@ -101,16 +101,29 @@
             <li><strong>No transferimos, no vendemos, no almacenamos en servidores externos y no utilizamos los datos de Google Fit para publicidad, marketing ni investigación de mercado.</strong></li>
         </ul>
 
-        <h2>3. Almacenamiento y Seguridad de los Datos</h2>
+        <h2>3. Asistente de IA opcional (BYOK)</h2>
+        <p>La pestaña <strong>IA</strong> es completamente opcional. El envío está desactivado hasta que tú introduces tu propia API key de OpenCode, configuras la URL del proxy y marcas la casilla de consentimiento. Apex Nutrition no incluye ninguna API key compartida ni la suscripción de otra persona: si no configuras tu key, la app no llama a ningún modelo.</p>
+        <p><strong>Qué se envía cuando usas la IA:</strong></p>
+        <ul>
+            <li>Un resumen compacto de tu perfil (edad, sexo, altura, peso actual y fase), tus objetivos calóricos y de macros, el TDEE estimado y el progreso de la fase actual.</li>
+            <li>Los últimos 14 días de comidas registradas (calorías y macros), pesajes y entrenamientos, además de tu adherencia, volumen semanal por músculo, récords personales y las notas que hayas escrito en esos días.</li>
+            <li>No se envía tu base de datos completa, tu historial de productos, tus combos, tus tokens de Google Fit ni tu API key dentro del cuerpo de la petición.</li>
+        </ul>
+        <p><strong>Quién recibe los datos:</strong> la petición pasa por un proxy (Cloudflare Worker) que resuelve el bloqueo CORS. Ese proxy no guarda la API key, no registra cabeceras ni cuerpos y no almacena los datos. Después, la petición llega a OpenCode (opencode.ai), el proveedor del modelo que elijas. El proveedor puede aplicar su propia política de retención; por ejemplo, Beam Free no entrena con los datos y los retiene durante 30 días según la información publicada por OpenCode.</p>
+        <p><strong>Tu API key:</strong> se guarda únicamente en tu navegador, en una clave separada de la configuración y fuera de las copias de seguridad y exportaciones, solo si marcas «Guardar la key en este dispositivo». Si no la marcas, se mantiene en memoria durante la sesión. La key guardada no se inserta automáticamente en la interfaz ni se registra en la consola; solo se muestra lo que tú escribas manualmente y decidas revelar con el botón de visibilidad. Puedes borrarla en cualquier momento con «Borrar key» o con «Limpiar Todo».</p>
+        <p><strong>Historial de chat:</strong> se guarda localmente en tu navegador, también fuera de las copias de seguridad, y puedes borrarlo desde la propia pestaña IA. El asistente es de solo lectura: no modifica comidas, pesos, objetivos ni ajustes.</p>
+        <p>Si no aceptas este tratamiento, no actives la casilla de consentimiento: el resto de la aplicación seguirá funcionando con normalidad y sin enviar datos a nadie.</p>
+
+        <h2>4. Almacenamiento y Seguridad de los Datos</h2>
         <p>El 100% de la información gestionada por la app reside localmente en la memoria de tu dispositivo mediante la tecnología <code>localStorage</code> del navegador web. Esto incluye los datos de salud, el token de Google Fit y los pasos sincronizados. Tienes el control total sobre tus datos y puedes exportarlos en un archivo JSON o eliminarlos por completo en cualquier momento usando la función "Limpiar Todo" en la sección de Configuración.</p>
 
-        <h2>4. Cookies y Tecnologías de Rastreo</h2>
+        <h2>5. Cookies y Tecnologías de Rastreo</h2>
         <p>Apex Nutrition no utiliza cookies publicitarias, ni herramientas de rastreo ni analíticas de terceros (como Google Analytics, Facebook Pixel, etc.). Únicamente utilizamos Service Workers para garantizar el funcionamiento offline de la aplicación.</p>
 
-        <h2>5. Cambios en esta Política</h2>
+        <h2>6. Cambios en esta Política</h2>
         <p>Nos reservamos el derecho de actualizar esta política de privacidad en cualquier momento. Cualquier modificación se reflejará en esta misma página web.</p>
 
-        <h2>6. Contacto</h2>
+        <h2>7. Contacto</h2>
         <p>Si tienes cualquier duda respecto a esta política de privacidad o al funcionamiento de la aplicación, puedes ponerte en contacto a través de nuestro repositorio oficial de GitHub o vía correo electrónico.</p>
 
         <div class="footer">

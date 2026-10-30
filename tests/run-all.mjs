@@ -11,6 +11,7 @@ const suites = [
     'audit-tdee-ui.mjs',
     'audit-tdee-p2.mjs',
     'audit-tdee-p3.mjs',
+    'audit-ai.mjs',
 ];
 
 let failed = 0;

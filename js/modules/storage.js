@@ -1532,6 +1532,7 @@ export function clearAllData() {
         'workoutSessions', 'workoutTemplates', 'workoutTombstones', 'exercisePRs',
         'custom_exercises', 'darkModeEnabled', 'prediction_calibration',
         'gfit_access_token', 'gfit_expires_at', 'gfit_client_id', 'gfit_auto_sync',
+        'nutrition_ai_key', 'nutrition_ai_settings', 'nutrition_ai_chat',
         BACKUP_KEY, BACKUP_CHECK_KEY, 'appInstalledVersion',
     ];
     appKeys.forEach(k => localStorage.removeItem(k));

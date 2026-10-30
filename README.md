@@ -1,26 +1,26 @@
 ## Licencia & Créditos
 
-**IMPORTANTE:** Desarrollada con IA (Claude) para uso personal y experimental. Sin garantía de soporte oficial. Privacidad 100% garantizada.
+**IMPORTANTE:** Desarrollada con IA (Claude) para uso personal y experimental. Sin garantía de soporte oficial. Privacidad local por defecto; la IA es opcional y BYOK.
 
 ---
 
 # Apex Nutrition
 
-**Rastreo nutricional profesional · 100% local · Sin servidores**
+**Rastreo nutricional profesional · Datos locales · IA opcional BYOK**
 
 <div align="center">
 
 Aplicación web avanzada de código abierto para seguimiento nutricional con análisis predictivo, visualización interactiva y gestión offline completa.
 
-| 5 Gráficos | PWA Offline | Privacidad Total |
+| 5 Gráficos | PWA Offline | Privacidad local |
 |---|---|---|
-| Interactivos | Sin internet | 100% local |
+| Interactivos | Offline (IA opcional) | Local por defecto |
 
 </div>
 
 ---
 
-## Las 7 Pestañas
+## Las 8 Pestañas
 
 ### Hoy — Registro Diario
 Tu centro de control diario para registrar y monitorear todo lo que comes.
@@ -99,6 +99,18 @@ Estadísticas completas de todo tu histórico registrado.
 
 ---
 
+### IA — Asistente BYOK
+Análisis opcional de tus datos con tu propia API key de OpenCode.
+
+- **BYOK:** cada usuario introduce su propia key; no hay ninguna key compartida
+- **Contexto compacto:** perfil, fase, macros, comidas, peso, entrenos y adherencia de los últimos 14 días
+- **Solo lectura:** aconseja, pero no modifica comidas, pesos ni objetivos
+- **Streaming:** respuesta en tiempo real con Markdown seguro
+- **Proxy CORS:** Worker sin estado en `worker/` que no guarda la key
+- **Privacidad:** la key vive en una clave aparte y queda fuera de backups y exportaciones
+
+---
+
 ### Config — Tu Perfil
 Personalización completa de la app y gestión de datos.
 
@@ -138,12 +150,12 @@ Modal inteligente que:
 - Actualiza sin perder ningún dato
 - Mantiene sincronización offline
 
-### 100% Offline
-Funciona completamente sin internet:
+### Offline (salvo IA)
+Funciona sin internet en todas las pestañas excepto IA, que es opcional y necesita conexión:
 - Service Worker gestiona caché
 - Todos los datos en tu dispositivo
-- Cero transmisión a servidores
-- Privacidad total garantizada
+- Sin transmisión por defecto: la IA solo envía un resumen si configuras tu key y aceptas
+- Privacidad local garantizada
 
 ### Instalable en Móvil
 Funciona como app nativa en tu teléfono:
@@ -167,8 +179,12 @@ Visualización
 
 PWA & Storage
    • Service Worker (offline-first, cache-first)
-   • localStorage (100% local, no servidores)
+   • localStorage (datos locales; IA opcional BYOK)
    • Manifest.json (instalable)
+
+IA opcional
+   • OpenCode Go/Console (BYOK, sin key compartida)
+   • Cloudflare Worker sin estado (proxy CORS)
 
 Algoritmos
    • Regresión lineal (tendencia de peso)
@@ -269,6 +285,9 @@ Confianza:    Alta (basada en 6+ datos)
   custom_products:      // Productos personalizados
   meal_history:         // Últimas 50 comidas
   darkModeEnabled:      // Preferencia de tema
+  nutrition_ai_key:      // API key BYOK (fuera de backups)
+  nutrition_ai_settings: // Proxy, modelo y consentimiento
+  nutrition_ai_chat:     // Historial local del chat
 }
 ```
 
@@ -297,11 +316,12 @@ Confianza:    Alta (basada en 6+ datos)
 
 ## Privacidad & Seguridad
 
-**100% Local** — Todos los datos en tu dispositivo  
-**Cero Servidores** — No hay transmisión de datos  
-**Sin Tracking** — Privacidad garantizada  
-**Backup Manual** — Controlas cuándo descargar  
-**Open Source** — Código transparente en GitHub  
+**Local por defecto** — Tus datos se guardan en tu dispositivo<br>
+**Sin servidores propios** — La app es estática; la IA opcional usa un proxy sin estado<br>
+**IA opcional (BYOK)** — Solo se envía un resumen si configuras tu key y aceptas<br>
+**Sin Tracking** — Privacidad garantizada<br>
+**Backup Manual** — Controlas cuándo descargar<br>
+**Open Source** — Código transparente en GitHub
 
 ---
 

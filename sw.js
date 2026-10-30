@@ -1,4 +1,4 @@
-const CACHE_VERSION = 129; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 130; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -21,6 +21,8 @@ const urlsToCache = [
     '/dieta/js/modules/stats.js',
     '/dieta/js/modules/config-settings.js',
     '/dieta/js/modules/workout.js',
+    '/dieta/js/modules/ai-context.js',
+    '/dieta/js/modules/ai.js',
     '/dieta/js/modules/ui/notifications.js',
     '/dieta/js/modules/ui/darkmode.js',
     '/dieta/js/modules/ui/accordion.js',
@@ -71,6 +73,10 @@ self.addEventListener('install', (event) => {
 // tenían ningún emisor en js/. El aviso de update va por broadcast UPDATE_AVAILABLE.)
 
 self.addEventListener('fetch', (event) => {
+    // Solo se cachean GET. Los POST (incluido el chat de IA) nunca se cachean
+    // y deben pasar directamente a la red para no romper la Cache API.
+    if (event.request.method !== 'GET') return;
+
     const url = new URL(event.request.url);
     const isJS = url.pathname.endsWith('.js');
     const isLocal = url.origin === self.location.origin;

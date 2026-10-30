@@ -83,5 +83,7 @@ export function showTab(tabId) {
             m.displayPredictionAccuracy();
             m.updateStatistics();
         });
+    } else if (tabId === 'ia') {
+        import('../ai.js').then(m => m.initAITab());
     }
 }

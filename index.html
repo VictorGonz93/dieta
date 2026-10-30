@@ -40,7 +40,7 @@
     <!-- Google Identity Services (Google Fit API) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <link rel="stylesheet" href="css/styles.css?v=20261027-129">
+    <link rel="stylesheet" href="css/styles.css?v=20261030-130">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -247,6 +247,10 @@
                     <button class="tab-btn flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap" data-tab="estadisticas" role="tab" aria-selected="false" aria-controls="estadisticas">
                         <span class="material-icons text-lg">trending_up</span>
                         Estadísticas
+                    </button>
+                    <button class="tab-btn flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap" data-tab="ia" role="tab" aria-selected="false" aria-controls="ia">
+                        <span class="material-icons text-lg">auto_awesome</span>
+                        IA
                     </button>
                     <button class="tab-btn flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-primary smooth-transition whitespace-nowrap" data-tab="config" role="tab" aria-selected="false" aria-controls="config">
                         <span class="material-icons text-lg">settings</span>
@@ -1019,6 +1023,133 @@
                 <div class="mt-8" id="historyList"></div>
             </div>
 
+            <!-- TAB: IA (BYOK) -->
+            <div class="tab-content" id="ia">
+                <div class="ai-page-header">
+                    <div>
+                        <h2 class="ai-page-title">
+                            <span class="material-icons">auto_awesome</span>
+                            Asistente IA
+                            <span class="ai-badge">BYOK</span>
+                            <span class="ai-badge ai-badge-soft">Solo lectura</span>
+                        </h2>
+                        <p class="ai-page-subtitle">
+                            Analiza tus macros, comidas, peso y entrenamientos con tu propia API key de OpenCode.
+                            No comparte la suscripción de nadie y no modifica tus datos.
+                        </p>
+                    </div>
+                    <a class="ai-privacy-link" href="privacy.html" target="_blank" rel="noopener">
+                        <span class="material-icons">gavel</span>
+                        Privacidad
+                    </a>
+                </div>
+
+                <div class="ai-setup-card" id="aiSetupCard">
+                    <button class="ai-setup-toggle" type="button" id="aiSetupToggle" onclick="toggleAISetup()" aria-expanded="true" aria-controls="aiSetupBody">
+                        <span class="material-icons">key</span>
+                        <span class="ai-setup-title">Tu conexión de IA</span>
+                        <span class="ai-setup-state" id="aiSetupState">Sin configurar</span>
+                        <span class="material-icons ai-chevron">expand_more</span>
+                    </button>
+                    <div class="ai-setup-body" id="aiSetupBody">
+                        <p class="ai-help">
+                            Cada usuario introduce su propia API key. La app no incluye ninguna key compartida:
+                            si no configuras la tuya, la IA no llama a ningún modelo.
+                        </p>
+                        <div class="ai-form-grid">
+                            <label class="ai-field ai-field-wide">
+                                <span class="ai-label">API key de OpenCode</span>
+                                <span class="ai-key-row">
+                                    <input id="aiApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="oc_sk_..." class="ai-input">
+                                    <button type="button" class="ai-icon-btn" id="aiToggleKeyBtn" onclick="toggleAIKeyVisibility()" aria-label="Mostrar API key" title="Mostrar u ocultar">
+                                        <span class="material-icons">visibility</span>
+                                    </button>
+                                </span>
+                                <small class="ai-hint">Se guarda solo en este navegador si marcas la casilla. Nunca se incluye en backups ni exportaciones.</small>
+                            </label>
+
+                            <label class="ai-field">
+                                <span class="ai-label">Modelo</span>
+                                <input id="aiModel" type="text" value="beam-free" list="aiModelOptions" spellcheck="false" class="ai-input" placeholder="beam-free">
+                                <datalist id="aiModelOptions">
+                                    <option value="beam-free"></option>
+                                </datalist>
+                                <small class="ai-hint">Beam Free requiere OpenCode Go. Si usas Console, pon el ID de un modelo de pago.</small>
+                            </label>
+
+                            <label class="ai-field ai-field-wide">
+                                <span class="ai-label">URL del proxy (Cloudflare Worker)</span>
+                                <input id="aiProxyUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://apex-ai.TU-USUARIO.workers.dev" class="ai-input">
+                                <small class="ai-hint">OpenCode no permite CORS desde el navegador. El Worker solo reenvía tu petición y no guarda tu key.</small>
+                            </label>
+                        </div>
+
+                        <label class="ai-check">
+                            <input type="checkbox" id="aiSaveKey" checked>
+                            <span>Guardar la key en este dispositivo</span>
+                        </label>
+                        <label class="ai-check">
+                            <input type="checkbox" id="aiConsent">
+                            <span>Acepto enviar mi perfil, comidas, peso, entrenamientos y notas a OpenCode para obtener la respuesta.
+                                <a href="privacy.html" target="_blank" rel="noopener">Más información</a>.
+                            </span>
+                        </label>
+
+                        <div class="ai-actions">
+                            <button type="button" class="ai-btn ai-btn-primary" onclick="saveAISettingsFromForm()">
+                                <span class="material-icons">save</span>
+                                Guardar ajustes
+                            </button>
+                            <button type="button" class="ai-btn" id="aiTestBtn" onclick="testAIConnection()">
+                                <span class="material-icons">wifi_tethering</span>
+                                Probar conexión
+                            </button>
+                            <button type="button" class="ai-btn ai-btn-danger" onclick="clearAIKeyFromUI()">
+                                <span class="material-icons">delete</span>
+                                Borrar key
+                            </button>
+                        </div>
+                        <p class="ai-status" id="aiSetupStatus" role="status"></p>
+                    </div>
+                </div>
+
+                <div class="ai-chat-card">
+                    <div class="ai-chat-head">
+                        <div class="ai-chat-title">
+                            <span class="material-icons">forum</span>
+                            Conversación
+                        </div>
+                        <button type="button" class="ai-link-btn" onclick="clearAIChat()">
+                            <span class="material-icons">delete_sweep</span>
+                            Borrar historial
+                        </button>
+                    </div>
+
+                    <div id="aiChatMessages" class="ai-chat-messages" aria-live="polite"></div>
+
+                    <div class="ai-quick-prompts" aria-label="Preguntas rápidas">
+                        <button type="button" onclick="askAIQuick('Analiza mi última semana y dime qué ajustar.')">Analizar mi semana</button>
+                        <button type="button" onclick="askAIQuick('¿Voy bien de proteína?')">Revisar proteína</button>
+                        <button type="button" onclick="askAIQuick('Revisa mi volumen de entrenamiento y mi progreso.')">Revisar entrenos</button>
+                        <button type="button" onclick="askAIQuick('¿Tiene sentido mi déficit o superávit actual?')">Revisar déficit</button>
+                        <button type="button" onclick="askAIQuick('Compara mi peso real con la tendencia esperada y dime si hay algo raro.')">Peso vs tendencia</button>
+                    </div>
+
+                    <div class="ai-composer">
+                        <textarea id="aiChatInput" rows="2" maxlength="2000" placeholder="Pregunta sobre tus macros, peso o entrenamientos…" aria-label="Pregunta para la IA"></textarea>
+                        <button type="button" id="aiSendBtn" class="ai-send-btn" onclick="sendAIChat()" disabled title="Configura tu key, el proxy y acepta el aviso de privacidad">
+                            <span class="material-icons">send</span>
+                            <span>Enviar</span>
+                        </button>
+                    </div>
+                    <p class="ai-footnote">
+                        La IA solo aconseja. No modifica comidas, pesos ni objetivos. Revisa siempre sus recomendaciones
+                        y consulta a un profesional si tienes una condición médica.
+                    </p>
+                    <p class="ai-status" id="aiChatStatus" role="status"></p>
+                </div>
+            </div>
+
             <!-- TAB 6: CONFIG -->
             <div class="tab-content" id="config">
                 <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
@@ -1191,7 +1322,7 @@
                         <div class="p-4 bg-slate-800/50 rounded-lg space-y-2 text-sm text-slate-300">
                             <p><strong>Versión:</strong> 1.0 Pro</p>
                             <p id="storageInfo"><strong>Almacenamiento utilizado:</strong> -</p>
-                            <p><strong>Privacidad:</strong> 100% datos locales</p>
+                            <p><strong>Privacidad:</strong> datos locales · IA opcional (BYOK)</p>
                             <p><a href="privacy.html" target="_blank" class="text-emerald-400 hover:underline flex items-center gap-1 font-medium mt-1"><span class="material-icons text-sm">gavel</span> Política de Privacidad</a></p>
                         </div>
                     </div>
@@ -1340,4 +1471,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=129"></script>
+    <script type="module" src="js/app.js?v=130"></script>

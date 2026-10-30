@@ -1,0 +1,18 @@
+name = "apex-nutrition-ai"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+workers_dev = true
+
+# Orígenes que pueden usar el proxy. Añade tu dominio si cambias de hosting.
+# No pongas "*" en producción: el Worker es público y el origen es la primera barrera.
+[vars]
+ALLOWED_ORIGINS = "https://victorgonz93.github.io,http://localhost:8765,http://127.0.0.1:8765,http://localhost:8000,http://127.0.0.1:8000"
+
+# Endpoint de OpenCode. Por defecto usa Go/Beam.
+# Si usas Console de pago, cambia el valor por:
+# OPENCODE_ENDPOINT = "https://opencode.ai/inference/openai/v1/chat/completions"
+# OPENCODE_ENDPOINT = "https://opencode.ai/inference/go/openai/v1/chat/completions"
+
+# IMPORTANTE: este Worker NO tiene ninguna API key. La key de cada usuario
+# llega en la cabecera Authorization de su propia petición y solo se reenvía.
+# No añadas secretos con `wrangler secret put`.
