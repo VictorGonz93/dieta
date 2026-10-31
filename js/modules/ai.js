@@ -1528,17 +1528,135 @@ function _renderAIContextPreview(context) {
     ].join('');
 }
 
+function _dynamicPromptButton(label, question) {
+    const safeQuestion = String(question || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+    return `<button type="button" onclick="askAIQuick('${escapeHTML(safeQuestion)}')">${escapeHTML(label)}</button>`;
+}
+
+function _renderAIDynamicPrompts(context) {
+    const container = _el('aiDynamicPrompts');
+    if (!container) return;
+
+    const goals = context && context.goals;
+    const today = context && Array.isArray(context.days)
+        ? (context.days.find(day => day.date === context.today) || context.days[context.days.length - 1])
+        : null;
+    if (!goals || !today) {
+        container.innerHTML = '';
+        container.hidden = true;
+        return;
+    }
+
+    const consumed = {
+        kcal: Number(today.kcal) || 0,
+        protein: Number(today.proteinG) || 0,
+        carbs: Number(today.carbsG) || 0,
+        fats: Number(today.fatsG) || 0,
+    };
+    const targets = {
+        kcal: Number(goals.targetKcal) || 0,
+        protein: Number(goals.proteinG) || 0,
+        carbs: Number(goals.carbsG) || 0,
+        fats: Number(goals.fatsG) || 0,
+    };
+    const remaining = {
+        kcal: Math.round(targets.kcal - consumed.kcal),
+        protein: Math.round(targets.protein - consumed.protein),
+        carbs: Math.round(targets.carbs - consumed.carbs),
+        fats: Math.round(targets.fats - consumed.fats),
+    };
+
+    const chips = [];
+    const add = (label, question) => chips.push(_dynamicPromptButton(label, question));
+
+    if (!today.logged) {
+        add(
+            'Planificar el día',
+            'Aún no he registrado nada hoy. ¿Cómo reparto mis objetivos de calorías y macros entre las comidas del día?'
+        );
+    } else {
+        if (remaining.protein > 5) {
+            add(
+                `Cubrir ${remaining.protein} g de proteína`,
+                `Me quedan ${remaining.protein} g de proteína hoy. ¿Cómo puedo cubrirlos en las comidas que me quedan sin pasarme de calorías?`
+            );
+        } else if (remaining.protein < -5) {
+            add(
+                `Proteína +${Math.abs(remaining.protein)} g`,
+                `Hoy he superado mi objetivo de proteína en ${Math.abs(remaining.protein)} g. ¿Es un problema o puedo mantenerlo así?`
+            );
+        }
+
+        if (remaining.carbs > 10) {
+            add(
+                `Cubrir ${remaining.carbs} g de carbohidratos`,
+                `Me quedan ${remaining.carbs} g de carbohidratos hoy. ¿Cómo los reparto en las comidas que me quedan sin pasarme de calorías ni de grasas?`
+            );
+        } else if (remaining.carbs < -10) {
+            add(
+                `Me pasé ${Math.abs(remaining.carbs)} g de carbohidratos`,
+                `Me he pasado ${Math.abs(remaining.carbs)} g de carbohidratos hoy. ¿Cómo ajusto el resto del día?`
+            );
+        }
+
+        if (remaining.fats > 5) {
+            add(
+                `Cubrir ${remaining.fats} g de grasas`,
+                `Me quedan ${remaining.fats} g de grasas hoy. ¿Cómo las reparto en las comidas que me quedan sin pasarme de calorías?`
+            );
+        } else if (remaining.fats < -5) {
+            add(
+                `Me pasé ${Math.abs(remaining.fats)} g de grasas`,
+                `Me he pasado ${Math.abs(remaining.fats)} g de grasas hoy. ¿Cómo ajusto el resto del día?`
+            );
+        }
+
+        if (remaining.kcal > 100) {
+            add(
+                `Cerrar ${remaining.kcal} kcal`,
+                `Me quedan ${remaining.kcal} kcal hoy. ¿Qué comidas me recomiendas para cerrar el día?`
+            );
+        } else if (remaining.kcal < -100) {
+            add(
+                `Me pasé ${Math.abs(remaining.kcal)} kcal`,
+                `Me he pasado ${Math.abs(remaining.kcal)} kcal hoy. ¿Cómo ajusto el resto del día?`
+            );
+        }
+
+        if (chips.length === 0) {
+            add(
+                'Cerrar el día',
+                'Estoy cerca de mis objetivos de hoy. ¿Qué cena ligera me recomiendas para cerrar el día?'
+            );
+        }
+    }
+
+    container.innerHTML = `
+        <div class="ai-dynamic-label">Según lo que te queda hoy</div>
+        <div class="ai-quick-prompts">${chips.join('')}</div>
+    `;
+    container.hidden = false;
+}
+
 export function refreshAIContextPreview() {
     if (!_el('aiContextSummary')) return null;
     try {
         const context = buildAIContext({ days: 14, workoutDays: 14, foodDays: 3 });
         _renderAIContextPreview(context);
+        _renderAIDynamicPrompts(context);
         return context;
     } catch (_) {
         const summary = _el('aiContextSummary');
         if (summary) summary.innerHTML = '<p class="ai-hint">No se pudo construir el contexto.</p>';
         const time = _el('aiContextTime');
         if (time) time.textContent = 'Error al actualizar';
+        const dynamic = _el('aiDynamicPrompts');
+        if (dynamic) {
+            dynamic.innerHTML = '';
+            dynamic.hidden = true;
+        }
         return null;
     }
 }

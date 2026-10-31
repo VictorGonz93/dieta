@@ -944,6 +944,26 @@ AI.saveAISettings({
 });
 AI.initAITab();
 
+const initialDynamic = elements.get('aiDynamicPrompts');
+ok('sugerencias: planificar el día al empezar',
+    initialDynamic.hidden === false && /Planificar el día/.test(initialDynamic.innerHTML));
+
+const realTodayKey = Storage.getDateKey(new Date());
+AppState.allDays[realTodayKey] = {
+    date: realTodayKey,
+    meals: {
+        breakfast: [{ name: 'Avena', kcal: 500, protein: 35, carbs: 55, fats: 12 }],
+    },
+};
+AI.refreshAIContextPreview();
+const dynamicHtml = elements.get('aiDynamicPrompts').innerHTML;
+ok('sugerencias: proteína, carbohidratos, grasas y kcal',
+    /Cubrir \d+ g de proteína/.test(dynamicHtml)
+    && /Cubrir \d+ g de carbohidratos/.test(dynamicHtml)
+    && /Cubrir \d+ g de grasas/.test(dynamicHtml)
+    && /Cerrar \d+ kcal/.test(dynamicHtml));
+ok('sugerencias: botones conectados', /askAIQuick/.test(dynamicHtml));
+
 const formProxy = elements.get('aiProxyUrl');
 const formModel = elements.get('aiModel');
 const formKey = elements.get('aiApiKey');
@@ -1107,15 +1127,16 @@ ok('limpieza: clearAllData borra la key y los datos de IA',
 const indexHtml = readFileSync(join(root, 'index.html'), 'utf8');
 ok('html: pestaña IA', indexHtml.includes('data-tab="ia"') && indexHtml.includes('id="ia"'));
 ok('html: panel BYOK', indexHtml.includes('id="aiApiKey"') && indexHtml.includes('id="aiProxyUrl"'));
-ok('html: versión 133', indexHtml.includes('js/app.js?v=133'));
-ok('html: CSS con cache-busting 133', indexHtml.includes('css/styles.css?v=20261031-133'));
+ok('html: versión 134', indexHtml.includes('js/app.js?v=134'));
+ok('html: CSS con cache-busting 134', indexHtml.includes('css/styles.css?v=20261031-134'));
 ok('html: selector de esfuerzo', indexHtml.includes('id="aiReasoningEffort"'));
 ok('html: panel de contexto', indexHtml.includes('id="aiContextSummary"') && indexHtml.includes('id="aiContextCard"'));
 ok('html: detener y reintentar', indexHtml.includes('id="aiStopBtn"') && indexHtml.includes('id="aiRetryBtn"'));
 ok('html: informe semanal', indexHtml.includes('id="aiGenerateReportBtn"') && indexHtml.includes('id="aiReportsList"'));
+ok('html: sugerencias dinámicas', indexHtml.includes('id="aiDynamicPrompts"'));
 
 const swSource = readFileSync(join(root, 'sw.js'), 'utf8');
-ok('sw: versión 133', /CACHE_VERSION\s*=\s*133/.test(swSource));
+ok('sw: versión 134', /CACHE_VERSION\s*=\s*134/.test(swSource));
 ok('sw: módulos IA cacheados', swSource.includes('/dieta/js/modules/ai.js') && swSource.includes('/dieta/js/modules/ai-context.js'));
 ok('sw: solo cachea GET', swSource.includes("event.request.method !== 'GET'"));
 
@@ -1148,6 +1169,7 @@ ok('ia: detener y reintentar',
     aiSource.includes('stopAIGeneration') && aiSource.includes('retryLastAIMessage'));
 ok('ia: informes semanales',
     aiSource.includes('generateWeeklyReport') && aiSource.includes('AI_REPORTS_STORAGE'));
+ok('ia: sugerencias dinámicas', aiSource.includes('_renderAIDynamicPrompts'));
 ok('ia: selector de esfuerzo', aiSource.includes('reasoningEffort'));
 
 const contextSource = readFileSync(join(root, 'js/modules/ai-context.js'), 'utf8');

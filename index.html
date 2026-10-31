@@ -40,7 +40,7 @@
     <!-- Google Identity Services (Google Fit API) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <link rel="stylesheet" href="css/styles.css?v=20261031-133">
+    <link rel="stylesheet" href="css/styles.css?v=20261031-134">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -1157,6 +1157,8 @@
 
                     <div id="aiChatMessages" class="ai-chat-messages" aria-live="polite"></div>
 
+                    <div class="ai-dynamic-prompts" id="aiDynamicPrompts" aria-live="polite" hidden></div>
+
                     <div class="ai-quick-prompts" aria-label="Preguntas rápidas">
                         <button type="button" onclick="askAIQuick('Analiza mi última semana y dime qué ajustar.')">Analizar mi semana</button>
                         <button type="button" onclick="askAIQuick('¿Voy bien de proteína?')">Revisar proteína</button>
@@ -1540,4 +1542,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=133"></script>
+    <script type="module" src="js/app.js?v=134"></script>

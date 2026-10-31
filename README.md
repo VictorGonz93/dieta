@@ -107,6 +107,7 @@ Análisis opcional de tus datos con tu propia API key de OpenCode.
 - **Comidas recientes:** los últimos 3 días incluyen nombre, cantidad, kcal, proteína, carbohidratos y grasas de cada alimento
 - **Panel “Qué ve la IA”:** muestra el resumen del contexto, los entrenos realizados/borradores y las comidas recientes antes de preguntar
 - **Controles del chat:** detener una respuesta, reintentar el último mensaje y ver el tiempo de espera
+- **Sugerencias dinámicas:** preguntas rápidas según lo que te queda hoy de proteína, carbohidratos, grasas y calorías
 - **Esfuerzo de razonamiento:** bajo, medio o alto para modelos como Beam Free
 - **Análisis semanal:** genera un informe de los últimos 7 días y lo guarda en local para comparar
 - **Solo lectura:** aconseja, pero no modifica comidas, pesos ni objetivos

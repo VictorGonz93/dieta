@@ -1060,6 +1060,23 @@ html:not(.dark-mode) button:not([class*="gradient"]):not(.product-add-btn):not(.
 .ai-welcome h3 { margin: 0 0 6px; color: var(--text-1); font-size: 16px; }
 .ai-welcome p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.55; }
 .ai-welcome-note { color: var(--text-3); font-size: 11.5px !important; }
+.ai-dynamic-prompts {
+  padding: 8px 18px 10px;
+  border-top: 1px solid var(--border-dim);
+}
+.ai-dynamic-prompts[hidden] { display: none !important; }
+.ai-dynamic-label {
+  margin-bottom: 6px;
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.ai-dynamic-prompts .ai-quick-prompts {
+  border-top: 0;
+  padding: 0;
+}
 .ai-quick-prompts {
   display: flex;
   flex-wrap: wrap;
