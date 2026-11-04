@@ -1127,8 +1127,8 @@ ok('limpieza: clearAllData borra la key y los datos de IA',
 const indexHtml = readFileSync(join(root, 'index.html'), 'utf8');
 ok('html: pestaña IA', indexHtml.includes('data-tab="ia"') && indexHtml.includes('id="ia"'));
 ok('html: panel BYOK', indexHtml.includes('id="aiApiKey"') && indexHtml.includes('id="aiProxyUrl"'));
-ok('html: versión 134', indexHtml.includes('js/app.js?v=134'));
-ok('html: CSS con cache-busting 134', indexHtml.includes('css/styles.css?v=20261031-134'));
+ok('html: versión 135', indexHtml.includes('js/app.js?v=135'));
+ok('html: CSS con cache-busting 135', indexHtml.includes('css/styles.css?v=20261104-135'));
 ok('html: selector de esfuerzo', indexHtml.includes('id="aiReasoningEffort"'));
 ok('html: panel de contexto', indexHtml.includes('id="aiContextSummary"') && indexHtml.includes('id="aiContextCard"'));
 ok('html: detener y reintentar', indexHtml.includes('id="aiStopBtn"') && indexHtml.includes('id="aiRetryBtn"'));
@@ -1136,7 +1136,7 @@ ok('html: informe semanal', indexHtml.includes('id="aiGenerateReportBtn"') && in
 ok('html: sugerencias dinámicas', indexHtml.includes('id="aiDynamicPrompts"'));
 
 const swSource = readFileSync(join(root, 'sw.js'), 'utf8');
-ok('sw: versión 134', /CACHE_VERSION\s*=\s*134/.test(swSource));
+ok('sw: versión 135', /CACHE_VERSION\s*=\s*135/.test(swSource));
 ok('sw: módulos IA cacheados', swSource.includes('/dieta/js/modules/ai.js') && swSource.includes('/dieta/js/modules/ai-context.js'));
 ok('sw: solo cachea GET', swSource.includes("event.request.method !== 'GET'"));
 

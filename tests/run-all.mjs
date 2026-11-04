@@ -12,6 +12,7 @@ const suites = [
     'audit-tdee-p2.mjs',
     'audit-tdee-p3.mjs',
     'audit-ai.mjs',
+    'audit-barcode.mjs',
 ];
 
 let failed = 0;

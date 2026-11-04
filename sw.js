@@ -1,4 +1,4 @@
-const CACHE_VERSION = 134; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 135; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -33,6 +33,7 @@ const urlsToCache = [
     '/dieta/js/modules/ui/update.js',
     '/dieta/js/modules/ui/workout-ui.js',
     '/dieta/js/modules/ui/deeplink.js',
+    '/dieta/js/vendor/html5-qrcode.min.js',
     '/dieta/css/styles.css',
     '/dieta/css/fonts.css',
     '/dieta/css/tailwind.css',
@@ -45,9 +46,8 @@ const urlsToCache = [
     '/dieta/icons/apple-touch-icon.png',
     '/dieta/icons/favicon-32x32.png',
     '/dieta/favicon.ico',
-    // CDN Resources (Chart.js y escáner; las fuentes y Tailwind ya son locales)
+    // Chart.js sigue viniendo del CDN; el escáner ya es local.
     'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js',
-    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
 ];
 
 self.addEventListener('install', (event) => {

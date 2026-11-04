@@ -51,7 +51,8 @@ Acceso rápido a la información nutricional de miles de alimentos.
 
 - **5000+ alimentos precargados** con datos nutricionales
 - **Búsqueda rápida** por nombre o macros
-- **Tus propios productos** — Crea y guarda recetas favoritas
+- **Tus propios productos** - Crea y guarda recetas favoritas
+- **Escáner de códigos de barras** con lector local; busca el producto en Open Food Facts y lo guarda en tu base de datos
 - **Favoritos** para acceso instantáneo
 - **Filtros avanzados** por categoría, calorías, proteína
 - **Export JSON** de tus productos personalizados (con los precargados aparte)

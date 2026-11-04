@@ -9,6 +9,8 @@ let html5QrCode = null;
 let currentScanContext = 'modal'; // 'modal' o 'database'
 let isScanning = false;
 let activeCameraId = null;
+let scanSession = 0;
+let isProcessingBarcode = false;
 
 /**
  * Abre el modal del escáner de código de barras
@@ -16,6 +18,7 @@ let activeCameraId = null;
  */
 export function openBarcodeScanner(contextMode = 'modal') {
     currentScanContext = contextMode;
+    scanSession += 1;
     ensureScannerModalDOM();
 
     const overlay = document.getElementById('barcodeScannerOverlay');
@@ -34,6 +37,7 @@ export function openBarcodeScanner(contextMode = 'modal') {
  * Cierra el modal y detiene la cámara limpiando todos los recursos
  */
 export async function closeBarcodeScanner() {
+    scanSession += 1;
     const overlay = document.getElementById('barcodeScannerOverlay');
     if (overlay) {
         overlay.style.display = 'none';
@@ -54,7 +58,7 @@ function ensureScannerModalDOM() {
             <div style="background: #0F172A; border: 1px solid #1E293B; border-radius: 16px; width: 100%; max-width: 480px; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);">
                 
                 <!-- Header -->
-                <div style="padding: 16px 20px; border-b: 1px solid #1E293B; display: flex; align-items: center; justify-content: space-between; background: #0B1220;">
+                <div style="padding: 16px 20px; border-bottom: 1px solid #1E293B; display: flex; align-items: center; justify-content: space-between; background: #0B1220;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span class="material-icons" style="color: #10B981; font-size: 22px;">qr_code_scanner</span>
                         <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #F8FAFC;">Escanear Código</h3>
@@ -85,6 +89,9 @@ function ensureScannerModalDOM() {
                         <select id="barcodeCameraSelect" style="flex: 1; min-width: 140px; padding: 8px 12px; background: #1E293B; border: 1px solid #334155; color: #F8FAFC; border-radius: 8px; font-size: 0.85rem; outline: none;">
                             <option value="">Cargando cámaras...</option>
                         </select>
+                        <button onclick="window._retryBarcodeCamera()" style="padding: 8px 12px; background: #1E293B; border: 1px solid #334155; color: #F8FAFC; border-radius: 8px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Reiniciar la cámara">
+                            <span class="material-icons" style="font-size: 16px;">videocam</span> Reintentar
+                        </button>
                         <button id="barcodeTorchBtn" onclick="window._toggleBarcodeTorch()" style="padding: 8px 12px; background: #1E293B; border: 1px solid #334155; color: #F8FAFC; border-radius: 8px; font-size: 0.85rem; cursor: pointer; display: none; align-items: center; gap: 4px;">
                             <span class="material-icons" style="font-size: 16px;">flashlight_on</span> Flash
                         </button>
@@ -95,7 +102,7 @@ function ensureScannerModalDOM() {
                     </div>
 
                     <!-- Entrada manual por si falla la cámara o reflejos -->
-                    <div style="border-top: 1px solid #1E293B; pt-3; margin-top: 4px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="border-top: 1px solid #1E293B; padding-top: 12px; margin-top: 4px; display: flex; flex-direction: column; gap: 8px;">
                         <span style="font-size: 0.75rem; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">¿Problemas con la cámara? Entrada manual</span>
                         <div style="display: flex; gap: 8px;">
                             <input type="text" id="manualBarcodeNumber" placeholder="Escribe el código (ej: 8480000123456)" style="flex: 1; padding: 8px 12px; background: #1E293B; border: 1px solid #334155; color: #F8FAFC; border-radius: 8px; font-size: 0.85rem; outline: none;">
@@ -136,14 +143,17 @@ async function initCameraStream() {
     const statusMsg = document.getElementById('barcodeStatusMsg');
     if (statusMsg) statusMsg.innerHTML = '⌛ Solicitando permiso de cámara...';
 
-    if (typeof Html5Qrcode === 'undefined') {
-        if (statusMsg) {
-            statusMsg.innerHTML = '⚠️ El módulo de lectura de código de barras no se ha cargado. Verifica tu conexión.';
-            statusMsg.style.borderLeftColor = '#EF4444';
-        }
+    if (!window.isSecureContext) {
+        updateStatus('🔒 La cámara requiere HTTPS. Abre la app desde https:// o localhost.', 'error');
         return;
     }
 
+    if (typeof Html5Qrcode === 'undefined') {
+        updateStatus('⚠️ No se pudo cargar el lector local de códigos. Recarga la página.', 'error');
+        return;
+    }
+
+    const session = scanSession;
     try {
         if (!html5QrCode) {
             html5QrCode = new Html5Qrcode('barcode-video-reader');
@@ -151,6 +161,7 @@ async function initCameraStream() {
 
         // Obtener cámaras disponibles
         const devices = await Html5Qrcode.getCameras();
+        if (session !== scanSession) return;
         const cameraSelect = document.getElementById('barcodeCameraSelect');
 
         if (devices && devices.length > 0) {
@@ -161,19 +172,44 @@ async function initCameraStream() {
                 }).join('');
             }
 
-            // Priorizar cámara trasera (environment / back)
-            let backCamera = devices.find(d => /back|rear|environment|trasera/i.test(d.label));
-            activeCameraId = backCamera ? backCamera.id : devices[devices.length - 1].id;
+            // Priorizar la cámara trasera, pero probar el resto si la primera
+            // falla (cámara ocupada, permiso o dispositivo virtual).
+            const backCamera = devices.find(d => /back|rear|environment|trasera/i.test(d.label));
+            const ordered = [];
+            if (backCamera) ordered.push(backCamera);
+            devices.forEach(device => {
+                if (!ordered.some(item => item.id === device.id)) ordered.push(device);
+            });
 
-            if (cameraSelect) cameraSelect.value = activeCameraId;
+            if (cameraSelect && ordered[0]) cameraSelect.value = ordered[0].id;
 
-            await startScanningWithCamera(activeCameraId);
+            for (const device of ordered) {
+                if (session !== scanSession) return;
+                await startScanningWithCamera(device.id);
+                if (session !== scanSession) {
+                    await stopCameraStream();
+                    return;
+                }
+                if (isScanning) {
+                    if (cameraSelect) cameraSelect.value = device.id;
+                    return;
+                }
+            }
+
+            // Último recurso: restricción environment sin ID concreto.
+            await startScanningWithConstraints({ facingMode: 'environment' });
+            if (session !== scanSession) {
+                await stopCameraStream();
+            }
         } else {
             // Intentar por restricciones si getCameras no devuelve etiquetas
             await startScanningWithConstraints({ facingMode: 'environment' });
+            if (session !== scanSession) {
+                await stopCameraStream();
+            }
         }
     } catch (err) {
-        handleCameraError(err);
+        if (session === scanSession) handleCameraError(err);
     }
 }
 
@@ -181,14 +217,17 @@ async function initCameraStream() {
  * Inicia la captura con una ID de cámara específica
  */
 async function startScanningWithCamera(cameraId) {
-    if (!html5QrCode) return;
+    const scanner = html5QrCode;
+    if (!scanner) return;
+    const session = scanSession;
     activeCameraId = cameraId;
 
     try {
         if (isScanning) {
-            await html5QrCode.stop();
+            await scanner.stop();
             isScanning = false;
         }
+        if (session !== scanSession) return;
 
         const config = {
             fps: 12,
@@ -196,18 +235,24 @@ async function startScanningWithCamera(cameraId) {
             aspectRatio: 1.333333
         };
 
-        await html5QrCode.start(
+        await scanner.start(
             cameraId,
             config,
             onBarcodeDetected,
             onBarcodeScanError
         );
 
+        if (session !== scanSession) {
+            try { await scanner.stop(); } catch (_) { /* ignore */ }
+            isScanning = false;
+            return;
+        }
+
         isScanning = true;
         updateStatus('📷 Cámara activa. Enfoca el código de barras.', 'info');
         checkTorchSupport();
     } catch (err) {
-        handleCameraError(err);
+        if (session === scanSession) handleCameraError(err);
     }
 }
 
@@ -215,30 +260,40 @@ async function startScanningWithCamera(cameraId) {
  * Fallback para iniciar con restricciones cuando no hay ID directo
  */
 async function startScanningWithConstraints(constraints) {
-    if (!html5QrCode) return;
+    const scanner = html5QrCode;
+    if (!scanner) return;
+    const session = scanSession;
 
     try {
         if (isScanning) {
-            await html5QrCode.stop();
+            await scanner.stop();
             isScanning = false;
         }
+        if (session !== scanSession) return;
 
         const config = {
             fps: 12,
             qrbox: { width: 260, height: 140 }
         };
 
-        await html5QrCode.start(
+        await scanner.start(
             constraints,
             config,
             onBarcodeDetected,
             onBarcodeScanError
         );
 
+        if (session !== scanSession) {
+            try { await scanner.stop(); } catch (_) { /* ignore */ }
+            isScanning = false;
+            return;
+        }
+
         isScanning = true;
         updateStatus('📷 Cámara activa. Enfoca el código de barras.', 'info');
+        checkTorchSupport();
     } catch (err) {
-        handleCameraError(err);
+        if (session === scanSession) handleCameraError(err);
     }
 }
 
@@ -248,6 +303,9 @@ async function startScanningWithConstraints(constraints) {
 async function switchCamera(cameraId) {
     if (cameraId === activeCameraId && isScanning) return;
     await startScanningWithCamera(cameraId);
+    if (!isScanning) {
+        await startScanningWithConstraints({ facingMode: 'environment' });
+    }
 }
 
 /**
@@ -270,6 +328,9 @@ async function stopCameraStream() {
  */
 async function onBarcodeDetected(decodedText) {
     if (!decodedText) return;
+    const overlay = document.getElementById('barcodeScannerOverlay');
+    if (!overlay || overlay.style.display === 'none') return;
+    const session = scanSession;
 
     // Pausar o detener para no disparar múltiples llamadas
     if (html5QrCode && isScanning) {
@@ -285,7 +346,7 @@ async function onBarcodeDetected(decodedText) {
 
     updateStatus(`🔍 Código detectado: <strong>${escapeHTML(decodedText)}</strong>. Buscando en Open Food Facts...`, 'loading');
 
-    await processBarcode(decodedText.trim());
+    await processBarcode(decodedText.trim(), session);
 }
 
 /**
@@ -295,10 +356,60 @@ function onBarcodeScanError() {
     // No hacer nada para evitar llenar el log
 }
 
+async function fetchOpenFoodFactsProduct(barcode) {
+    const fields = 'product_name,product_name_es,nutriments,brands,quantity,code';
+    const endpoints = [
+        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${fields}`,
+        `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
+    ];
+    let lastError = null;
+    let notFound = false;
+
+    for (const url of endpoints) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+            const response = await fetch(url, { signal: controller.signal });
+            if (response.status === 429) {
+                lastError = new Error('rate_limit');
+                continue;
+            }
+            if (!response.ok) {
+                lastError = new Error(`http_${response.status}`);
+                continue;
+            }
+            const data = await response.json();
+            if (data && data.status === 1 && data.product) return data.product;
+            if (data && data.status === 0) {
+                notFound = true;
+                continue;
+            }
+            lastError = new Error('invalid_response');
+        } catch (error) {
+            lastError = error;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    if (notFound) return null;
+    throw lastError || new Error('openfoodfacts_unavailable');
+}
+
+async function processBarcode(barcode, session = scanSession) {
+    if (!barcode || isProcessingBarcode) return;
+    isProcessingBarcode = true;
+    try {
+        await _processBarcode(barcode, session);
+    } finally {
+        isProcessingBarcode = false;
+    }
+}
+
 /**
  * Procesa el código de barras buscándolo primero localmente y luego en Open Food Facts
  */
-async function processBarcode(barcode) {
+async function _processBarcode(barcode, session = scanSession) {
     if (!barcode) return;
 
     // 1. Verificar si el código ya existe en la base de datos local (PRODUCTS_DB o AppState.customProducts)
@@ -309,107 +420,96 @@ async function processBarcode(barcode) {
         showNotification(`Producto "${existingProduct.name}" encontrado localmente`);
 
         setTimeout(async () => {
+            if (session !== scanSession) return;
             await closeBarcodeScanner();
             applyProductToContext(existingProduct);
         }, 600);
         return;
     }
 
-    // 2. Si no existe localmente, consultar Open Food Facts API
+    // 2. Si no existe localmente, consultar Open Food Facts (v2 y fallback v0)
+    let prod;
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos de timeout
-
-        const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=product_name,product_name_es,nutriments,brands,quantity,code`, {
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data && data.status === 1 && data.product) {
-            const prod = data.product;
-            const nut = prod.nutriments || {};
-
-            // Extraer nombre con fallback inteligente
-            let rawName = prod.product_name_es || prod.product_name || 'Producto sin nombre';
-            let brand = prod.brands ? ` (${prod.brands.split(',')[0].trim()})` : '';
-            let cleanName = (rawName + brand).trim();
-
-            // Extraer macros por 100g / 100ml
-            let kcal = parseFloat(nut['energy-kcal_100g'] ?? nut['energy-kcal_value'] ?? 0);
-            if (!kcal && nut['energy_100g']) {
-                kcal = Math.round(parseFloat(nut['energy_100g']) / 4.184);
-            }
-            let protein = parseFloat(nut['proteins_100g'] ?? nut['proteins_value'] ?? 0);
-            let carbs = parseFloat(nut['carbohydrates_100g'] ?? nut['carbohydrates_value'] ?? 0);
-            let fats = parseFloat(nut['fat_100g'] ?? nut['fat_value'] ?? 0);
-
-            // Inferir categoría
-            const category = inferCategory(cleanName, protein, carbs, fats);
-
-            // Crear objeto de producto compatible
-            const newProduct = {
-                id: Date.now(),
-                barcode: barcode,
-                name: cleanName,
-                portion: 100,
-                unit: 'g',
-                category: category,
-                kcal: Math.round(kcal * 10) / 10,
-                protein: Math.round(protein * 10) / 10,
-                carbs: Math.round(carbs * 10) / 10,
-                fats: Math.round(fats * 10) / 10,
-                customUnit: '',
-                customUnitWeight: null,
-            };
-
-            // Guardar en productos personalizados y en base de datos global
-            AppState.customProducts.push(newProduct);
-            PRODUCTS_DB.push(newProduct);
-            saveCustomProducts();
-
-            // Actualizar lista de productos en la UI si está presente
-            import('./ui/products-list.js').then(m => m.renderProductsList());
-
-            updateStatus(`🎉 ¡Producto encontrado!: <strong>${escapeHTML(cleanName)}</strong> (${newProduct.kcal} kcal/100g)`, 'success');
-            showNotification(`Producto "${cleanName}" añadido a tu base de datos`);
-
-            setTimeout(async () => {
-                await closeBarcodeScanner();
-                applyProductToContext(newProduct);
-            }, 800);
-
-        } else {
-            // Producto no encontrado en Open Food Facts
-            updateStatus(`⚠️ Producto no encontrado en Open Food Facts (Código: ${escapeHTML(barcode)}). Puedes crearlo manualmente abajo.`, 'warning');
-            
-            // Re-activar escáner por si quiere volver a intentar
-            if (html5QrCode) {
-                try { await html5QrCode.resume(); } catch (e) { /* ignore */ }
-            }
-
-            // Pre-rellenar formulario de nuevo producto si está en pestaña de productos
-            prefillNewProductForm(barcode);
-        }
+        prod = await fetchOpenFoodFactsProduct(barcode);
     } catch (err) {
+        if (session !== scanSession) return;
         console.error('Error al consultar Open Food Facts:', err);
-
-        let msg = '❌ Error de conexión al consultar Open Food Facts.';
-        if (err.name === 'AbortError') {
-            msg = '⏱️ La consulta a Open Food Facts ha tardado demasiado (timeout).';
-        }
-        updateStatus(`${msg} Puedes ingresar los datos del producto manualmente.`, 'error');
-
-        // Re-activar escáner
+        const message = err && err.message === 'rate_limit'
+            ? '⏳ Open Food Facts está limitando las consultas. Espera un momento o introduce el producto manualmente.'
+            : err && err.name === 'AbortError'
+                ? '⏱️ La consulta a Open Food Facts ha tardado demasiado. Introduce el producto manualmente.'
+                : err && /^http_5/.test(err.message)
+                    ? '⚠️ Open Food Facts no está disponible ahora mismo. Inténtalo más tarde o introduce el producto manualmente.'
+                    : '❌ No se pudo conectar con Open Food Facts. Revisa tu conexión o introduce el producto manualmente.';
+        updateStatus(message, 'error');
         if (html5QrCode) {
             try { await html5QrCode.resume(); } catch (e) { /* ignore */ }
         }
+        return;
     }
+
+    if (session !== scanSession) return;
+
+    if (!prod) {
+        updateStatus(`⚠️ Producto no encontrado en Open Food Facts (Código: ${escapeHTML(barcode)}). Puedes crearlo manualmente abajo.`, 'warning');
+        if (html5QrCode) {
+            try { await html5QrCode.resume(); } catch (e) { /* ignore */ }
+        }
+        prefillNewProductForm(barcode);
+        return;
+    }
+
+    const nut = prod.nutriments || {};
+
+    // Extraer nombre con fallback inteligente
+    const rawName = prod.product_name_es || prod.product_name || 'Producto sin nombre';
+    const brand = prod.brands ? ` (${prod.brands.split(',')[0].trim()})` : '';
+    const cleanName = (rawName + brand).trim();
+
+    // Extraer macros por 100g / 100ml
+    let kcal = parseFloat(nut['energy-kcal_100g'] ?? nut['energy-kcal_value'] ?? 0);
+    if (!kcal && nut['energy_100g']) {
+        kcal = Math.round(parseFloat(nut['energy_100g']) / 4.184);
+    }
+    const protein = parseFloat(nut['proteins_100g'] ?? nut['proteins_value'] ?? 0);
+    const carbs = parseFloat(nut['carbohydrates_100g'] ?? nut['carbohydrates_value'] ?? 0);
+    const fats = parseFloat(nut['fat_100g'] ?? nut['fat_value'] ?? 0);
+
+    // Inferir categoría
+    const category = inferCategory(cleanName, protein, carbs, fats);
+
+    // Crear objeto de producto compatible
+    const newProduct = {
+        id: Date.now(),
+        barcode: barcode,
+        name: cleanName,
+        portion: 100,
+        unit: 'g',
+        category: category,
+        kcal: Math.round(kcal * 10) / 10,
+        protein: Math.round(protein * 10) / 10,
+        carbs: Math.round(carbs * 10) / 10,
+        fats: Math.round(fats * 10) / 10,
+        customUnit: '',
+        customUnitWeight: null,
+    };
+
+    // Guardar en productos personalizados y en base de datos global
+    AppState.customProducts.push(newProduct);
+    PRODUCTS_DB.push(newProduct);
+    saveCustomProducts();
+
+    // Actualizar lista de productos en la UI si está presente
+    import('./ui/products-list.js').then(m => m.renderProductsList());
+
+    updateStatus(`🎉 ¡Producto encontrado!: <strong>${escapeHTML(cleanName)}</strong> (${newProduct.kcal} kcal/100g)`, 'success');
+    showNotification(`Producto "${cleanName}" añadido a tu base de datos`);
+
+    setTimeout(async () => {
+        if (session !== scanSession) return;
+        await closeBarcodeScanner();
+        applyProductToContext(newProduct);
+    }, 800);
 }
 
 /**
@@ -464,13 +564,19 @@ function handleCameraError(err) {
     console.warn('Error de cámara en escáner:', err);
     let errorMsg = '⚠️ Ocurrió un error al iniciar la cámara.';
 
-    const errStr = String(err).toLowerCase();
+    const errStr = `${(err && err.name) || ''} ${String(err || '')}`.toLowerCase();
     if (errStr.includes('notallowederror') || errStr.includes('permission denied')) {
         errorMsg = '🔒 Permiso de cámara denegado. Permite el acceso a la cámara en tu navegador o usa la entrada manual.';
     } else if (errStr.includes('notfounderror') || errStr.includes('devicesnotfound')) {
         errorMsg = '📷 No se encontró ninguna cámara en este dispositivo. Usa la entrada manual o sube una foto.';
     } else if (errStr.includes('notreadableerror') || errStr.includes('trackstart')) {
         errorMsg = '📹 La cámara está en uso por otra aplicación.';
+    } else if (errStr.includes('securityerror') || errStr.includes('secure context')) {
+        errorMsg = '🔒 La cámara requiere HTTPS. Abre la app desde https:// o localhost.';
+    } else if (errStr.includes('notsupportederror') || errStr.includes('not supported')) {
+        errorMsg = '📷 Este navegador no soporta el acceso a la cámara. Usa la entrada manual o sube una foto.';
+    } else if (errStr.includes('overconstrainederror') || errStr.includes('constraint')) {
+        errorMsg = '📷 No se encontró una cámara compatible. Prueba otra cámara o usa la entrada manual.';
     }
 
     updateStatus(errorMsg, 'error');
@@ -524,6 +630,13 @@ async function checkTorchSupport() {
 window.openBarcodeScanner = openBarcodeScanner;
 window.closeBarcodeScanner = closeBarcodeScanner;
 
+window._retryBarcodeCamera = async function () {
+    scanSession += 1;
+    updateStatus('🔄 Reiniciando cámara…', 'loading');
+    await stopCameraStream();
+    await initCameraStream();
+};
+
 window._searchManualBarcode = function () {
     const input = document.getElementById('manualBarcodeNumber');
     if (!input) return;
@@ -532,7 +645,7 @@ window._searchManualBarcode = function () {
         showNotification('Introduce un código de barras numérico', 'error');
         return;
     }
-    processBarcode(barcode);
+    processBarcode(barcode, scanSession);
 };
 
 window._onBarcodeFileSelected = async function (event) {
