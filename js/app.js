@@ -25,7 +25,7 @@ import { startUpdateChecker, performUpdate } from './modules/ui/update.js';
 import { showNotification } from './modules/ui/notifications.js';
 import { initSportTabs } from './modules/ui/workout-ui.js';
 import { openBarcodeScanner, closeBarcodeScanner } from './modules/barcode.js';
-import { initGoogleFitAutoSync, renderGoogleFitStatusUI, connectGoogleFit, disconnectGoogleFit } from './modules/google-fit.js';
+import { initGoogleHealthAutoSync, renderGoogleHealthStatusUI, connectGoogleHealth, disconnectGoogleHealth } from './modules/google-health.js';
 import { applyComboToCurrentMeal, deleteMealCombo } from './modules/combos.js';
 import { initAITab, toggleAISetup, toggleAIKeyVisibility, saveAISettingsFromForm, clearAIKeyFromUI, testAIConnection, sendAIChat, askAIQuick, clearAIChat, stopAIGeneration, retryLastAIMessage, refreshAIContextPreview, toggleAIContextPreview, generateWeeklyReport, deleteAIReport } from './modules/ai.js';
 
@@ -76,8 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupOnboardingListeners();
     initWorkoutPlan();
     initSportTabs();
-    initGoogleFitAutoSync();
-    renderGoogleFitStatusUI();
+    initGoogleHealthAutoSync().catch(() => { /* la tarjeta muestra el diagnóstico */ });
+    renderGoogleHealthStatusUI();
     startUpdateChecker();
 
     // Limpiar el query param de cache-buster (_r) que deja performUpdate en la URL
@@ -162,8 +162,8 @@ window.renderWeightHistory = renderWeightHistory;
 window.showNotification = showNotification;
 window.openBarcodeScanner = openBarcodeScanner;
 window.closeBarcodeScanner = closeBarcodeScanner;
-window.connectGoogleFit = connectGoogleFit;
-window.disconnectGoogleFit = disconnectGoogleFit;
+window.connectGoogleHealth = connectGoogleHealth;
+window.disconnectGoogleHealth = disconnectGoogleHealth;
 window.applyComboToCurrentMeal = applyComboToCurrentMeal;
 window.deleteMealCombo = deleteMealCombo;
 window.initAITab = initAITab;

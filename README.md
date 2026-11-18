@@ -68,11 +68,13 @@ Planifica tu semana de entrenamientos y ajusta objetivos.
 - **Calorías diferenciadas** según tipo de día
 - **Visualización clara** de tu plan semana completa
 
-**Google Fit:**
+**Google Health:**
 - Sincronización de pasos cada 2 minutos mientras la app está abierta y visible.
-- El access token de Google dura ~1 hora; la app intenta renovarlo y muestra **Reconectar** si no puede.
-- Si el login falla, abre **Configuración avanzada de Google Fit** en la pestaña de entrenamiento: muestra el Client ID, el origen exacto que debe autorizarse y el último error.
-- Google Fit API se retira a finales de 2026; la alternativa es Google Health API o Health Connect.
+- Sesión de larga duración con refresh token cifrado en un Worker propio; no hay que renovar el token cada hora.
+- Requiere la app **Google Health** en el móvil con el teléfono como dispositivo (Connections → Devices → Phone → Agree).
+- Los pasos se añaden automáticamente al ejercicio **Caminar / Pasos Diarios** del día y recalculan las kcal.
+- En modo Testing, Google caduca el refresh token a los 7 días; la app muestra **Reconectar**.
+- Configuración del Worker: [`worker-health/README.md`](worker-health/README.md).
 
 ---
 
@@ -185,6 +187,14 @@ Funciona como app nativa en tu teléfono:
 - **Acceso rápido** desde pantalla de inicio
 - **Sincronización automática** entre dispositivos
 
+### Pasos con Google Health
+- **Sesión larga:** usa un Worker propio con OAuth y refresh token cifrado. La app no vuelve a pedir login cada hora y sincroniza cada 2 minutos.
+- **Requisito:** la app **Google Health** en el móvil con el teléfono como dispositivo (Connections → Devices → Phone → Agree).
+- **Entreno:** los pasos se escriben automáticamente en el ejercicio **Caminar / Pasos Diarios** de hoy, sin pisar series manuales, y recalculan las kcal.
+- **Configuración del Worker:** [`worker-health/README.md`](worker-health/README.md).
+- **Limitación:** en modo Testing, Google caduca el refresh token a los 7 días. Una sesión indefinida exige publicar la app y superar la verificación de alcances restringidos.
+- **Privacidad:** el refresh token se guarda cifrado en Cloudflare KV; la app solo conserva un token de sesión. Solo se leen los pasos del día.
+
 ---
 
 ## Stack Tecnológico
@@ -203,9 +213,10 @@ PWA & Storage
    • localStorage (datos locales; IA opcional BYOK)
    • Manifest.json (instalable)
 
-IA opcional
+IA y salud opcionales
    • OpenCode Go/Console (BYOK, sin key compartida)
    • Cloudflare Worker sin estado (proxy CORS)
+   • Cloudflare Worker + KV (Google Health OAuth, refresh token cifrado)
 
 Algoritmos
    • Regresión lineal (tendencia de peso)
@@ -310,6 +321,8 @@ Confianza:    Alta (basada en 6+ datos)
   nutrition_ai_settings: // Proxy, modelo, esfuerzo y consentimiento
   nutrition_ai_chat:     // Historial local del chat
   nutrition_ai_reports:  // Informes semanales (fuera de backups)
+  ghealth_session:       // Token de sesión del Worker de salud (local)
+  ghealth_worker_url:    // URL del Worker de Google Health
 }
 ```
 
@@ -339,7 +352,8 @@ Confianza:    Alta (basada en 6+ datos)
 ## Privacidad & Seguridad
 
 **Local por defecto** — Tus datos se guardan en tu dispositivo<br>
-**Sin servidores propios** — La app es estática; la IA opcional usa un proxy sin estado<br>
+**Sin servidores propios para el resto** — La app es estática; la IA opcional usa un proxy sin estado<br>
+**Google Health opcional** — Si lo conectas, el refresh token se guarda cifrado en Cloudflare KV y solo se leen los pasos del día. Puedes desconectar y revocar el acceso cuando quieras.<br>
 **IA opcional (BYOK)** — Solo se envía un resumen si configuras tu key y aceptas<br>
 **Sin Tracking** — Privacidad garantizada<br>
 **Backup Manual** — Controlas cuándo descargar<br>

@@ -1,0 +1,33 @@
+name = "apex-nutrition-health"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+workers_dev = true
+
+# Orígenes que pueden usar este Worker. El origen no autoriza por sí solo:
+# cada petición de datos exige un token de sesión válido.
+[vars]
+ALLOWED_ORIGINS = "https://victorgonz93.github.io,http://localhost:8765,http://127.0.0.1:8765,http://localhost:8000,http://127.0.0.1:8000,http://localhost:5500,http://127.0.0.1:5500"
+
+# La redirect URI se deduce de la URL pública del Worker:
+#   https://<worker>.workers.dev/auth/callback
+# Si usas un dominio propio, descomenta y ajusta:
+# GOOGLE_REDIRECT_URI = "https://tu-dominio.com/auth/callback"
+
+# KV donde se guardan las sesiones cifradas. Crea el namespace con:
+#   npx wrangler kv namespace create HEALTH_KV
+# y pega aquí el id que devuelve.
+[[kv_namespaces]]
+binding = "HEALTH_KV"
+id = "435ebc3fdd0647b8ad31ce033c458a08"
+
+# Secretos obligatorios (no los pongas en este archivo ni en el repo):
+#   npx wrangler secret put GOOGLE_CLIENT_ID
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET
+#   npx wrangler secret put TOKEN_ENCRYPTION_KEY
+#
+# TOKEN_ENCRYPTION_KEY debe ser 32 bytes aleatorios en base64:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+#
+# Opcional: STATE_SECRET para firmar el state de OAuth. Si no existe, se usa
+# TOKEN_ENCRYPTION_KEY. No cambies ninguna de las dos sin volver a conectar:
+# las sesiones existentes dejarían de poder descifrarse.

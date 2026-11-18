@@ -45,7 +45,7 @@ ok('html: el lector carga antes que la app',
 section('Service Worker');
 ok('sw: cachea el lector local', swSource.includes('/dieta/js/vendor/html5-qrcode.min.js'));
 ok('sw: no cachea el CDN antiguo', !swSource.includes('unpkg.com/html5-qrcode'));
-ok('sw: versión 136', /CACHE_VERSION\s*=\s*136/.test(swSource));
+ok('sw: versión 138', /CACHE_VERSION\s*=\s*138/.test(swSource));
 
 section('Flujo del escáner');
 ok('barcode: botón de reintento de cámara', barcodeSource.includes('_retryBarcodeCamera'));

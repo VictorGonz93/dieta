@@ -37,10 +37,7 @@
     <!-- Html5Qrcode local (Barcode Scanner; sin dependencia de CDN) -->
     <script src="js/vendor/html5-qrcode.min.js"></script>
     
-    <!-- Google Identity Services (Google Fit API) -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-    <link rel="stylesheet" href="css/styles.css?v=20261118-136">
+    <link rel="stylesheet" href="css/styles.css?v=20261118-138">
 </head>
 <body class="bg-slate-950">
     <!-- NOTIFICATION TOAST -->
@@ -199,7 +196,7 @@
                     </div>
                 </div>
 
-                <!-- Steps bar (Google Fit) -->
+                <!-- Steps bar (Google Health) -->
                 <div id="stepsContainer" class="mt-3" style="display:none;">
                     <div style="display:flex;align-items:center;gap:12px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px 14px;">
                         <div style="width:36px;height:36px;border-radius:8px;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;color:#10B981;flex-shrink:0;">
@@ -746,8 +743,8 @@
                         <div class="stat-card mb-6">
                             <p class="text-slate-300 mb-6">Personaliza qué actividad realizarás cada día de la semana. Estos datos se usan para calcular tus necesidades calóricas automáticamente.</p>
 
-                            <!-- Widget Google Fit -->
-                            <div id="googleFitConfigContainer" class="mb-6"></div>
+                            <!-- Widget Google Health (sesión larga) -->
+                            <div id="googleHealthConfigContainer" class="mb-6"></div>
 
                             <div class="space-y-4">
                                 <!-- Monday -->
@@ -1542,4 +1539,4 @@
     </div>
 
     <!-- Main App -->
-    <script type="module" src="js/app.js?v=136"></script>
+    <script type="module" src="js/app.js?v=138"></script>

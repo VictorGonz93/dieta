@@ -1,7 +1,5 @@
 // ==================== PESTAÑAS DE NAVEGACIÓN ====================
 
-import { getDateKey } from '../storage.js';
-
 export function setupTabNavigation() {
     const btns = Array.from(document.querySelectorAll('.tab-btn'));
     btns.forEach((btn, idx) => {
@@ -53,22 +51,9 @@ export function showTab(tabId) {
     } else if (tabId === 'planteamiento') {
         import('../workout.js').then(w => {
             w.initWorkoutPlan();
-            import('../google-fit.js').then(gf => {
-                const dateKey = getDateKey(new Date());
-                const sessions = w.getWorkoutSessions();
-                const session = sessions[dateKey];
-                let steps = null;
-                if (session && session.exercises) {
-                    for (const ex of session.exercises) {
-                        if (ex.trackingType === 'steps' && ex.sets) {
-                            for (const set of ex.sets) {
-                                steps = (steps || 0) + (parseFloat(set.steps) || 0);
-                            }
-                        }
-                    }
-                }
-                gf.renderGoogleFitStatusUI(steps);
-            });
+            // La tarjeta de Health muestra el último valor de la API, no la
+            // suma de series manuales de pasos de la sesión.
+            import('../google-health.js').then(gh => gh.renderGoogleHealthStatusUI());
         });
     } else if (tabId === 'historial') {
         setTimeout(() => {

@@ -1524,14 +1524,28 @@ export function importData(event) {
     reader.readAsText(file);
 }
 
-export function clearAllData() {
+export async function clearAllData() {
     if (!confirm('¿Estás seguro? Esto eliminará TODOS los datos.')) return;
+
+    // Antes de borrar la sesión local, pedir al Worker que revoque el token.
+    // Si no hay conexión, el Worker la elimina igualmente a los 90 días.
+    const healthSession = localStorage.getItem('ghealth_session');
+    if (healthSession) {
+        const healthWorker = localStorage.getItem('ghealth_worker_url') || '';
+        try {
+            const { revokeGoogleHealthSession } = await import('./google-health.js');
+            await revokeGoogleHealthSession({ token: healthSession, workerUrl: healthWorker });
+        } catch (_) { /* best-effort */ }
+    }
+
     const appKeys = [
         'nutrition_config', 'nutrition_days', 'weight_history',
         'custom_products', 'product_overrides', 'meal_history', 'meal_combos',
         'workoutSessions', 'workoutTemplates', 'workoutTombstones', 'exercisePRs',
         'custom_exercises', 'darkModeEnabled', 'prediction_calibration',
+        // Legacy: Google Fit se eliminó, pero se limpian sus claves antiguas.
         'gfit_access_token', 'gfit_expires_at', 'gfit_client_id', 'gfit_auto_sync',
+        'ghealth_session', 'ghealth_worker_url', 'ghealth_auto_sync', 'ghealth_pending_link',
         'nutrition_ai_key', 'nutrition_ai_settings', 'nutrition_ai_chat', 'nutrition_ai_reports',
         BACKUP_KEY, BACKUP_CHECK_KEY, 'appInstalledVersion',
     ];

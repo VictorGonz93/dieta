@@ -93,16 +93,20 @@
         <h3>Escáner de códigos de barras</h3>
         <p>Cuando usas el escáner, la imagen de la cámara se procesa en tu dispositivo y no se envía. Solo el código detectado se envía a Open Food Facts (openfoodfacts.org) para buscar los datos del producto. No se envía la imagen, tu API key ni otros datos personales. Si el producto se encuentra, sus datos se guardan en tu dispositivo. Puedes introducir el código manualmente o crear el producto sin usar la cámara.</p>
 
-        <h2>2. Uso de la API de Google Fit (Google OAuth 2.0)</h2>
-        <p>Si eliges conectar tu cuenta de Google Fit con Apex Nutrition, la aplicación solicitará permiso de solo lectura para el alcance:</p>
-        <p><code style="color: #34D399; background: #06090F; padding: 4px 8px; border-radius: 4px;">https://www.googleapis.com/auth/fitness.activity.read</code></p>
-        <p><strong>Uso exclusivo de los datos de Google Fit:</strong></p>
+        <h2>2. Pasos con Google Health (opcional)</h2>
+        <p>La conexión con Google Health es opcional. Si no la activas, la app funciona igual y puedes introducir los pasos manualmente.</p>
+
+        <h3>2.1 Google Health API + Worker (sesión larga)</h3>
+        <p>Si conectas Google Health, la app usa un Worker propio en Cloudflare como intermediario OAuth. El Worker solicita el alcance restringido <code>https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly</code> y guarda el <strong>refresh token cifrado con AES-256-GCM</strong> en Cloudflare KV. La app solo recibe un token de sesión opaco y lo guarda en <code>localStorage</code>; el refresh token nunca llega al navegador.</p>
         <ul>
-            <li>Consultamos únicamente el número total de pasos acumulados durante el día actual (<code>com.google.step_count.delta</code>).</li>
-            <li>El número de pasos se utiliza de forma inmediata e in situ dentro de la PWA para calcular el gasto calórico estimado del día.</li>
-            <li>El token de acceso de Google y el número de pasos sincronizado se guardan únicamente en el <code>localStorage</code> de tu navegador, junto al resto de datos de la app. No se envían a servidores propios ni a terceros.</li>
-            <li><strong>No transferimos, no vendemos, no almacenamos en servidores externos y no utilizamos los datos de Google Fit para publicidad, marketing ni investigación de mercado.</strong></li>
+            <li><strong>Qué se lee:</strong> solo el total de pasos del día mediante <code>dailyRollUp</code>. No se leen ubicación, frecuencia cardiaca, sueño, peso ni otros datos de salud.</li>
+            <li><strong>Qué se guarda en el Worker:</strong> el refresh token cifrado y metadatos mínimos de la sesión (fecha de creación y última actualización). No se guarda historial de pasos ni el cuerpo de las respuestas.</li>
+            <li><strong>Cuánto se guarda:</strong> la sesión caduca a los 90 días o cuando pulsas Desconectar. Al desconectar, la app pide al Worker que revoque el token en Google y borre la sesión; si no hay conexión, la sesión caduca igualmente a los 90 días.</li>
+            <li><strong>Terceros:</strong> Cloudflare aloja el Worker y el almacenamiento KV; Google recibe las consultas de pasos con el token de acceso. No se venden ni se usan para publicidad.</li>
+            <li><strong>Limitación de Google:</strong> si el proyecto OAuth está en modo Testing, Google caduca el refresh token a los 7 días. Para una sesión indefinida hay que publicar la app y superar la verificación de alcances restringidos.</li>
+            <li><strong>Requisito:</strong> los pasos deben estar en la app Google Health del móvil (Connections → Devices → Phone → Agree). Los datos de Google Fit no se migran automáticamente.</li>
         </ul>
+        <p>Puedes revocar el acceso en cualquier momento con <strong>Desconectar</strong> o desde <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">la configuración de tu cuenta de Google</a>.</p>
 
         <h2>3. Asistente de IA opcional (BYOK)</h2>
         <p>La pestaña <strong>IA</strong> es completamente opcional. El envío está desactivado hasta que tú introduces tu propia API key de OpenCode, configuras la URL del proxy y marcas la casilla de consentimiento. Apex Nutrition no incluye ninguna API key compartida ni la suscripción de otra persona: si no configuras tu key, la app no llama a ningún modelo.</p>
@@ -112,7 +116,7 @@
             <li>Los últimos 14 días de comidas registradas (calorías y macros), pesajes y entrenamientos —incluidos los borradores de entrenamiento y el detalle de ejercicios, series, repeticiones y pesos—, además de tu adherencia, volumen semanal por músculo, récords personales y las notas que hayas escrito en esos días.</li>
             <li>Los últimos 3 días de alimentos con nombre, cantidad, calorías, proteína, carbohidratos y grasas, para que la IA pueda responder sobre comidas concretas y proponer cambios.</li>
             <li>Si generas un informe semanal, el informe anterior guardado se envía como referencia para comparar.</li>
-            <li>No se envía tu base de datos completa, tu historial de productos, tus combos, tus tokens de Google Fit ni tu API key dentro del cuerpo de la petición.</li>
+            <li>No se envía tu base de datos completa, tu historial de productos, tus combos, tu token de Google Health ni tu API key dentro del cuerpo de la petición.</li>
         </ul>
         <p><strong>Quién recibe los datos:</strong> la petición pasa por un proxy (Cloudflare Worker) que resuelve el bloqueo CORS. Ese proxy no guarda la API key, no registra cabeceras ni cuerpos y no almacena los datos. Después, la petición llega a OpenCode (opencode.ai), el proveedor del modelo que elijas. El proveedor puede aplicar su propia política de retención; por ejemplo, Beam Free no entrena con los datos y los retiene durante 30 días según la información publicada por OpenCode.</p>
         <p><strong>Tu API key:</strong> se guarda únicamente en tu navegador, en una clave separada de la configuración y fuera de las copias de seguridad y exportaciones, solo si marcas «Guardar la key en este dispositivo». Si no la marcas, se mantiene en memoria durante la sesión. La key guardada no se inserta automáticamente en la interfaz ni se registra en la consola; solo se muestra lo que tú escribas manualmente y decidas revelar con el botón de visibilidad. Puedes borrarla en cualquier momento con «Borrar key» o con «Limpiar Todo».</p>
@@ -120,7 +124,7 @@
         <p>Si no aceptas este tratamiento, no actives la casilla de consentimiento: el resto de la aplicación seguirá funcionando con normalidad y sin enviar datos a nadie.</p>
 
         <h2>4. Almacenamiento y Seguridad de los Datos</h2>
-        <p>El 100% de la información gestionada por la app reside localmente en la memoria de tu dispositivo mediante la tecnología <code>localStorage</code> del navegador web. Esto incluye los datos de salud, el token de Google Fit y los pasos sincronizados. Tienes el control total sobre tus datos y puedes exportarlos en un archivo JSON o eliminarlos por completo en cualquier momento usando la función "Limpiar Todo" en la sección de Configuración.</p>
+        <p>Los datos de la app (comidas, pesos, entrenos, productos, ajustes y pasos) se guardan localmente en el <code>localStorage</code> de tu navegador. La única excepción es la conexión opcional con Google Health: el refresh token se guarda cifrado en Cloudflare KV y la app solo conserva un token de sesión local. Tienes el control total sobre tus datos y puedes exportarlos en un archivo JSON o eliminarlos por completo en cualquier momento usando la función "Limpiar Todo" en la sección de Configuración.</p>
 
         <h2>5. Cookies y Tecnologías de Rastreo</h2>
         <p>Apex Nutrition no utiliza cookies publicitarias, ni herramientas de rastreo ni analíticas de terceros (como Google Analytics, Facebook Pixel, etc.). Únicamente utilizamos Service Workers para garantizar el funcionamiento offline de la aplicación.</p>
