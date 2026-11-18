@@ -13,6 +13,7 @@ const suites = [
     'audit-tdee-p3.mjs',
     'audit-ai.mjs',
     'audit-barcode.mjs',
+    'audit-google-fit.mjs',
 ];
 
 let failed = 0;

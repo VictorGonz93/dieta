@@ -68,6 +68,12 @@ Planifica tu semana de entrenamientos y ajusta objetivos.
 - **Calorías diferenciadas** según tipo de día
 - **Visualización clara** de tu plan semana completa
 
+**Google Fit:**
+- Sincronización de pasos cada 2 minutos mientras la app está abierta y visible.
+- El access token de Google dura ~1 hora; la app intenta renovarlo y muestra **Reconectar** si no puede.
+- Si el login falla, abre **Configuración avanzada de Google Fit** en la pestaña de entrenamiento: muestra el Client ID, el origen exacto que debe autorizarse y el último error.
+- Google Fit API se retira a finales de 2026; la alternativa es Google Health API o Health Connect.
+
 ---
 
 ### Gráficos — Análisis Visual
