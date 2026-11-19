@@ -159,6 +159,7 @@ async function _workerRequest(path, { method = 'GET', body = null, auth = true, 
                 Accept: 'application/json',
             },
             body: body ? JSON.stringify(body) : undefined,
+            cache: 'no-store',
             signal: controller.signal,
         });
         const data = await response.json().catch(() => ({}));
@@ -345,7 +346,7 @@ export async function syncTodayStepsFromGoogleHealth(showToast = false) {
 
     const dateKey = getDateKey(new Date());
     try {
-        const data = await _workerRequest(`/steps/today?date=${encodeURIComponent(dateKey)}`);
+        const data = await _workerRequest(`/steps/today?date=${encodeURIComponent(dateKey)}&_=${Date.now()}`);
         const steps = Math.max(0, Math.round(Number(data && data.steps) || 0));
         _reauthRequired = false;
         _lastError = '';

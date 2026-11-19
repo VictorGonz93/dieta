@@ -100,9 +100,11 @@ ok('privacy: documenta el límite de 7 días', privacy.includes('7 días'));
 ok('privacy: documenta la revocación', privacy.includes('Desconectar') && privacy.includes('myaccount.google.com/permissions'));
 
 section('Versión');
-ok('html: app v138', indexHtml.includes('js/app.js?v=138'));
-ok('html: CSS v138', indexHtml.includes('css/styles.css?v=20261118-138'));
-ok('sw: versión 138', /CACHE_VERSION\s*=\s*138/.test(swSource));
+ok('html: app v139', indexHtml.includes('js/app.js?v=139'));
+ok('html: CSS v139', indexHtml.includes('css/styles.css?v=20261118-139'));
+ok('sw: versión 139', /CACHE_VERSION\s*=\s*139/.test(swSource));
+ok('sw: no cachea la API de pasos', swSource.includes("url.pathname.startsWith('/steps/')"));
+ok('health: pide pasos sin caché', client.includes("cache: 'no-store'") && client.includes('&_=${Date.now()}'));
 
 console.log(failures === 0
     ? '\nGOOGLE HEALTH AUDIT PASSED'

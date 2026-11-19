@@ -1,4 +1,4 @@
-const CACHE_VERSION = 138; // Incrementa esto cuando hagas cambios
+const CACHE_VERSION = 139; // Incrementa esto cuando hagas cambios
 const CACHE_NAME = `nutrition-tracker-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/',
@@ -93,6 +93,13 @@ self.addEventListener('fetch', (event) => {
                 return response;
             }).catch(() => caches.match(event.request, { ignoreSearch: true }))
         );
+        return;
+    }
+
+    // APIs del Worker de salud: SIEMPRE red, nunca caché. El caches.match con
+    // ignoreSearch serviría los pasos de ayer para la fecha de hoy.
+    if (url.pathname.startsWith('/steps/') || url.pathname.startsWith('/auth/')) {
+        event.respondWith(fetch(event.request));
         return;
     }
 
